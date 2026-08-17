@@ -1,0 +1,71 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\controllers\\authenticationcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:controllers\\authenticationcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\services\\tokenservices.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:services\\tokenservices.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "AuthenticationController.cs",
+              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Controllers\\AuthenticationController.cs",
+              "RelativeDocumentMoniker": "Controllers\\AuthenticationController.cs",
+              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Controllers\\AuthenticationController.cs",
+              "RelativeToolTip": "Controllers\\AuthenticationController.cs",
+              "ViewState": "AgIAAAwAAAAAAAAAAAAAABAAAAA4AAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-16T05:12:53.479Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "TokenServices.cs",
+              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Services\\TokenServices.cs",
+              "RelativeDocumentMoniker": "Services\\TokenServices.cs",
+              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Services\\TokenServices.cs",
+              "RelativeToolTip": "Services\\TokenServices.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-16T05:06:19.966Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "Program.cs",
+              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Program.cs",
+              "RelativeDocumentMoniker": "Program.cs",
+              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Program.cs",
+              "RelativeToolTip": "Program.cs",
+              "ViewState": "AgIAACcAAAAAAAAAAAAAAC0AAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-08-13T12:02:59.803Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

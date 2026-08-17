@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
 
-
-
 void main() {
   runApp(const MyApp());
 }
@@ -20,15 +18,11 @@ class MyApp extends StatelessWidget {
       MultiBlocProvider(
         providers:
         [
-
           BlocProvider (
             create: (BuildContext context) {
               return CommonVariableBloc();
             },
           ),
-
-          
-
         ],
         child: GetMaterialApp(
         debugShowCheckedModeBanner: false,

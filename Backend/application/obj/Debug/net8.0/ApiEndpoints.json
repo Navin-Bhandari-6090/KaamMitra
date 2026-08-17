@@ -1,0 +1,12 @@
+[
+  {
+    "ContainingType": "application.Controllers.AuthenticationController",
+    "Method": "VerifyToken",
+    "RelativePath": "api/Authentication/jwtverify",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  }
+]

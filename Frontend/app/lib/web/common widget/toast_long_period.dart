@@ -6,7 +6,7 @@ class Toastget_Long_Period{
         msg: message,
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.TOP_RIGHT,
-        timeInSecForIosWeb: 20,
+        timeInSecForIosWeb: 5,
         backgroundColor: Colors.green,
         textColor: Colors.black,
         fontSize: 20.0

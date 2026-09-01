@@ -1,58 +1,70 @@
-import 'dart:io';
-import 'dart:typed_data'; // For byte data
+import 'dart:typed_data';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
 class PickSingleVideoController extends GetxController {
-  RxString videoPath = "".obs; // To store the file path
-  Rx<Uint8List?> videoBytes = Rx<Uint8List?>(null); // To store the video in bytes
+  RxString videoPath = "".obs;
+  RxString videoExtension = "".obs;
+  Rx<Uint8List?> videoBytes = Rx<Uint8List?>(null);
 
-  // Method to pick a video
   Future<int> pickVideo() async {
     try {
       final ImagePicker videoPicker = ImagePicker();
-      final XFile? video = await videoPicker.pickVideo(source: ImageSource.gallery);
-      if (video != null) {
-        // Validate file extension
-        String fileExtension = video.path.split('.').last.toLowerCase();
-        if (fileExtension == 'mp4')
-        {
-          // Get video file
-          File videoFile = File(video.path);
-          // Check file size (2GB = 2 * 1024 * 1024 * 1024 bytes)
-          int fileSize = await videoFile.length();
-          if (fileSize <= 2 * 1024 * 1024 * 1024) {
-            // Update the video path
-            videoPath.value = video.path;
-            // Convert the video file to bytes and store
-            videoBytes.value = await videoFile.readAsBytes();
-            print("Video selected successfully.");
-            print("File size: ${fileSize / (1024 * 1024)} MB");
-            //video selected
-            return 1;
-          }
-          else
-          {
-            print("Video file size exceeds 2GB limit.");
-            //video size exceeds 2gb.
-            return 2;
-          }
-        }
-        else
-        {
-          print("Invalid video format. Supported formats: MP4");
-          //invalid video format
-          return 3;
-        }
-      } else {
+
+      final XFile? video = await videoPicker.pickVideo(
+        source: ImageSource.gallery,
+      );
+
+      if (video == null) {
         print("No video selected.");
-        //video not selected
         return 4;
       }
+
+      // Use video.name instead of video.path on Flutter Web
+      final String fileExtension =
+      video.name.split('.').last.toLowerCase();
+
+      print("Video name: ${video.name}");
+      print("Video extension: $fileExtension");
+
+      if (fileExtension != 'mp4') {
+        print("Invalid video format. Supported format: MP4");
+        return 3;
+      }
+
+      // Read video into memory
+      final Uint8List bytes = await video.readAsBytes();
+
+      // Calculate size from bytes
+      final int fileSize = bytes.length;
+
+      print(
+        "Video size: ${fileSize / (1024 * 1024)} MB",
+      );
+
+      // 2 GB limit
+      const int maxSize = 2 * 1024 * 1024 * 1024;
+
+      if (fileSize > maxSize) {
+        print("Video file size exceeds 2GB.");
+        return 2;
+      }
+
+      // Save information
+      videoPath.value = video.path;
+      videoExtension.value = fileExtension;
+      videoBytes.value = bytes;
+
+      print("Video selected successfully.");
+
+      return 1;
     } catch (e) {
-      print("Exception caught while selecting video: ${e.toString()}");
-      //exception caught
+      print("Exception caught while selecting video: $e");
       return 5;
     }
   }
 }
+
+
+
+

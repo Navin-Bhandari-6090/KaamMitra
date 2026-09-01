@@ -3,19 +3,26 @@ part of 'common_variable_bloc.dart';
 @immutable
 class CommonVariableState extends Equatable{
 
-  int? counter;
+  String? Role;
+  bool? ObscureValuePassword;
+  bool? ObscureValueRetypePassword;
+  String? ProviderServiceName;
 
-  CommonVariableState({this.counter=0});
 
-  CommonVariableState copyWith({int? counter}){
+  CommonVariableState({this.Role="User",this.ObscureValuePassword=true,this.ObscureValueRetypePassword=true,this.ProviderServiceName="Painter"});
+
+  CommonVariableState copyWith({String? Role,bool? ObscureValue,bool? ObscureValueRetypePassword,String? ProviderServiceName}){
     return
       CommonVariableState(
-          counter: counter ?? this.counter
+          Role: Role ?? this.Role,
+          ObscureValuePassword: ObscureValue ?? this.ObscureValuePassword,
+          ObscureValueRetypePassword: ObscureValueRetypePassword ?? this.ObscureValueRetypePassword,
+          ProviderServiceName: ProviderServiceName ?? this.ProviderServiceName
       );
   }
 
   @override
-  List<Object?> get props => [counter];
+  List<Object?> get props => [Role,ObscureValuePassword,ObscureValueRetypePassword,ProviderServiceName];
 
 }
 

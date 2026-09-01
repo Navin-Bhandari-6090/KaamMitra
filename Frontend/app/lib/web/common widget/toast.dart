@@ -6,7 +6,7 @@ class Toastget{
         msg: message,
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.TOP_RIGHT,
-        timeInSecForIosWeb: 5,
+        timeInSecForIosWeb: 3,
         backgroundColor: Colors.green,
         textColor: Colors.black,
         fontSize: 20.0

@@ -30,6 +30,7 @@ dependencies:
   bloc:
   flutter_bloc:
   http:
+  syncfusion_flutter_pdfviewer: ^34.2.5
 
 
 dev_dependencies:
@@ -42,6 +43,9 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/profile/
+    - assets/images/logo/
+    - assets/images/error/
+    - assets/data/
 
 
   fonts:

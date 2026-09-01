@@ -1,9 +1,16 @@
 ﻿using application.Data;
+using application.Models;
+using application.Models.DTOModels;
 using application.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Security.Cryptography.Xml;
 using System.Text;
 
 namespace application.Controllers
@@ -16,12 +23,14 @@ namespace application.Controllers
         public DatabaseController Database { get; set; }
         public TokenServices TokenServices { get; set; }
 
-        public AuthenticationController(DatabaseController Database, TokenServices TokenServices)
+        private readonly IConfiguration configuration;
+
+        public AuthenticationController(DatabaseController Database, TokenServices TokenServices, IConfiguration configuration)
 
         {
             this.Database = Database;
             this.TokenServices = TokenServices;
-
+            this.configuration = configuration;
         }
 
         private string HashPassword(string password)
@@ -44,10 +53,9 @@ namespace application.Controllers
 
         }
 
-
         [HttpGet]
         [Route("jwtverify")]
-        [Authorize(Policy = "RequireforAdminorMemberRole")]
+        [Authorize]
         public async Task<ActionResult> VerifyToken()
         {
             try
@@ -61,6 +69,184 @@ namespace application.Controllers
 
         }
 
+        [HttpGet]
+        [Route("jwtverifyprovider")]
+        [Authorize(Policy = "RequireProviderRole")]
+        public async Task<ActionResult> ProviderVerifyToken()
+        {
+            try
+            {
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500);
+            }
 
-}
+        }
+
+        [HttpGet]
+        [Route("jwtverifyuser")]
+        [Authorize(Policy = "RequireUserRole")]
+        public async Task<ActionResult> UserVerifyToken()
+        {
+            try
+            {
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500);
+            }
+
+        }
+
+        [HttpGet]
+        [Route("jwtverifyadmin")]
+        [Authorize(Policy = "RequireAdminRole")]
+        public async Task<ActionResult> AdminVerifyToken()
+        {
+            try
+            {
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500);
+            }
+
+        }
+
+        [HttpGet]
+        [Route("userorproviderjwtverify")]
+        [Authorize(Policy = "RequireProviderUserRole")]
+        public async Task<ActionResult> UserOrProviderVerifyToken()
+        {
+            try
+            {
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500);
+            }
+
+        }
+
+        [HttpPost]
+        [Route("signin")]
+        [Authorize]
+        public async Task<ActionResult> SignInUser([FromBody] UserInfo obj)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return StatusCode(
+                        501,
+                        "The provided data is not in correct format."
+                    );
+                }
+
+                var Existing_User = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.Email == obj.Email);
+
+                if (Existing_User != null)
+                {
+                    return StatusCode(
+                        502,
+                        "The provided user email is already registered."
+                    );
+                }
+
+                obj.Password = HashPassword(obj.Password);
+
+                await Database.UserInfos.AddAsync(obj);
+                await Database.SaveChangesAsync();
+
+                return Ok(obj);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+
+        [HttpPost]
+        [Authorize]
+        [Route("login")]
+        public async Task<IActionResult> LoginUser([FromBody] LoginModel obj)
+        {
+            try
+            {
+                if (ModelState.IsValid)
+                {
+                    // Check if the user exists
+                    var user_data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
+
+                    if (user_data != null)
+                    {
+                        // Validate password (assuming you store hashed passwords)
+                        if (user_data.Password == HashPassword(obj.Password))
+                        {
+                            // Generate token
+                            string token =TokenServices.GenerateTokenUser(user_data);
+                            // Return response
+                            return Ok(new
+                            {
+                                token = token,
+                                email = user_data.Email,
+                                usertype = user_data.Role
+                            });
+                        }
+                        else
+                        {
+                            return StatusCode(503, "Invalid password.");
+                        }
+                    }
+                    else
+                    {
+                        return StatusCode(501, "No user with the provided email found.");
+                    }
+                }
+                else
+                {
+                    return StatusCode(502, "Provide correct format.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Exception caught in login action method.\n{ex.Message}"); // 500 Internal Server Error
+            }
+        }
+
+        [HttpGet]
+        [Route("gettoken")]
+        public async Task<IActionResult> Provide_Token()
+        {
+            try
+            {
+                
+                            // Generate token
+                            string token =TokenServices.GenerateRandomToken();
+                            // Return response
+                            return Ok(new
+                            {
+                                token = token
+                            });
+                   
+            
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Exception caught in login action method.\n{ex.Message}"); // 500 Internal Server Error
+            }
+        }
+
+
+
+
+
+    }
 }

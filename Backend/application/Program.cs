@@ -1,3 +1,4 @@
+
 using application.Data;
 using application.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -52,8 +53,10 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("RequireAdminRole", policy => policy.RequireRole("Admin"));
-    options.AddPolicy("RequireMemberRole", policy => policy.RequireRole("Member"));
-    options.AddPolicy("RequireforAdminorMemberRole", policy => policy.RequireRole("Admin", "Member"));
+    options.AddPolicy("RequireProviderRole", policy => policy.RequireRole("Provider"));
+    options.AddPolicy("RequireUserRole", policy => policy.RequireRole("User"));
+    options.AddPolicy("RequireProviderUserRole", policy => policy.RequireRole("User","Provider"));
+    options.AddPolicy("RequireforAllRole", policy => policy.RequireRole("Admin", "User","Provider"));
 });
 
 // Register custom services

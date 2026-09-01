@@ -21,16 +21,93 @@ namespace application.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("application.Models.UserInfo", b =>
+            modelBuilder.Entity("application.Models.ProviderServiceResources", b =>
                 {
-                    b.Property<int>("UserId")
+                    b.Property<int>("ProviderServiceResourcesId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("UserId"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ProviderServiceResourcesId"));
 
                     b.Property<string>("Email")
                         .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("ProviderServiceId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ServicePhoto")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ServiceVideo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("ProviderServiceResourcesId");
+
+                    b.HasIndex("Email");
+
+                    b.HasIndex("ProviderServiceId");
+
+                    b.ToTable("ProviderServiceResourcesInfo");
+                });
+
+            modelBuilder.Entity("application.Models.ProviderServices", b =>
+                {
+                    b.Property<int>("ProviderServiceId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ProviderServiceId"));
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ServiceDocument")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ServiceName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("ProviderServiceId");
+
+                    b.HasIndex("Email");
+
+                    b.ToTable("ProviderServiceInfo");
+                });
+
+            modelBuilder.Entity("application.Models.ServiceInfoModel", b =>
+                {
+                    b.Property<int>("ServiceId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ServiceId"));
+
+                    b.Property<string>("ServiceDescription")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ServiceName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("ServiceId");
+
+                    b.ToTable("ServiceInfos");
+                });
+
+            modelBuilder.Entity("application.Models.UserInfo", b =>
+                {
+                    b.Property<string>("Email")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
@@ -44,6 +121,12 @@ namespace application.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision");
+
                     b.Property<string>("Password")
                         .IsRequired()
                         .HasColumnType("text");
@@ -53,14 +136,71 @@ namespace application.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("Photo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.HasKey("UserId");
+                    b.Property<int>("UserNumber")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("UserNumber"));
+
+                    b.Property<string>("WhatsappPhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Email");
 
                     b.ToTable("UserInfos");
+                });
+
+            modelBuilder.Entity("application.Models.ProviderServiceResources", b =>
+                {
+                    b.HasOne("application.Models.UserInfo", "Users")
+                        .WithMany("ProviderServicesResources")
+                        .HasForeignKey("Email")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("application.Models.ProviderServices", "ProviderServices")
+                        .WithMany("ProviderServicesResources")
+                        .HasForeignKey("ProviderServiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProviderServices");
+
+                    b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("application.Models.ProviderServices", b =>
+                {
+                    b.HasOne("application.Models.UserInfo", "Users")
+                        .WithMany("ProviderServices")
+                        .HasForeignKey("Email")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("application.Models.ProviderServices", b =>
+                {
+                    b.Navigation("ProviderServicesResources");
+                });
+
+            modelBuilder.Entity("application.Models.UserInfo", b =>
+                {
+                    b.Navigation("ProviderServices");
+
+                    b.Navigation("ProviderServicesResources");
                 });
 #pragma warning restore 612, 618
         }

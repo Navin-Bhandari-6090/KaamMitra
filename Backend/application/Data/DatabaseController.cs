@@ -14,5 +14,15 @@ namespace application.Data
 
         public DbSet<UserInfo> UserInfos { get; set; }
 
+        public DbSet<ProviderServices> ProviderServiceInfo { get; set; }
+
+        public DbSet<ProviderServiceResources> ProviderServiceResourcesInfo { get; set; }
+
+        public DbSet<ServiceInfoModel> ServiceInfos { get; set; }
+
+      
+
+        public object ProviderServices { get; internal set; }
+
     }
 }

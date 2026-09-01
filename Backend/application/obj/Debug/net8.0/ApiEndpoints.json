@@ -1,5 +1,41 @@
 [
   {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "GetServiceInfo1",
+    "RelativePath": "api/Admin/getservicenormal",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "AddService",
+    "RelativePath": "api/Admin/registerservice",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.ServiceInfoModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AuthenticationController",
+    "Method": "Provide_Token",
+    "RelativePath": "api/Authentication/gettoken",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "application.Controllers.AuthenticationController",
     "Method": "VerifyToken",
     "RelativePath": "api/Authentication/jwtverify",
@@ -7,6 +43,254 @@
     "IsController": true,
     "Order": 0,
     "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AuthenticationController",
+    "Method": "AdminVerifyToken",
+    "RelativePath": "api/Authentication/jwtverifyadmin",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AuthenticationController",
+    "Method": "ProviderVerifyToken",
+    "RelativePath": "api/Authentication/jwtverifyprovider",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AuthenticationController",
+    "Method": "UserVerifyToken",
+    "RelativePath": "api/Authentication/jwtverifyuser",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AuthenticationController",
+    "Method": "LoginUser",
+    "RelativePath": "api/Authentication/login",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.LoginModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AuthenticationController",
+    "Method": "SignInUser",
+    "RelativePath": "api/Authentication/signin",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.UserInfo",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AuthenticationController",
+    "Method": "UserOrProviderVerifyToken",
+    "RelativePath": "api/Authentication/userorproviderjwtverify",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "AddService",
+    "RelativePath": "api/Profile/addservice",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.ProviderServices",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "AddServiceResources",
+    "RelativePath": "api/Profile/addserviceresources",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.ProviderServiceResources",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "GetProviderServiceInfo",
+    "RelativePath": "api/Profile/getproviderregisterserviceinfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UserEmailInfoModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "GetServiceFileInfo",
+    "RelativePath": "api/Profile/getservicefileinfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.ProviderServiceEmailServiceNameModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "GetServiceInfo",
+    "RelativePath": "api/Profile/getserviceinfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UserEmailInfoModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "GetServicePhotoInfo",
+    "RelativePath": "api/Profile/getservicephotoinfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.ProviderServiceEmailServiceNameModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "GetUserInfo",
+    "RelativePath": "api/Profile/getuserinfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UserEmailInfoModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "UpdatePassword",
+    "RelativePath": "api/Profile/updatepassword",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.LoginModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "UpdateProfilePhoto",
+    "RelativePath": "api/Profile/updateprofilephoto",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UserProviderPhoto",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "UpdateServiceFile",
+    "RelativePath": "api/Profile/updateservicedocument",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UpdateServiceFile",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "UpdateServiceResources",
+    "RelativePath": "api/Profile/updateserviceresources",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UpdateServiceResources",
+        "IsRequired": true
+      }
+    ],
     "ReturnTypes": []
   }
 ]

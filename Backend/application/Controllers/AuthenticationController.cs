@@ -133,13 +133,15 @@ namespace application.Controllers
 
         }
 
+       
         [HttpPost]
         [Route("signin")]
         [Authorize]
-        public async Task<ActionResult> SignInUser([FromBody] UserInfo obj)
+        public async Task<IActionResult> SignUpUser([FromForm] UserInfoDTO obj)
         {
             try
             {
+                // 1. Validate model
                 if (!ModelState.IsValid)
                 {
                     return StatusCode(
@@ -148,10 +150,11 @@ namespace application.Controllers
                     );
                 }
 
-                var Existing_User = await Database.UserInfos
+                // 2. Check whether email already exists
+                var existingUser = await Database.UserInfos
                     .FirstOrDefaultAsync(x => x.Email == obj.Email);
 
-                if (Existing_User != null)
+                if (existingUser != null)
                 {
                     return StatusCode(
                         502,
@@ -159,12 +162,32 @@ namespace application.Controllers
                     );
                 }
 
-                obj.Password = HashPassword(obj.Password);
+                // 3. Create user
+                // Photo is intentionally empty during signup.
+                var user = new UserInfo
+                {
+                    FirstName = obj.FirstName,
+                    LastName = obj.LastName,
+                    Email = obj.Email,
+                    PhoneNumber = obj.PhoneNumber,
+                    WhatsappPhoneNumber = obj.WhatsappPhoneNumber,
 
-                await Database.UserInfos.AddAsync(obj);
+                    Password = HashPassword(obj.Password),
+
+                    Latitude = obj.Latitude,
+                    Longitude = obj.Longitude,
+
+                    Photo = string.Empty,
+
+                    Role = obj.Role
+                };
+
+                // 4. Save user
+                await Database.UserInfos.AddAsync(user);
                 await Database.SaveChangesAsync();
 
-                return Ok(obj);
+                // 5. Return success
+                return Ok();
             }
             catch (Exception ex)
             {
@@ -191,7 +214,7 @@ namespace application.Controllers
                         if (user_data.Password == HashPassword(obj.Password))
                         {
                             // Generate token
-                            string token =TokenServices.GenerateTokenUser(user_data);
+                            string token = TokenServices.GenerateTokenUser(user_data);
                             // Return response
                             return Ok(new
                             {
@@ -227,16 +250,16 @@ namespace application.Controllers
         {
             try
             {
-                
-                            // Generate token
-                            string token =TokenServices.GenerateRandomToken();
-                            // Return response
-                            return Ok(new
-                            {
-                                token = token
-                            });
-                   
-            
+
+                // Generate token
+                string token = TokenServices.GenerateRandomToken();
+                // Return response
+                return Ok(new
+                {
+                    token = token
+                });
+
+
             }
             catch (Exception ex)
             {

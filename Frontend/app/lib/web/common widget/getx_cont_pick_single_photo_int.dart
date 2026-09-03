@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 class pick_single_photo_getx_int extends GetxController
 {
   RxString imagePath = "".obs; // To store the file path
+  RxString imageExtension = "".obs; // To store the file extension
   Rx<Uint8List?> imageBytes = Rx<Uint8List?>(null); // To store the image in bytes
   // Method to pick an image
   Future<int> pickImage() async {
@@ -18,8 +19,10 @@ class pick_single_photo_getx_int extends GetxController
         // Validate file extension
         // String fileExtension = image.path.split('.').last.toLowerCase();
         String fileExtension = image.name.split('.').last.toLowerCase();
-        print("fileExtension type = ${fileExtension}");
+        print("Photo Extension type = ${fileExtension}");
         if (fileExtension == 'jpg' || fileExtension == 'jpeg' || fileExtension == 'png') {
+          // Update the file extension
+          imageExtension.value = fileExtension;
           // Update the image path
           imagePath.value = image.path;
           // Convert the image file to bytes and store

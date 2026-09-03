@@ -93,16 +93,66 @@
   },
   {
     "ContainingType": "application.Controllers.AuthenticationController",
-    "Method": "SignInUser",
+    "Method": "SignUpUser",
     "RelativePath": "api/Authentication/signin",
     "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
     "Parameters": [
       {
-        "Name": "obj",
-        "Type": "application.Models.UserInfo",
-        "IsRequired": true
+        "Name": "UserNumber",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "FirstName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "LastName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Email",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "PhoneNumber",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "WhatsappPhoneNumber",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Password",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Latitude",
+        "Type": "System.Double",
+        "IsRequired": false
+      },
+      {
+        "Name": "Longitude",
+        "Type": "System.Double",
+        "IsRequired": false
+      },
+      {
+        "Name": "Photo",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "Role",
+        "Type": "System.String",
+        "IsRequired": false
       }
     ],
     "ReturnTypes": []
@@ -126,9 +176,24 @@
     "Order": 0,
     "Parameters": [
       {
-        "Name": "obj",
-        "Type": "application.Models.ProviderServices",
-        "IsRequired": true
+        "Name": "ProviderServiceId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "ServiceName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ServiceDocument",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "Email",
+        "Type": "System.String",
+        "IsRequired": false
       }
     ],
     "ReturnTypes": []
@@ -142,41 +207,39 @@
     "Order": 0,
     "Parameters": [
       {
-        "Name": "obj",
-        "Type": "application.Models.ProviderServiceResources",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "application.Controllers.ProfileController",
-    "Method": "GetProviderServiceInfo",
-    "RelativePath": "api/Profile/getproviderregisterserviceinfo",
-    "HttpMethod": "POST",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
+        "Name": "ProviderServiceResourcesId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
       {
-        "Name": "obj",
-        "Type": "application.Models.DTOModels.UserEmailInfoModel",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "application.Controllers.ProfileController",
-    "Method": "GetServiceFileInfo",
-    "RelativePath": "api/Profile/getservicefileinfo",
-    "HttpMethod": "POST",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
+        "Name": "ServicePhoto",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
       {
-        "Name": "obj",
-        "Type": "application.Models.DTOModels.ProviderServiceEmailServiceNameModel",
-        "IsRequired": true
+        "Name": "ServiceVideo",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "ProviderServiceId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "Email",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "PhotoExtension",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "VideoExtension",
+        "Type": "System.String",
+        "IsRequired": false
       }
     ],
     "ReturnTypes": []
@@ -192,22 +255,6 @@
       {
         "Name": "obj",
         "Type": "application.Models.DTOModels.UserEmailInfoModel",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "application.Controllers.ProfileController",
-    "Method": "GetServicePhotoInfo",
-    "RelativePath": "api/Profile/getservicephotoinfo",
-    "HttpMethod": "POST",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "obj",
-        "Type": "application.Models.DTOModels.ProviderServiceEmailServiceNameModel",
         "IsRequired": true
       }
     ],
@@ -231,22 +278,6 @@
   },
   {
     "ContainingType": "application.Controllers.ProfileController",
-    "Method": "UpdatePassword",
-    "RelativePath": "api/Profile/updatepassword",
-    "HttpMethod": "PUT",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "obj",
-        "Type": "application.Models.DTOModels.LoginModel",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "application.Controllers.ProfileController",
     "Method": "UpdateProfilePhoto",
     "RelativePath": "api/Profile/updateprofilephoto",
     "HttpMethod": "PUT",
@@ -254,41 +285,19 @@
     "Order": 0,
     "Parameters": [
       {
-        "Name": "obj",
-        "Type": "application.Models.DTOModels.UserProviderPhoto",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "application.Controllers.ProfileController",
-    "Method": "UpdateServiceFile",
-    "RelativePath": "api/Profile/updateservicedocument",
-    "HttpMethod": "PUT",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
+        "Name": "Email",
+        "Type": "System.String",
+        "IsRequired": false
+      },
       {
-        "Name": "obj",
-        "Type": "application.Models.DTOModels.UpdateServiceFile",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "application.Controllers.ProfileController",
-    "Method": "UpdateServiceResources",
-    "RelativePath": "api/Profile/updateserviceresources",
-    "HttpMethod": "PUT",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
+        "Name": "Photo",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
       {
-        "Name": "obj",
-        "Type": "application.Models.DTOModels.UpdateServiceResources",
-        "IsRequired": true
+        "Name": "PhotoExtension",
+        "Type": "System.String",
+        "IsRequired": false
       }
     ],
     "ReturnTypes": []

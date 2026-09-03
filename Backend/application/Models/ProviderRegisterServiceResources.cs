@@ -1,11 +1,11 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using application.Models.DTOModels;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace application.Models
 {
-    public class ProviderServiceResources
+    public class ProviderRegisterServiceResources
     {
-
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         [Key]
         public int ProviderServiceResourcesId { get; set; }
@@ -25,7 +25,7 @@ namespace application.Models
         public string Email { get; set; } = string.Empty;
 
         [ForeignKey("ProviderServiceId")]
-        public ProviderServices? ProviderServices { get; set; }
+        public ProviderRegisterServices? ProviderServices { get; set; }
 
         [ForeignKey("Email")]
         public UserInfo? Users { get; set; }

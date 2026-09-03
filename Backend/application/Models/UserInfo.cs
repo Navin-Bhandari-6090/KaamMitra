@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using application.Models.DTOModels;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace application.Models
@@ -48,9 +49,9 @@ namespace application.Models
         [StringLength(50)]
         public string Role { get; set; } = string.Empty;
 
-        public ICollection<ProviderServices> ProviderServices { get; set; } = [];
+        public ICollection<ProviderRegisterServices> ProviderServices { get; set; } = [];
 
-        public ICollection<ProviderServiceResources> ProviderServicesResources { get; set; } = [];
+        public ICollection<ProviderRegisterServiceResources> ProviderServicesResources { get; set; } = [];
         
     }
 }

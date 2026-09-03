@@ -113,6 +113,9 @@ class _RegisterScreenState extends State<RegisterScreen>
 
   Future<int> _handleCreateAccount(BuildContext context) async {
     try {
+      // ---------------------------------------------------------
+      // Get values from text fields
+      // ---------------------------------------------------------
       final firstName = _firstNameCtrl.text.trim();
       final lastName = _lastNameCtrl.text.trim();
       final email = _emailCtrl.text.trim();
@@ -123,60 +126,75 @@ class _RegisterScreenState extends State<RegisterScreen>
       final latitude = _latitude.text.trim();
       final longitude = _longitude.text.trim();
 
+      // Get role from Bloc
       final blocState = context.read<CommonVariableBloc>().state;
       final role = blocState.Role;
+
+      // ---------------------------------------------------------
+      // Validation
+      // ---------------------------------------------------------
 
       if (firstName.isEmpty) {
         _toast.Toastmsg('First name is required');
         print('First name is required');
         return 1;
       }
+
       if (lastName.isEmpty) {
         _toast.Toastmsg('Last name is required');
         print('Last name is required');
         return 2;
       }
+
       if (email.isEmpty) {
         _toast.Toastmsg('Email is required');
         print('Email is required');
         return 3;
       }
+
       if (!email.contains('@') || !email.contains('.com')) {
         _toast.Toastmsg('Enter a valid email address');
         print('Enter a valid email address');
         return 4;
       }
+
       if (phone.isEmpty) {
         _toast.Toastmsg('Phone number is required');
         print('Phone number is required');
         return 5;
       }
+
       if (!phone.startsWith('+')) {
         _toast.Toastmsg('Phone number must start with +');
         print('Phone number must start with +');
         return 6;
       }
+
       if (whatsapp.isEmpty) {
         _toast.Toastmsg('WhatsApp number is required');
         print('WhatsApp number is required');
         return 7;
       }
+
       if (!whatsapp.startsWith('+')) {
         _toast.Toastmsg('WhatsApp number must start with +');
         print('WhatsApp number must start with +');
         return 8;
       }
+
       if (password.isEmpty) {
         _toast.Toastmsg('Password is required');
         print('Password is required');
         return 9;
       }
+
       if (retype.isEmpty) {
         _toast.Toastmsg('Please retype your password');
         print('Please retype your password');
         return 10;
       }
-      if (role!.isEmpty) {
+
+      if (role == null || role.isEmpty) {
         _toast.Toastmsg('Role is required.');
         print('Role is required.');
         return 10;
@@ -187,73 +205,208 @@ class _RegisterScreenState extends State<RegisterScreen>
         print('Latitude is required.');
         return 10;
       }
+
       if (longitude.isEmpty) {
         _toast.Toastmsg('Longitude is required.');
         print('Longitude is required.');
         return 10;
       }
+
       if (password != retype) {
         _toast.Toastmsg('Passwords do not match');
         print('Passwords do not match');
         return 11;
       }
 
-      // All fields valid
-      final Map<String, dynamic> UserData = {
-        "FirstName": firstName,
-        "LastName": lastName,
-        "Email": email,
-        "PhoneNumber": phone,
-        "WhatsappPhoneNumber": whatsapp,
-        "Password": password,
-        "Latitude": double.tryParse(latitude),
-        "Longitude":double.tryParse(longitude),
-        "Photo": "",
-        "Role": role,
-      };
+      // ---------------------------------------------------------
+      // Validate latitude and longitude
+      // ---------------------------------------------------------
 
-      const String url = Backend_Server_Url + "api/Authentication/signin";
+      final latitudeValue = double.tryParse(latitude);
+      final longitudeValue = double.tryParse(longitude);
 
-      final response = await http.post(
+      if (latitudeValue == null) {
+        _toast.Toastmsg('Invalid latitude');
+        print('Invalid latitude');
+        return 10;
+      }
+
+      if (longitudeValue == null) {
+        _toast.Toastmsg('Invalid longitude');
+        print('Invalid longitude');
+        return 10;
+      }
+
+      // ---------------------------------------------------------
+      // API URL
+      // ---------------------------------------------------------
+
+      const String url =
+          Backend_Server_Url + "api/Authentication/signin";
+
+      print('----------------------------------------');
+      print('Creating account...');
+      print('URL: $url');
+      print('First Name: $firstName');
+      print('Last Name: $lastName');
+      print('Email: $email');
+      print('Phone: $phone');
+      print('WhatsApp: $whatsapp');
+      print('Latitude: $latitudeValue');
+      print('Longitude: $longitudeValue');
+      print('Role: $role');
+      print('Photo: Not selected');
+      print('----------------------------------------');
+
+      // ---------------------------------------------------------
+      // Create Multipart Request
+      // ---------------------------------------------------------
+      //
+      // We use multipart/form-data because your backend is now
+      // using [FromForm].
+      //
+      // There is NO photo/file because signup does not have
+      // a photo selection option.
+      // ---------------------------------------------------------
+
+      final request = http.MultipartRequest(
+        'POST',
         Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': 'Bearer ${widget.User_JwtToken}'
-        },
-        body: json.encode(UserData),
       );
+
+      // ---------------------------------------------------------
+      // Add Authorization header
+      // ---------------------------------------------------------
+
+      request.headers['Authorization'] =
+      'Bearer ${widget.User_JwtToken}';
+
+      // ---------------------------------------------------------
+      // Add form fields
+      // ---------------------------------------------------------
+
+      request.fields['FirstName'] = firstName;
+      request.fields['LastName'] = lastName;
+      request.fields['Email'] = email;
+      request.fields['PhoneNumber'] = phone;
+      request.fields['WhatsappPhoneNumber'] = whatsapp;
+      request.fields['Password'] = password;
+      request.fields['Latitude'] = latitudeValue.toString();
+      request.fields['Longitude'] = longitudeValue.toString();
+      request.fields['Role'] = role;
+
+      // ---------------------------------------------------------
+      // Send request
+      // ---------------------------------------------------------
+
+      print('Sending signup request...');
+
+      final response = await request.send();
+
+      print('Signup response status code: ${response.statusCode}');
+
+      // Read backend response body
+      final responseBody = await response.stream.bytesToString();
+
+      print('Signup response body: $responseBody');
+
+      // ---------------------------------------------------------
+      // Handle response status codes
+      // ---------------------------------------------------------
 
       if (response.statusCode == 200) {
         _toast.Toastmsg('Account created successfully');
+
         print('Account created successfully');
-        print("Data insert in userinfo table successs.");
+        print('Data insert in userinfo table success.');
+
         return 1;
-      } else if (response.statusCode == 502) {
-        _toast.Toastmsg('Account created fail.Email already exists.');
+      }
+
+      // ---------------------------------------------------------
+      // Email already exists
+      // Backend: 502
+      // ---------------------------------------------------------
+
+      else if (response.statusCode == 502) {
+        _toast.Toastmsg(
+          'Account created fail.Email already exists.',
+        );
+
         print('Account created fail.Email already exists.');
-        print("Email already exists.");
+        print('Email already exists.');
+
         return 3;
-      } else if (response.statusCode == 501) {
+      }
+
+      // ---------------------------------------------------------
+      // Invalid data
+      // Backend: 501
+      // ---------------------------------------------------------
+
+      else if (response.statusCode == 501) {
         _toast.Toastmsg(
           'Account created fail.Provided data are not in correct format.',
         );
-        print('Account created fail.Provided data are not in correct format.');
+
+        print(
+          'Account created fail.Provided data are not in correct format.',
+        );
+
         return 4;
-      } else if (response.statusCode == 500) {
-        _toast.Toastmsg('Account created fail.Exception caught in backend.');
-        print('Account created fail.Exception caught in backend.');
+      }
+
+      // ---------------------------------------------------------
+      // Backend exception
+      // Backend: 500
+      // ---------------------------------------------------------
+
+      else if (response.statusCode == 500) {
+        _toast.Toastmsg(
+          'Account created fail.Exception caught in backend.',
+        );
+
+        print(
+          'Account created fail.Exception caught in backend.',
+        );
+
         return 5;
-      } else {
-        print("else status code = ${response.statusCode}");
+      }
+
+      // ---------------------------------------------------------
+      // Other status codes
+      // ---------------------------------------------------------
+
+      else {
+        print(
+          'Unexpected status code = ${response.statusCode}',
+        );
+
         _toast.Toastmsg(
           'Account created fail.Data insert in userinfo table fail.',
         );
-        print('Account created fail.Data insert in userinfo table fail.');
+
+        print(
+          'Account created fail.Data insert in userinfo table fail.',
+        );
+
         return 2;
       }
     } catch (E) {
-      _toast.Toastmsg('Account created fail.Please try again.Server error.');
-      print('Account created fail.Please try again.Server error.');
+      // ---------------------------------------------------------
+      // Connection / Flutter / unexpected error
+      // ---------------------------------------------------------
+
+      print('Signup exception: $E');
+
+      _toast.Toastmsg(
+        'Account created fail.Please try again.Server error.',
+      );
+
+      print(
+        'Account created fail.Please try again.Server error.',
+      );
+
       return 0;
     }
   }

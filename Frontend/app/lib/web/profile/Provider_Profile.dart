@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:app/web/profile/ProviderGallery.dart';
+
 import 'package:app/web/profile/Provider_add_Sevice_Resources.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -97,40 +97,202 @@ class _ProviderProfileState extends State<ProviderProfile>
     }
   }
 
-  Future<bool> UpdatePhoto(
-      {required String Email,
-        required String jwttoken,
-        required photo_bytes}) async {
+
+  Future<bool> UpdatePhoto({
+    required String Email,
+    required String jwttoken,
+    required String photoExtension,
+    required List<int> photoBytes,
+  }) async {
     try {
-      final String base64Image = base64Encode(photo_bytes as List<int>);
-      const String url = Backend_Server_Url + "api/Profile/updateprofilephoto";
-      Map<String, dynamic> new_photo = {
-        "Email": Email,
-        "Photo": base64Image
-      };
-      final response = await http.put(
-        Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': 'Bearer $jwttoken'
-        },
-        body: json.encode(new_photo),
-      );
-      if (response.statusCode == 200) {
-        print("User authenticated");
-        return true;
-      } else {
-        print("error");
+      print("========== UPDATE PHOTO ==========");
+      print("Email: $Email");
+      print("Photo Extension: $photoExtension");
+      print("Photo Size: ${photoBytes.length} bytes");
+
+      // --------------------------------------------------
+      // 1. Validate photo
+      // --------------------------------------------------
+
+      if (photoBytes.length == 0) {
+        print("ERROR: Photo bytes are empty.");
         return false;
       }
+
+      // --------------------------------------------------
+      // 2. Validate extension
+      // --------------------------------------------------
+
+      String extension =
+      photoExtension.toLowerCase().trim();
+
+      if (extension.startsWith(".")) {
+        extension = extension.substring(1);
+      }
+
+      if (extension != "jpg" &&
+          extension != "jpeg" &&
+          extension != "png") {
+        print("ERROR: Invalid photo extension.");
+        return false;
+      }
+
+      // --------------------------------------------------
+      // 3. API URL
+      // --------------------------------------------------
+
+      const String url =
+          Backend_Server_Url +
+              "api/Profile/updateprofilephoto";
+
+      print("API URL: $url");
+
+      // --------------------------------------------------
+      // 4. Create multipart request
+      // --------------------------------------------------
+
+      final request = http.MultipartRequest(
+        "PUT",
+        Uri.parse(url),
+      );
+
+      // --------------------------------------------------
+      // 5. JWT
+      // --------------------------------------------------
+
+      request.headers["Authorization"] =
+      "Bearer $jwttoken";
+
+      // --------------------------------------------------
+      // 6. Email
+      // --------------------------------------------------
+
+      request.fields["Email"] = Email;
+
+      // --------------------------------------------------
+      // 7. Extension
+      // --------------------------------------------------
+
+      request.fields["PhotoExtension"] =
+          extension;
+
+      // --------------------------------------------------
+      // 8. Add image bytes
+      // --------------------------------------------------
+
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          "Photo",
+          photoBytes,
+          filename: "profile.$extension",
+        ),
+      );
+
+      print("Multipart request created.");
+      print("Uploading photo...");
+
+      // --------------------------------------------------
+      // 9. Send request
+      // --------------------------------------------------
+
+      final streamedResponse =
+      await request.send();
+
+      // --------------------------------------------------
+      // 10. Read response
+      // --------------------------------------------------
+
+      final response =
+      await http.Response.fromStream(
+        streamedResponse,
+      );
+
+      // --------------------------------------------------
+      // 11. Print response
+      // --------------------------------------------------
+
+      print(
+        "Response status: ${response.statusCode}",
+      );
+
+      print(
+        "Response body: ${response.body}",
+      );
+
+      // --------------------------------------------------
+      // 12. Status handling
+      // --------------------------------------------------
+
+      if (response.statusCode == 200) {
+        print(
+          "Profile photo updated successfully.",
+        );
+
+        return true;
+      }
+
+      if (response.statusCode == 400) {
+        print(
+          "Bad request: ${response.body}",
+        );
+
+        return false;
+      }
+
+      if (response.statusCode == 404) {
+        print(
+          "User not found: ${response.body}",
+        );
+
+        return false;
+      }
+
+      if (response.statusCode == 500) {
+        print(
+          "Server error: ${response.body}",
+        );
+
+        return false;
+      }
+
+      print(
+        "Unexpected status code: ${response.statusCode}",
+      );
+
+      return false;
+
     } catch (obj) {
-      print("Exception caught while fetching user data for profile screen");
-      print(obj.toString());
+
+      print(
+        "Exception caught while updating profile photo.",
+      );
+
+      print(
+        "Exception: ${obj.toString()}",
+      );
+
       return false;
     }
   }
 
+  String GetPhotoUrl(String photoPath) {
+    if (photoPath.isEmpty) {
+      return "";
+    }
 
+    final baseUrl = Backend_Server_Url.endsWith("/")
+        ? Backend_Server_Url.substring(
+      0,
+      Backend_Server_Url.length - 1,
+    )
+        : Backend_Server_Url;
+
+    final path = photoPath.startsWith("/")
+        ? photoPath
+        : "/$photoPath";
+
+    return "$baseUrl$path";
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -156,59 +318,118 @@ class _ProviderProfileState extends State<ProviderProfile>
                 ),
 
                 FutureBuilder(
-                  future: GetUserInfo(Email:widget.User_Email, jwttoken:widget.User_JwtToken),
+                  future: GetUserInfo(
+                    Email: widget.User_Email,
+                    jwttoken: widget.User_JwtToken,
+                  ),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(child: CircularProgressIndicator(color: Colors.green[700]));
+                      return Center(
+                        child: CircularProgressIndicator(
+                          color: Colors.green[700],
+                        ),
+                      );
                     }
-                    else if (snapshot.hasError) {
-                      return Center(child: Text('Error:No data available'));
-                    }
-                    else if (snapshot.connectionState == ConnectionState.done) {
-                      if (UserInfoModelList.isNotEmpty)
-                      {
-                        return Column(
-                          children: [
 
-                            Container (
-                              width: shortestval * 0.4,
-                              height: shortestval * 0.4,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                      color: Colors.black26,
-                                      blurRadius: 8,
-                                      offset: Offset(0, 4))
-                                ],
-                              ),
-                              child: ClipOval(
-                                child: UserInfoModelList[0].photo == null ||
-                                    UserInfoModelList[0].photo!.isEmpty
-                                    ? Image.asset('assets/images/profile/u_p_p_1.jpg',
-                                    fit: BoxFit.cover)
-                                    : Image.memory(
-                                    base64Decode(UserInfoModelList[0].photo!),
-                                    fit: BoxFit.cover),
+                    if (snapshot.hasError) {
+                      return const Center(
+                        child: Text("Error: No data available"),
+                      );
+                    }
+
+                    if (UserInfoModelList.isNotEmpty) {
+                      final user = UserInfoModelList[0];
+
+                      final String photoPath = user.photo ?? "";
+
+                      final String photoUrl = photoPath.isNotEmpty
+                          ? GetPhotoUrl(photoPath)
+                          : "";
+                      // print("User photo path: $photoPath");
+                      // print("User photo URL: $photoUrl");
+                      return Column(
+                        children: [
+
+                          // =====================================================
+                          // PROFILE PHOTO
+                          // =====================================================
+
+                          Container(
+                            width: shortestval * 0.4,
+                            height: shortestval * 0.4,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 8,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ClipOval(
+                              child: photoUrl.isEmpty
+                                  ? Image.asset(
+                                'assets/images/profile/u_p_p_1.jpg',
+                                fit: BoxFit.cover,
+                              )
+                                  : Image.network(
+                                photoUrl,
+                                fit: BoxFit.cover,
+
+                                // Optional loading widget
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
+                                  if (loadingProgress == null) {
+                                    return child;
+                                  }
+
+                                  return Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.green[700],
+                                    ),
+                                  );
+                                },
+
+                                // If image URL fails
+                                errorBuilder:
+                                    (context, error, stackTrace) {
+                                  print(
+                                    "Profile image loading failed: $error",
+                                  );
+
+                                  return Image.asset(
+                                    'assets/images/profile/u_p_p_1.jpg',
+                                    fit: BoxFit.cover,
+                                  );
+                                },
                               ),
                             ),
+                          ),
 
+                          SizedBox(
+                            height: shortestval * 0.02,
+                          ),
 
-                            SizedBox(height: shortestval * 0.02),
-                            Text(
-                              "Name: ${UserInfoModelList[0].firstName} ${UserInfoModelList[0].lastName}",
-                              style: TextStyle(
-                                  fontFamily: bold,
-                                  fontSize: shortestval * 0.05,
-                                  color: Colors.grey[800]),
+                          // =====================================================
+                          // USER NAME
+                          // =====================================================
+
+                          Text(
+                            "Name: ${user.firstName} ${user.lastName}",
+                            style: TextStyle(
+                              fontFamily: bold,
+                              fontSize: shortestval * 0.05,
+                              color: Colors.grey[800],
                             ),
-
-                          ],
-                        );
-                      }
-                      return Text('No image data available');
+                          ),
+                        ],
+                      );
                     }
-                    return Text('Error. Relogin.');
+
+                    return const Text(
+                      "No user data available",
+                    );
                   },
                 ),
 
@@ -239,14 +460,18 @@ class _ProviderProfileState extends State<ProviderProfile>
                       int Result = await change_photo_cont_getx.pickImage();
                       if (Result == 1)
                       {
-                        bool Result = await UpdatePhoto(Email: widget.User_Email,
+                        bool Result = await UpdatePhoto(
+                            Email: widget.User_Email,
                             jwttoken:widget.User_JwtToken,
-                            photo_bytes: change_photo_cont_getx.imageBytes.value);
+                          photoExtension: change_photo_cont_getx.imageExtension.value,
+                          photoBytes: change_photo_cont_getx.imageBytes.value! ,
+                            );
                         if (Result == true)
                         {
                           print("Image update success");
                           Toast.Toastmsg("Image update success");
                           setState(() {
+
                           });
                           return;
                         }
@@ -257,7 +482,7 @@ class _ProviderProfileState extends State<ProviderProfile>
                         }
                       }
                       else{
-                        Toast.Toastmsg("Pick image fail.Use jpg,jpeg,png format only.");
+                        Toast.Toastmsg("Pick image fail.Use jpg,jpeg,png format only for photos.");
                         return;
                       }
 
@@ -277,6 +502,7 @@ class _ProviderProfileState extends State<ProviderProfile>
                 ),
 
                 SizedBox(height: shortestval * 0.02),
+
 ElevatedButton(onPressed: (){
 
   Navigator.push(context, MaterialPageRoute(builder: (context) => ProviderAddService(

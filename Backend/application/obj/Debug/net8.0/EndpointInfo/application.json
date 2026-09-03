@@ -115,19 +115,109 @@
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/UserInfo"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserInfo"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserInfo"
+                "required": [
+                  "Email",
+                  "FirstName",
+                  "LastName",
+                  "Latitude",
+                  "Longitude",
+                  "Password",
+                  "PhoneNumber",
+                  "Role",
+                  "WhatsappPhoneNumber"
+                ],
+                "type": "object",
+                "properties": {
+                  "UserNumber": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "FirstName": {
+                    "maxLength": 50,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  "LastName": {
+                    "maxLength": 50,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  "Email": {
+                    "maxLength": 200,
+                    "minLength": 0,
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "PhoneNumber": {
+                    "maxLength": 50,
+                    "minLength": 0,
+                    "pattern": "^\\+\\d+$",
+                    "type": "string"
+                  },
+                  "WhatsappPhoneNumber": {
+                    "maxLength": 50,
+                    "minLength": 0,
+                    "pattern": "^\\+\\d+$",
+                    "type": "string"
+                  },
+                  "Password": {
+                    "type": "string"
+                  },
+                  "Latitude": {
+                    "type": "number",
+                    "format": "double"
+                  },
+                  "Longitude": {
+                    "type": "number",
+                    "format": "double"
+                  },
+                  "Photo": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "Role": {
+                    "maxLength": 50,
+                    "minLength": 0,
+                    "type": "string"
+                  }
+                }
+              },
+              "encoding": {
+                "UserNumber": {
+                  "style": "form"
+                },
+                "FirstName": {
+                  "style": "form"
+                },
+                "LastName": {
+                  "style": "form"
+                },
+                "Email": {
+                  "style": "form"
+                },
+                "PhoneNumber": {
+                  "style": "form"
+                },
+                "WhatsappPhoneNumber": {
+                  "style": "form"
+                },
+                "Password": {
+                  "style": "form"
+                },
+                "Latitude": {
+                  "style": "form"
+                },
+                "Longitude": {
+                  "style": "form"
+                },
+                "Photo": {
+                  "style": "form"
+                },
+                "Role": {
+                  "style": "form"
+                }
               }
             }
           }
@@ -220,19 +310,40 @@
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/UserProviderPhoto"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserProviderPhoto"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserProviderPhoto"
+                "required": [
+                  "Email",
+                  "Photo",
+                  "PhotoExtension"
+                ],
+                "type": "object",
+                "properties": {
+                  "Email": {
+                    "maxLength": 200,
+                    "minLength": 0,
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "Photo": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "PhotoExtension": {
+                    "type": "string"
+                  }
+                }
+              },
+              "encoding": {
+                "Email": {
+                  "style": "form"
+                },
+                "Photo": {
+                  "style": "form"
+                },
+                "PhotoExtension": {
+                  "style": "form"
+                }
               }
             }
           }
@@ -251,143 +362,49 @@
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/ProviderServices"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProviderServices"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProviderServices"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/Profile/addserviceresources": {
-      "post": {
-        "tags": [
-          "Profile"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProviderServiceResources"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProviderServiceResources"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProviderServiceResources"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/Profile/updatepassword": {
-      "put": {
-        "tags": [
-          "Profile"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginModel"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginModel"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginModel"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/Profile/updateservicedocument": {
-      "put": {
-        "tags": [
-          "Profile"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateServiceFile"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateServiceFile"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateServiceFile"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/Profile/updateserviceresources": {
-      "put": {
-        "tags": [
-          "Profile"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateServiceResources"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateServiceResources"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdateServiceResources"
+                "required": [
+                  "Email",
+                  "ServiceDocument",
+                  "ServiceName"
+                ],
+                "type": "object",
+                "properties": {
+                  "ProviderServiceId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "ServiceName": {
+                    "maxLength": 50,
+                    "minLength": 0,
+                    "type": "string"
+                  },
+                  "ServiceDocument": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "Email": {
+                    "maxLength": 200,
+                    "minLength": 0,
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              },
+              "encoding": {
+                "ProviderServiceId": {
+                  "style": "form"
+                },
+                "ServiceName": {
+                  "style": "form"
+                },
+                "ServiceDocument": {
+                  "style": "form"
+                },
+                "Email": {
+                  "style": "form"
+                }
               }
             }
           }
@@ -430,88 +447,75 @@
         }
       }
     },
-    "/api/Profile/getservicephotoinfo": {
+    "/api/Profile/addserviceresources": {
       "post": {
         "tags": [
           "Profile"
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/ProviderServiceEmailServiceNameModel"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProviderServiceEmailServiceNameModel"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProviderServiceEmailServiceNameModel"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/Profile/getproviderregisterserviceinfo": {
-      "post": {
-        "tags": [
-          "Profile"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserEmailInfoModel"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserEmailInfoModel"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserEmailInfoModel"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/Profile/getservicefileinfo": {
-      "post": {
-        "tags": [
-          "Profile"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProviderServiceEmailServiceNameModel"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProviderServiceEmailServiceNameModel"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProviderServiceEmailServiceNameModel"
+                "required": [
+                  "Email",
+                  "ProviderServiceId",
+                  "ServicePhoto",
+                  "ServiceVideo"
+                ],
+                "type": "object",
+                "properties": {
+                  "ProviderServiceResourcesId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "ServicePhoto": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "ServiceVideo": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "ProviderServiceId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "Email": {
+                    "maxLength": 200,
+                    "minLength": 0,
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "PhotoExtension": {
+                    "type": "string"
+                  },
+                  "VideoExtension": {
+                    "type": "string"
+                  }
+                }
+              },
+              "encoding": {
+                "ProviderServiceResourcesId": {
+                  "style": "form"
+                },
+                "ServicePhoto": {
+                  "style": "form"
+                },
+                "ServiceVideo": {
+                  "style": "form"
+                },
+                "ProviderServiceId": {
+                  "style": "form"
+                },
+                "Email": {
+                  "style": "form"
+                },
+                "PhotoExtension": {
+                  "style": "form"
+                },
+                "VideoExtension": {
+                  "style": "form"
+                }
               }
             }
           }
@@ -546,107 +550,6 @@
         },
         "additionalProperties": false
       },
-      "ProviderServiceEmailServiceNameModel": {
-        "required": [
-          "email",
-          "serviceName"
-        ],
-        "type": "object",
-        "properties": {
-          "serviceName": {
-            "maxLength": 50,
-            "minLength": 0,
-            "type": "string"
-          },
-          "email": {
-            "maxLength": 200,
-            "minLength": 0,
-            "type": "string",
-            "format": "email"
-          }
-        },
-        "additionalProperties": false
-      },
-      "ProviderServiceResources": {
-        "required": [
-          "email",
-          "providerServiceId",
-          "servicePhoto",
-          "serviceVideo"
-        ],
-        "type": "object",
-        "properties": {
-          "providerServiceResourcesId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "servicePhoto": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "serviceVideo": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "providerServiceId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "email": {
-            "maxLength": 200,
-            "minLength": 0,
-            "type": "string",
-            "format": "email"
-          },
-          "providerServices": {
-            "$ref": "#/components/schemas/ProviderServices"
-          },
-          "users": {
-            "$ref": "#/components/schemas/UserInfo"
-          }
-        },
-        "additionalProperties": false
-      },
-      "ProviderServices": {
-        "required": [
-          "email",
-          "serviceDocument",
-          "serviceName"
-        ],
-        "type": "object",
-        "properties": {
-          "providerServiceId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "serviceName": {
-            "maxLength": 50,
-            "minLength": 0,
-            "type": "string"
-          },
-          "serviceDocument": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "email": {
-            "maxLength": 200,
-            "minLength": 0,
-            "type": "string",
-            "format": "email"
-          },
-          "users": {
-            "$ref": "#/components/schemas/UserInfo"
-          },
-          "providerServicesResources": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProviderServiceResources"
-            },
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
       "ServiceInfoModel": {
         "required": [
           "serviceDescription",
@@ -670,61 +573,6 @@
         },
         "additionalProperties": false
       },
-      "UpdateServiceFile": {
-        "required": [
-          "email",
-          "providerServiceId",
-          "serviceDocument"
-        ],
-        "type": "object",
-        "properties": {
-          "providerServiceId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "serviceDocument": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "email": {
-            "maxLength": 200,
-            "minLength": 0,
-            "type": "string",
-            "format": "email"
-          }
-        },
-        "additionalProperties": false
-      },
-      "UpdateServiceResources": {
-        "required": [
-          "email",
-          "providerServiceResourcesId",
-          "servicePhoto",
-          "serviceVideo"
-        ],
-        "type": "object",
-        "properties": {
-          "providerServiceResourcesId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "servicePhoto": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "serviceVideo": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "email": {
-            "maxLength": 200,
-            "minLength": 0,
-            "type": "string",
-            "format": "email"
-          }
-        },
-        "additionalProperties": false
-      },
       "UserEmailInfoModel": {
         "required": [
           "email"
@@ -736,110 +584,6 @@
             "minLength": 0,
             "type": "string",
             "format": "email"
-          }
-        },
-        "additionalProperties": false
-      },
-      "UserInfo": {
-        "required": [
-          "email",
-          "firstName",
-          "lastName",
-          "latitude",
-          "longitude",
-          "password",
-          "phoneNumber",
-          "role",
-          "whatsappPhoneNumber"
-        ],
-        "type": "object",
-        "properties": {
-          "userNumber": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "firstName": {
-            "maxLength": 50,
-            "minLength": 0,
-            "type": "string"
-          },
-          "lastName": {
-            "maxLength": 50,
-            "minLength": 0,
-            "type": "string"
-          },
-          "email": {
-            "maxLength": 200,
-            "minLength": 0,
-            "type": "string",
-            "format": "email"
-          },
-          "phoneNumber": {
-            "maxLength": 50,
-            "minLength": 0,
-            "pattern": "^\\+\\d+$",
-            "type": "string"
-          },
-          "whatsappPhoneNumber": {
-            "maxLength": 50,
-            "minLength": 0,
-            "pattern": "^\\+\\d+$",
-            "type": "string"
-          },
-          "password": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "latitude": {
-            "type": "number",
-            "format": "double"
-          },
-          "longitude": {
-            "type": "number",
-            "format": "double"
-          },
-          "photo": {
-            "type": "string",
-            "nullable": true
-          },
-          "role": {
-            "maxLength": 50,
-            "minLength": 0,
-            "type": "string"
-          },
-          "providerServices": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProviderServices"
-            },
-            "nullable": true
-          },
-          "providerServicesResources": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProviderServiceResources"
-            },
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
-      "UserProviderPhoto": {
-        "required": [
-          "email",
-          "photo"
-        ],
-        "type": "object",
-        "properties": {
-          "email": {
-            "maxLength": 200,
-            "minLength": 0,
-            "type": "string",
-            "format": "email"
-          },
-          "photo": {
-            "minLength": 1,
-            "type": "string"
           }
         },
         "additionalProperties": false

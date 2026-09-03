@@ -55,63 +55,291 @@ class _ProviderAddServiceState extends State<ProviderAddService> {
     }
   }
 
-  Future<int> AddService({required FileBytes}) async {
-    try {
-      final blocState = context.read<CommonVariableBloc>().state;
-      final ServiceName = blocState.ProviderServiceName;
-      final String base64File = base64Encode(FileBytes as List<int>);
 
-      if (base64File.isEmptyOrNull) {
-        Toast.Toastmsg('File data is required');
-        print('File data  is required');
+  Future<int> AddService({
+    required List<int> FileBytes,
+  }) async {
+    try {
+      // =========================================================
+      // 1. Get service name
+      // =========================================================
+
+      final blocState =
+          context.read<CommonVariableBloc>().state;
+
+      final String ServiceName =
+      blocState.ProviderServiceName!.trim();
+
+
+      // =========================================================
+      // 2. Print information
+      // =========================================================
+
+      print("========== ADD SERVICE ==========");
+      print("Service Name: $ServiceName");
+      print("Email: ${widget.User_Email}");
+      print("Document Size: ${FileBytes.length} bytes");
+
+
+      // =========================================================
+      // 3. Validate document bytes
+      // =========================================================
+
+      if (FileBytes.isEmpty) {
+        Toast.Toastmsg(
+          'File data is required',
+        );
+
+        print(
+          'File data is required',
+        );
+
         return 1;
       }
-      if (ServiceName.isEmptyOrNull) {
-        Toast.Toastmsg('ServiceName is required');
-        print('ServiceName is required');
+
+
+      // =========================================================
+      // 4. Validate service name
+      // =========================================================
+
+      if (ServiceName.isEmpty) {
+        Toast.Toastmsg(
+          'ServiceName is required',
+        );
+
+        print(
+          'ServiceName is required',
+        );
+
         return 2;
       }
 
-      print(ServiceName);
 
-      // All fields valid
-      final Map<String, dynamic> ServiceData = {
-        "ServiceName": ServiceName,
-        "ServiceDocument":base64File,
-        "Email":widget.User_Email
-      };
+      // =========================================================
+      // 5. API URL
+      // =========================================================
 
-      const String url = Backend_Server_Url + "api/Profile/addservice";
+      const String url =
+          Backend_Server_Url +
+              "api/Profile/addservice";
 
-      final response = await http.post(
+      print("API URL: $url");
+
+
+      // =========================================================
+      // 6. Create multipart request
+      // =========================================================
+
+      final request = http.MultipartRequest(
+        "POST",
         Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': 'Bearer ${widget.User_JwtToken}'
-        },
-        body: json.encode(ServiceData),
       );
 
+
+      // =========================================================
+      // 7. Authorization
+      // =========================================================
+
+      request.headers["Authorization"] =
+      "Bearer ${widget.User_JwtToken}";
+
+
+      // =========================================================
+      // 8. Add normal form fields
+      // =========================================================
+
+      request.fields["ServiceName"] =
+          ServiceName;
+
+      request.fields["Email"] =
+          widget.User_Email;
+
+
+      // =========================================================
+      // 9. Add document bytes
+      // =========================================================
+
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          "ServiceDocument",
+          FileBytes,
+          filename: "service_document.pdf",
+        ),
+      );
+
+
+      // =========================================================
+      // 10. Send request
+      // =========================================================
+
+      print(
+        "Multipart request created.",
+      );
+
+      print(
+        "Uploading service document...",
+      );
+
+      final streamedResponse =
+      await request.send();
+
+
+      // =========================================================
+      // 11. Convert response
+      // =========================================================
+
+      final response =
+      await http.Response.fromStream(
+        streamedResponse,
+      );
+
+
+      // =========================================================
+      // 12. Print response
+      // =========================================================
+
+      print(
+        "Response status: ${response.statusCode}",
+      );
+
+      print(
+        "Response body: ${response.body}",
+      );
+
+
+      // =========================================================
+      // 13. Success
+      // =========================================================
+
       if (response.statusCode == 200) {
-        Toast.Toastmsg('Add service success.');
-        print('Add service success.');
+        Toast.Toastmsg(
+          'Add service success.',
+        );
+
+        print(
+          'Add service success.',
+        );
+
         return 1;
-      } else if (response.statusCode == 500) {
-        Toast.Toastmsg('Add service fail.Data are not in correct format.');
-        print('Add service fail.Data are not in correct format.');
+      }
+
+
+      // =========================================================
+      // 14. Bad request
+      // =========================================================
+
+      if (response.statusCode == 400) {
+        Toast.Toastmsg(
+          response.body,
+        );
+
+        print(
+          "Bad request: ${response.body}",
+        );
+
         return 3;
       }
-      else {
-        print("else status code = ${response.statusCode}");
+
+
+      // =========================================================
+      // 15. Duplicate service
+      // =========================================================
+
+      if (response.statusCode == 409) {
         Toast.Toastmsg(
-            'Add service fail.'
+          response.body,
         );
-        print('Add service fail.');
-        return 2;
+
+        print(
+          "Service already exists: ${response.body}",
+        );
+
+        return 4;
       }
-    } catch (E) {
-      Toast.Toastmsg('Add service fail.');
-      print('Add service fail.');
+
+
+      // =========================================================
+      // 16. Unauthorized
+      // =========================================================
+
+      if (response.statusCode == 401) {
+        Toast.Toastmsg(
+          "Unauthorized. Please login again.",
+        );
+
+        print(
+          "Unauthorized.",
+        );
+
+        return 5;
+      }
+
+
+      // =========================================================
+      // 17. Forbidden
+      // =========================================================
+
+      if (response.statusCode == 403) {
+        Toast.Toastmsg(
+          "You are not authorized to add a service.",
+        );
+
+        print(
+          "Forbidden.",
+        );
+
+        return 6;
+      }
+
+
+      // =========================================================
+      // 18. Server error
+      // =========================================================
+
+      if (response.statusCode == 500) {
+        Toast.Toastmsg(
+          "Server error while adding service.",
+        );
+
+        print(
+          "Server error: ${response.body}",
+        );
+
+        return 7;
+      }
+
+
+      // =========================================================
+      // 19. Other status
+      // =========================================================
+
+      print(
+        "Unexpected status code: ${response.statusCode}",
+      );
+
+      Toast.Toastmsg(
+        'Add service failed.',
+      );
+
+      return 8;
+    } catch (obj) {
+
+      // =========================================================
+      // 20. Exception
+      // =========================================================
+
+      print(
+        "Exception caught while adding service.",
+      );
+
+      print(
+        "Exception: ${obj.toString()}",
+      );
+
+      Toast.Toastmsg(
+        'Add service failed.',
+      );
+
       return 0;
     }
   }
@@ -171,11 +399,11 @@ class _ProviderAddServiceState extends State<ProviderAddService> {
       appBar: AppBar(
         title: const Text('Add Service'),
       ),
-      body: Container(
+      body: SingleChildScrollView(
         child: Column(
           children: [
-
-
+        
+        
             FutureBuilder(
               future: GetRegisterServiceInfo(
                   Email: widget.User_Email, jwttoken: widget.User_JwtToken),
@@ -193,7 +421,7 @@ class _ProviderAddServiceState extends State<ProviderAddService> {
                       BlocBuilder<CommonVariableBloc, CommonVariableState>(
                         builder: (context, state) {
                           return _GreenDropdown(
-                            value: state.ProviderServiceName!,
+                            value: RegisterServiceInfoModelList[0].serviceName!,
                             items: RegisterServiceInfoModelList
                                 .map((service) => service.serviceName ?? '')
                                 .toList(),
@@ -217,11 +445,11 @@ class _ProviderAddServiceState extends State<ProviderAddService> {
                 return Text('Error. Relogin.');
               },
             ),
-
-
+        
+        
             SizedBox(height: shortestval * 0.02),
-
-
+        
+        
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue[600],
@@ -236,7 +464,7 @@ class _ProviderAddServiceState extends State<ProviderAddService> {
                   int Result = await change_file_cont_getx.pickFile();
                   if (Result == 1) {
                     int Result = await AddService(
-                        FileBytes: change_file_cont_getx.fileBytes.value);
+                        FileBytes: change_file_cont_getx.fileBytes.value!);
                     if (Result == 1) {
                       return;
                     }
@@ -259,10 +487,9 @@ class _ProviderAddServiceState extends State<ProviderAddService> {
                     fontSize: shortestval * 0.04),
               ),
             ),
-
+        
           ],
         ),
-
       ),
     );
   }

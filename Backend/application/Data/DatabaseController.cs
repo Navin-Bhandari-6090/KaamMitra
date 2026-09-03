@@ -1,4 +1,5 @@
 ﻿using application.Models;
+using application.Models.DTOModels;
 using Microsoft.EntityFrameworkCore;
 
 namespace application.Data
@@ -14,15 +15,13 @@ namespace application.Data
 
         public DbSet<UserInfo> UserInfos { get; set; }
 
-        public DbSet<ProviderServices> ProviderServiceInfo { get; set; }
+        public DbSet<ProviderRegisterServices> ProviderServiceInfo { get; set; }
 
-        public DbSet<ProviderServiceResources> ProviderServiceResourcesInfo { get; set; }
+        public DbSet<ProviderRegisterServiceResources> ProviderServiceResourcesInfo { get; set; }
 
         public DbSet<ServiceInfoModel> ServiceInfos { get; set; }
 
-      
-
-        public object ProviderServices { get; internal set; }
+     
 
     }
 }

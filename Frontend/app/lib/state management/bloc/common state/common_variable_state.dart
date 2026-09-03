@@ -9,7 +9,7 @@ class CommonVariableState extends Equatable{
   String? ProviderServiceName;
 
 
-  CommonVariableState({this.Role="User",this.ObscureValuePassword=true,this.ObscureValueRetypePassword=true,this.ProviderServiceName="Painter"});
+  CommonVariableState({this.Role="User",this.ObscureValuePassword=true,this.ObscureValueRetypePassword=true,this.ProviderServiceName=""});
 
   CommonVariableState copyWith({String? Role,bool? ObscureValue,bool? ObscureValueRetypePassword,String? ProviderServiceName}){
     return

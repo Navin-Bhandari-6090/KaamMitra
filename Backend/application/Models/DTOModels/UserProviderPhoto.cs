@@ -11,6 +11,13 @@ namespace application.Models.DTOModels
 
 
         [Required]
-        public string Photo { get; set; } = string.Empty;
+        public IFormFile Photo { get; set; } = null; 
+
+       
+
+        [Required]
+        public string PhotoExtension { get; set; } = string.Empty;
+
+
     }
 }

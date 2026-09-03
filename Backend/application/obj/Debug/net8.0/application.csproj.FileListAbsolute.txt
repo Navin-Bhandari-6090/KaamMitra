@@ -115,10 +115,11 @@ E:\workplace\programming\01 practice\Service app\Backend\application\obj\Debug\n
 E:\workplace\programming\01 practice\Service app\Backend\application\obj\Debug\net8.0\staticwebassets.development.json
 E:\workplace\programming\01 practice\Service app\Backend\application\obj\Debug\net8.0\staticwebassets.build.endpoints.json
 E:\workplace\programming\01 practice\Service app\Backend\application\obj\Debug\net8.0\swae.build.ex.cache
-E:\workplace\programming\01 practice\Service app\Backend\application\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt
 E:\workplace\programming\01 practice\Service app\Backend\application\obj\Debug\net8.0\applicat.45FA8C82.Up2Date
 E:\workplace\programming\01 practice\Service app\Backend\application\obj\Debug\net8.0\application.dll
 E:\workplace\programming\01 practice\Service app\Backend\application\obj\Debug\net8.0\refint\application.dll
 E:\workplace\programming\01 practice\Service app\Backend\application\obj\Debug\net8.0\application.pdb
 E:\workplace\programming\01 practice\Service app\Backend\application\obj\Debug\net8.0\application.genruntimeconfig.cache
 E:\workplace\programming\01 practice\Service app\Backend\application\obj\Debug\net8.0\ref\application.dll
+E:\workplace\programming\01 practice\Service app\Backend\application\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt
+E:\workplace\programming\01 practice\Service app\Backend\application\bin\Debug\net8.0\application.staticwebassets.runtime.json

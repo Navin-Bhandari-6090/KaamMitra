@@ -21,7 +21,7 @@ namespace application.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("application.Models.ProviderServiceResources", b =>
+            modelBuilder.Entity("application.Models.ProviderRegisterServiceResources", b =>
                 {
                     b.Property<int>("ProviderServiceResourcesId")
                         .ValueGeneratedOnAdd()
@@ -54,7 +54,7 @@ namespace application.Migrations
                     b.ToTable("ProviderServiceResourcesInfo");
                 });
 
-            modelBuilder.Entity("application.Models.ProviderServices", b =>
+            modelBuilder.Entity("application.Models.ProviderRegisterServices", b =>
                 {
                     b.Property<int>("ProviderServiceId")
                         .ValueGeneratedOnAdd()
@@ -161,7 +161,7 @@ namespace application.Migrations
                     b.ToTable("UserInfos");
                 });
 
-            modelBuilder.Entity("application.Models.ProviderServiceResources", b =>
+            modelBuilder.Entity("application.Models.ProviderRegisterServiceResources", b =>
                 {
                     b.HasOne("application.Models.UserInfo", "Users")
                         .WithMany("ProviderServicesResources")
@@ -169,7 +169,7 @@ namespace application.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("application.Models.ProviderServices", "ProviderServices")
+                    b.HasOne("application.Models.ProviderRegisterServices", "ProviderServices")
                         .WithMany("ProviderServicesResources")
                         .HasForeignKey("ProviderServiceId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -180,7 +180,7 @@ namespace application.Migrations
                     b.Navigation("Users");
                 });
 
-            modelBuilder.Entity("application.Models.ProviderServices", b =>
+            modelBuilder.Entity("application.Models.ProviderRegisterServices", b =>
                 {
                     b.HasOne("application.Models.UserInfo", "Users")
                         .WithMany("ProviderServices")
@@ -191,7 +191,7 @@ namespace application.Migrations
                     b.Navigation("Users");
                 });
 
-            modelBuilder.Entity("application.Models.ProviderServices", b =>
+            modelBuilder.Entity("application.Models.ProviderRegisterServices", b =>
                 {
                     b.Navigation("ProviderServicesResources");
                 });

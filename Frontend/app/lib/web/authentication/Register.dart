@@ -82,8 +82,12 @@ class _RegisterScreenState extends State<RegisterScreen>
       return;
     } else
     {
-      Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (context) => ErrorPage()));
+      Navigator.pushAndRemoveUntil(context,
+          MaterialPageRoute(builder: (context) => ErrorPage()
+          )
+        ,
+            (route) => false,
+      );
       Toastget().Toastmsg("Session End.Relogin please.");
       return;
     }

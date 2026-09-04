@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../authentication/Error_page.dart';
 import '../common method/Commmon_Method.dart';
 import '../common widget/toast.dart';
+import 'Provider_Ser_Res_Video_Screen.dart';
 import 'Provider_Service_File.dart';
 import 'Provider_Service_Photo.dart';
 
@@ -70,6 +71,15 @@ class _MyGalleryScreenState extends State<MyGalleryScreen> {
             ),
 
             ElevatedButton(onPressed: (){
+
+              Navigator.push(context,MaterialPageRoute(builder:
+                  (context) =>ProviderSerResVideoScreen (User_Email: widget.User_Email,
+                User_JwtToken:widget.User_JwtToken,
+                User_Role: widget.User_Role,
+                Service_Name:widget.Service_Name,
+              )
+              )
+              );
 
             },
               child: Text("Video"),

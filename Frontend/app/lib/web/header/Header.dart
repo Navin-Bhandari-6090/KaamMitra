@@ -39,9 +39,11 @@ class _HeaderState extends State<Header> {
       children:
       [
         Text("Home",style: TextStyle(fontSize: shortestval*0.02,color: Colors.white),).onTap(() {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context){
+          Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context){
             return HomeScreenUi(UserLogin:widget.UserLogin, User_JwtToken:widget.User_JwtToken ,);
-          }));
+          }),
+          (route) => false,
+          );
         }),
 
         Text("Services",style: TextStyle(fontSize: shortestval*0.02,color: Colors.white),).onTap(() async {
@@ -51,12 +53,15 @@ class _HeaderState extends State<Header> {
               String? Jwt_Token = box.get('jwt_token');
               String? User_Email = box.get('user_email');
               String? User_Role = box.get('user_role');
-                Navigator.pushReplacement(
+                Navigator.pushAndRemoveUntil(
                     context, MaterialPageRoute(builder: (context) {
                   return ServicesScreen(User_Email: User_Email!,
                     User_JwtToken: Jwt_Token!,
                     User_Role: User_Role!,);
-                }));
+                })
+                  ,
+                      (route) => false,
+                );
             }
             else
             {
@@ -79,20 +84,24 @@ class _HeaderState extends State<Header> {
               String? User_Role = box.get('user_role');
               if (User_Role == "Provider")
               {
-                Navigator.pushReplacement(
+                Navigator.pushAndRemoveUntil(
                     context, MaterialPageRoute(builder: (context) {
                   return ProviderBookingsScreen(User_Email: User_Email!,
                     User_JwtToken: Jwt_Token!,
                     User_Role: User_Role!,);
-                }));
+                })
+                  ,
+                      (route) => false,
+                );
               }
               else {
-                Navigator.pushReplacement(
+                Navigator.pushAndRemoveUntil(
                     context, MaterialPageRoute(builder: (context) {
                   return MyBookingScreenUser(User_Email: User_Email!,
                     User_JwtToken: Jwt_Token!,
                     User_Role: User_Role!,);
-                }));
+                }),
+                      (route) => false,);
               }
             }
             else
@@ -118,22 +127,24 @@ class _HeaderState extends State<Header> {
               print(Jwt_Token);
               if (User_Role == "Provider")
               {
-                Navigator.pushReplacement(
+                Navigator.pushAndRemoveUntil(
                     context, MaterialPageRoute(builder: (context) {
                   return ProviderProfile(User_Email: User_Email!,
                     User_JwtToken: Jwt_Token!,
                     User_Role: User_Role!,
                     UserLogin: widget.UserLogin,);
-                }));
+                }),
+                      (route) => false,);
               }
               else {
-                Navigator.pushReplacement(
+                Navigator.pushAndRemoveUntil(
                     context, MaterialPageRoute(builder: (context) {
                   return ProfileScreenUser(User_Email: User_Email!,
                     User_JwtToken: Jwt_Token!,
                     User_Role: User_Role!,
                     UserLogin: widget.UserLogin,);
-                }));
+                }),
+                      (route) => false,);
               }
             }
             else

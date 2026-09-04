@@ -458,9 +458,11 @@
               "schema": {
                 "required": [
                   "Email",
+                  "PhotoExtension",
                   "ProviderServiceId",
                   "ServicePhoto",
-                  "ServiceVideo"
+                  "ServiceVideo",
+                  "VideoExtension"
                 ],
                 "type": "object",
                 "properties": {
@@ -526,6 +528,336 @@
           }
         }
       }
+    },
+    "/api/Profile/updatepassword": {
+      "put": {
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginModel"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginModel"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Profile/updateservicedocument": {
+      "put": {
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "Email",
+                  "ProviderServiceId",
+                  "ServiceDocument"
+                ],
+                "type": "object",
+                "properties": {
+                  "ProviderServiceId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "ServiceDocument": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "Email": {
+                    "maxLength": 200,
+                    "minLength": 0,
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              },
+              "encoding": {
+                "ProviderServiceId": {
+                  "style": "form"
+                },
+                "ServiceDocument": {
+                  "style": "form"
+                },
+                "Email": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Profile/updateserviceresourcesphoto": {
+      "put": {
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "Email",
+                  "ProviderServiceId",
+                  "ProviderServiceResourcesId",
+                  "ServicePhoto"
+                ],
+                "type": "object",
+                "properties": {
+                  "ProviderServiceResourcesId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "ServicePhoto": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "Email": {
+                    "maxLength": 200,
+                    "minLength": 0,
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "ProviderServiceId": {
+                    "type": "integer",
+                    "format": "int32"
+                  }
+                }
+              },
+              "encoding": {
+                "ProviderServiceResourcesId": {
+                  "style": "form"
+                },
+                "ServicePhoto": {
+                  "style": "form"
+                },
+                "Email": {
+                  "style": "form"
+                },
+                "ProviderServiceId": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Profile/updateserviceresourcesvideo": {
+      "put": {
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "Email",
+                  "ProviderServiceId",
+                  "ProviderServiceResourcesId",
+                  "ServiceVideo"
+                ],
+                "type": "object",
+                "properties": {
+                  "ProviderServiceResourcesId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "ServiceVideo": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "Email": {
+                    "maxLength": 200,
+                    "minLength": 0,
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "ProviderServiceId": {
+                    "type": "integer",
+                    "format": "int32"
+                  }
+                }
+              },
+              "encoding": {
+                "ProviderServiceResourcesId": {
+                  "style": "form"
+                },
+                "ServiceVideo": {
+                  "style": "form"
+                },
+                "Email": {
+                  "style": "form"
+                },
+                "ProviderServiceId": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Profile/getservicephotoinfo": {
+      "post": {
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderServiceEmailServiceNameModel"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderServiceEmailServiceNameModel"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderServiceEmailServiceNameModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Profile/getproviderregisterserviceinfo": {
+      "post": {
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Profile/getservicefileinfo": {
+      "post": {
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderServiceEmailServiceNameModel"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderServiceEmailServiceNameModel"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderServiceEmailServiceNameModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Profile/getservicevideoinfo": {
+      "post": {
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderServiceEmailServiceNameModel"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderServiceEmailServiceNameModel"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderServiceEmailServiceNameModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -546,6 +878,27 @@
           "password": {
             "minLength": 1,
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProviderServiceEmailServiceNameModel": {
+        "required": [
+          "email",
+          "serviceName"
+        ],
+        "type": "object",
+        "properties": {
+          "serviceName": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
           }
         },
         "additionalProperties": false

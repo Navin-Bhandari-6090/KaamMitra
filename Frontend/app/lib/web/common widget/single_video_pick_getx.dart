@@ -32,23 +32,27 @@ class PickSingleVideoController extends GetxController {
         return 3;
       }
 
-      // Read video into memory
+      print("Video format is valid.");
+
+// Read video into memory
       final Uint8List bytes = await video.readAsBytes();
 
-      // Calculate size from bytes
+// Calculate size from bytes
       final int fileSize = bytes.length;
 
       print(
-        "Video size: ${fileSize / (1024 * 1024)} MB",
+        "Video size: ${(fileSize / (1024 * 1024)).toStringAsFixed(2)} MB",
       );
 
-      // 2 GB limit
-      const int maxSize = 2 * 1024 * 1024 * 1024;
+// 1 GB limit
+      const int maxSize = 1 * 1024 * 1024 * 1024;
 
       if (fileSize > maxSize) {
-        print("Video file size exceeds 2GB.");
+        print("Video file size exceeds 1 GB.");
         return 2;
       }
+
+      print("Video size is valid.");
 
       // Save information
       videoPath.value = video.path;

@@ -1,19 +1,15 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace application.Models.DTOModels
 {
-    public class UpdateServiceResources
+    public class UpdateServiceResPhoto
     {
 
         [Required]
         public int ProviderServiceResourcesId { get; set; }
 
         [Required]
-        public string ServicePhoto { get; set; } = string.Empty;
-
-        [Required]
-        public string ServiceVideo { get; set; } = string.Empty;
+        public IFormFile ServicePhoto { get; set; } = null;
 
         [Required]
         [StringLength(200)]

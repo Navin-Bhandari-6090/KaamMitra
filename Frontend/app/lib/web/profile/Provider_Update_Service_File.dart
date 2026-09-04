@@ -1,10 +1,9 @@
-import 'dart:convert';
+
 
 import 'package:flutter/material.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_instance/src/extension_instance.dart';
 import 'package:http/http.dart' as http;
-import 'package:velocity_x/velocity_x.dart';
 
 import '../../constant/Server_Database.dart';
 import '../../constant/Style.dart';
@@ -50,64 +49,247 @@ class _ProviderUpdateServiceFileState extends State<ProviderUpdateServiceFile> {
   }
 
 
-  Future<int> UpdateServiceFile({required FileBytes,required String ServiceId}) async {
+  Future<int> UpdateServiceFile({
+    required List<int> FileBytes,
+    required String ServiceId,
+  }) async {
     try {
-      final String base64File = base64Encode(FileBytes as List<int>);
+      // =====================================================
+      // 1. Validate file
+      // =====================================================
 
-      if (base64File.isEmptyOrNull) {
+      if (FileBytes.isEmpty) {
         Toast.Toastmsg('File data is required');
-        print('File data  is required');
+        print('File data is required');
         return 1;
       }
 
-      if (ServiceId.isEmptyOrNull) {
+      // =====================================================
+      // 2. Validate service ID
+      // =====================================================
+
+      if (ServiceId.trim().isEmpty) {
         Toast.Toastmsg('Service id is required');
         print('Service id is required');
         return 1;
       }
 
+      // =====================================================
+      // 3. Validate email
+      // =====================================================
 
-      // All fields valid
-      final Map<String, dynamic> ServiceData = {
-        "ServiceDocument":base64File,
-        "Email":widget.User_Email,
-        "ProviderServiceId":ProviderServiceIdCont.text.trim()
-      };
+      if (widget.User_Email.trim().isEmpty) {
+        Toast.Toastmsg('Email is required');
+        print('Email is required');
+        return 1;
+      }
 
-      const String url = Backend_Server_Url + "api/Profile/updateservicedocument";
+      // =====================================================
+      // 4. API URL
+      // =====================================================
 
-      final response = await http.put(
+      const String url =
+          Backend_Server_Url +
+              "api/Profile/updateservicedocument";
+
+      // =====================================================
+      // 5. Create multipart request
+      // =====================================================
+
+      final request = http.MultipartRequest(
+        'PUT',
         Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': 'Bearer ${widget.User_JwtToken}'
-        },
-        body: json.encode(ServiceData),
       );
 
+      // =====================================================
+      // 6. Authorization
+      // =====================================================
+
+      request.headers['Authorization'] =
+      'Bearer ${widget.User_JwtToken}';
+
+      // =====================================================
+      // 7. Add normal form fields
+      // =====================================================
+
+      request.fields['Email'] =
+          widget.User_Email.trim();
+
+      request.fields['ProviderServiceId'] =
+          ServiceId.trim();
+
+      // =====================================================
+      // 8. Add PDF file
+      // =====================================================
+
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'ServiceDocument',
+          FileBytes,
+          filename: 'service_document.pdf',
+          contentType: http.MediaType(
+            'application',
+            'pdf',
+          ),
+        ),
+      );
+
+      // =====================================================
+      // 9. Debug information
+      // =====================================================
+
+      print('==========================================');
+      print('UPDATE SERVICE DOCUMENT');
+      print('==========================================');
+      print('URL: $url');
+      print('Email: ${widget.User_Email}');
+      print('Service ID: ${ServiceId.trim()}');
+      print('File bytes: ${FileBytes.length}');
+      print('==========================================');
+
+      // =====================================================
+      // 10. Send request
+      // =====================================================
+
+      final streamedResponse = await request.send();
+
+      // =====================================================
+      // 11. Convert streamed response
+      // =====================================================
+
+      final response =
+      await http.Response.fromStream(streamedResponse);
+
+      print('Status Code: ${response.statusCode}');
+      print('Response: ${response.body}');
+
+      // =====================================================
+      // 12. Success
+      // =====================================================
+
       if (response.statusCode == 200) {
-        Toast.Toastmsg('Update service success.');
+        Toast.Toastmsg(
+          response.body.isNotEmpty
+              ? response.body
+              : 'Service document updated successfully.',
+        );
+
         print('Update service success.');
+
         return 1;
-      } else if (response.statusCode == 500) {
-        Toast.Toastmsg('Update service fail.Data are not in correct format.');
-        print('Update service fail.Data are not in correct format.');
+      }
+
+      // =====================================================
+      // 13. Bad data
+      // =====================================================
+
+      else if (response.statusCode == 400) {
+        Toast.Toastmsg(
+          response.body.isNotEmpty
+              ? response.body
+              : 'Data are not in correct format.',
+        );
+
+        print(
+          'Update service failed - 400: ${response.body}',
+        );
+
         return 3;
       }
-      else {
-        print("else status code = ${response.statusCode}");
+
+      // =====================================================
+      // 14. Unauthorized
+      // =====================================================
+
+      else if (response.statusCode == 401) {
         Toast.Toastmsg(
-            'Update service fail.'
+          'Unauthorized. Please login again.',
         );
-        print('Update service fail.');
+
+        print(
+          'Update service failed - 401: ${response.body}',
+        );
+
+        return 4;
+      }
+
+      // =====================================================
+      // 15. Not found
+      // =====================================================
+
+      else if (response.statusCode == 404) {
+        Toast.Toastmsg(
+          response.body.isNotEmpty
+              ? response.body
+              : 'User or service not found.',
+        );
+
+        print(
+          'Update service failed - 404: ${response.body}',
+        );
+
+        return 5;
+      }
+
+      // =====================================================
+      // 16. Server error
+      // =====================================================
+
+      else if (response.statusCode == 500) {
+        Toast.Toastmsg(
+          response.body.isNotEmpty
+              ? response.body
+              : 'Server error. Please try again.',
+        );
+
+        print(
+          'Update service failed - 500: ${response.body}',
+        );
+
+        return 6;
+      }
+
+      // =====================================================
+      // 17. Other status codes
+      // =====================================================
+
+      else {
+        Toast.Toastmsg(
+          response.body.isNotEmpty
+              ? response.body
+              : 'Update service failed.',
+        );
+
+        print(
+          'Unexpected status code: ${response.statusCode}',
+        );
+
+        print(
+          'Response: ${response.body}',
+        );
+
         return 2;
       }
-    } catch (E) {
-      Toast.Toastmsg('Update service fail.');
-      print('Update service fail.');
+    }
+
+    // =======================================================
+    // 18. Exception
+    // =======================================================
+
+    catch (e) {
+      print(
+        'UpdateServiceFile exception: $e',
+      );
+
+      Toast.Toastmsg(
+        'Update service failed.',
+      );
+
       return 0;
     }
   }
+
+
   @override
   Widget build(BuildContext context) {
     var shortestval = MediaQuery
@@ -158,7 +340,7 @@ class _ProviderUpdateServiceFileState extends State<ProviderUpdateServiceFile> {
                   int Result = await change_file_cont_getx.pickFile();
                   if (Result == 1) {
                     int Result = await UpdateServiceFile(
-                        FileBytes: change_file_cont_getx.fileBytes.value, ServiceId: '${ProviderServiceIdCont.text.trim()}');
+                        FileBytes: change_file_cont_getx.fileBytes.value!, ServiceId: '${ProviderServiceIdCont.text.trim()}');
                     if (Result == 1) {
                       return;
                     }

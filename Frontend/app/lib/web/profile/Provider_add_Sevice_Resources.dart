@@ -1,17 +1,14 @@
-import 'dart:convert';
+
 
 import 'package:flutter/material.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:get/get_instance/src/extension_instance.dart';
 import 'package:http/http.dart' as http;
-import 'package:velocity_x/velocity_x.dart';
-
 import '../../constant/Server_Database.dart';
 import '../../constant/Style.dart';
 import '../authentication/Error_page.dart';
 import '../common method/Commmon_Method.dart';
 import '../common widget/getx_cont_pick_single_photo_int.dart';
-
 import '../common widget/single_video_pick_getx.dart';
 import '../common widget/toast.dart';
 
@@ -53,6 +50,8 @@ class _ProviderAddSeviceResourcesState extends State<ProviderAddSeviceResources>
       return;
     }
   }
+
+
   Future<int> AddServiceResources({
     required List<int> ImageBytes,
     required List<int> VideoBytes,

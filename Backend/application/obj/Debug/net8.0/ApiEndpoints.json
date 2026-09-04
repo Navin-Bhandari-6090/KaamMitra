@@ -246,6 +246,38 @@
   },
   {
     "ContainingType": "application.Controllers.ProfileController",
+    "Method": "GetProviderServiceInfo",
+    "RelativePath": "api/Profile/getproviderregisterserviceinfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UserEmailInfoModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "GetServiceFileInfo",
+    "RelativePath": "api/Profile/getservicefileinfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.ProviderServiceEmailServiceNameModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
     "Method": "GetServiceInfo",
     "RelativePath": "api/Profile/getserviceinfo",
     "HttpMethod": "POST",
@@ -262,6 +294,38 @@
   },
   {
     "ContainingType": "application.Controllers.ProfileController",
+    "Method": "GetServicePhotoInfo",
+    "RelativePath": "api/Profile/getservicephotoinfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.ProviderServiceEmailServiceNameModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "GetServiceVideoInfo",
+    "RelativePath": "api/Profile/getservicevideoinfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.ProviderServiceEmailServiceNameModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
     "Method": "GetUserInfo",
     "RelativePath": "api/Profile/getuserinfo",
     "HttpMethod": "POST",
@@ -271,6 +335,22 @@
       {
         "Name": "obj",
         "Type": "application.Models.DTOModels.UserEmailInfoModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "UpdatePassword",
+    "RelativePath": "api/Profile/updatepassword",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.LoginModel",
         "IsRequired": true
       }
     ],
@@ -297,6 +377,94 @@
       {
         "Name": "PhotoExtension",
         "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "UpdateServiceFile",
+    "RelativePath": "api/Profile/updateservicedocument",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "ProviderServiceId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "ServiceDocument",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "Email",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "UpdateServiceResourcesPhoto",
+    "RelativePath": "api/Profile/updateserviceresourcesphoto",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "ProviderServiceResourcesId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "ServicePhoto",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "Email",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ProviderServiceId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "UpdateServiceResourcesVideo",
+    "RelativePath": "api/Profile/updateserviceresourcesvideo",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "ProviderServiceResourcesId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "ServiceVideo",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "Email",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ProviderServiceId",
+        "Type": "System.Int32",
         "IsRequired": false
       }
     ],

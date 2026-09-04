@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:velocity_x/velocity_x.dart';
 
 import '../../constant/Server_Database.dart';
 import '../../models/ProviderRegisterServiceNameModel.dart';
@@ -36,6 +35,8 @@ class _ProviderServiceSelectState extends State<ProviderServiceSelect> {
     {
       return;
     } else {
+      await Clear_User_Data();
+      await Random_token_Clear();
       Navigator.pushReplacement(context,
           MaterialPageRoute(builder: (context) => ErrorPage()
           )

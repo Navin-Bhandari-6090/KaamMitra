@@ -7,16 +7,12 @@
       "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:controllers\\profilecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\models\\dtomodels\\providerserviceresources.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:models\\dtomodels\\providerserviceresources.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\models\\dtomodels\\sendresvideodto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:models\\dtomodels\\sendresvideodto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\models\\dtomodels\\userproviderphoto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:models\\dtomodels\\userproviderphoto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\models\\dtomodels\\updateresvideodto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:models\\dtomodels\\updateresvideodto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -26,45 +22,32 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 3,
+          "SelectedChildIndex": 2,
           "Children": [
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "ProviderServiceResources.cs",
-              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Models\\DTOModels\\ProviderServiceResources.cs",
-              "RelativeDocumentMoniker": "Models\\DTOModels\\ProviderServiceResources.cs",
-              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Models\\DTOModels\\ProviderServiceResources.cs",
-              "RelativeToolTip": "Models\\DTOModels\\ProviderServiceResources.cs",
-              "ViewState": "AgIAAAkAAAAAAAAAAAAowB4AAAABAAAAAAAAAA==",
+              "Title": "SendResVideoDTO.cs",
+              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Models\\DTOModels\\SendResVideoDTO.cs",
+              "RelativeDocumentMoniker": "Models\\DTOModels\\SendResVideoDTO.cs",
+              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Models\\DTOModels\\SendResVideoDTO.cs",
+              "RelativeToolTip": "Models\\DTOModels\\SendResVideoDTO.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-02T17:06:42.898Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "Program.cs",
-              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Program.cs",
-              "RelativeDocumentMoniker": "Program.cs",
-              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Program.cs",
-              "RelativeToolTip": "Program.cs",
-              "ViewState": "AgIAADwAAAAAAAAAAAAAAEsAAAAaAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-02T15:50:24.253Z",
+              "WhenOpened": "2026-09-03T09:11:22.87Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 2,
-              "Title": "UserProviderPhoto.cs",
-              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Models\\DTOModels\\UserProviderPhoto.cs",
-              "RelativeDocumentMoniker": "Models\\DTOModels\\UserProviderPhoto.cs",
-              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Models\\DTOModels\\UserProviderPhoto.cs",
-              "RelativeToolTip": "Models\\DTOModels\\UserProviderPhoto.cs",
-              "ViewState": "AgIAAAgAAAAAAAAAAAAAwA0AAAA0AAAAAAAAAA==",
+              "Title": "UpdateResVideoDTO.cs",
+              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Models\\DTOModels\\UpdateResVideoDTO.cs",
+              "RelativeDocumentMoniker": "Models\\DTOModels\\UpdateResVideoDTO.cs",
+              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Models\\DTOModels\\UpdateResVideoDTO.cs",
+              "RelativeToolTip": "Models\\DTOModels\\UpdateResVideoDTO.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-02T15:24:26.86Z",
+              "WhenOpened": "2026-09-03T09:11:20.47Z",
               "EditorCaption": ""
             },
             {
@@ -75,7 +58,7 @@
               "RelativeDocumentMoniker": "Controllers\\ProfileController.cs",
               "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Controllers\\ProfileController.cs",
               "RelativeToolTip": "Controllers\\ProfileController.cs",
-              "ViewState": "AgIAAHkGAAAAAAAAAAAmwIgGAAAOAAAAAAAAAA==",
+              "ViewState": "AgIAADQKAAAAAAAAAAAcwEEKAABMAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-09-02T14:44:16.697Z",
               "EditorCaption": ""

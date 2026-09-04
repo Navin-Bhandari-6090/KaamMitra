@@ -9,7 +9,7 @@ namespace application.Models.DTOModels
         public int ProviderServiceId { get; set; }
 
         [Required]
-        public string ServiceDocument { get; set; } = string.Empty;
+        public IFormFile ServiceDocument { get; set; } = null;
 
         [Required]
         [StringLength(200)]

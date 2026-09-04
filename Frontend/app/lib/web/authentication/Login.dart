@@ -81,8 +81,10 @@ class _LoginScreenState extends State<LoginScreen>
       return;
     } else
     {
-      Navigator.pushReplacement(context,
+      Navigator.pushAndRemoveUntil(context,
           MaterialPageRoute(builder: (context) => ErrorPage())
+        ,
+            (route) => false,
       );
       Toastget().Toastmsg("Session End.Relogin please.");
       return;
@@ -134,15 +136,20 @@ class _LoginScreenState extends State<LoginScreen>
         String User_Type = responseData['usertype']!;
         if(User_Type=="Admin")
         {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context){
+          Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context){
             return AdminHomeScreen(User_Role: User_Type, User_JwtToken: token, User_Email: email,);
-          },));
+          },),
+            (route) => false,
+          );
         }
         else
         {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context){
+          Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context){
             return HomeScreenUi(UserLogin: true, User_JwtToken:token );
-          },));
+          },
+          ),
+                (route) => false,
+          );
         }
         return 1;
       } else if (response.statusCode == 503) {
@@ -368,6 +375,7 @@ class _LoginScreenState extends State<LoginScreen>
                 builder: (context, state) {
                   return _GreenField(
                     controller: _passCtrl,
+                    keyboardType: TextInputType.visiblePassword,
                     label: 'Password',
                     icon: Icons.lock_outline_rounded,
                     obscure: state.ObscureValuePassword!,
@@ -419,8 +427,6 @@ class _LoginScreenState extends State<LoginScreen>
                     email: _emailCtrl.text.trim().toString(),
                     password: _passCtrl.text.trim().toString(),
                   );
-
-
                   print("Login result = ${result}");
                 },
               ),

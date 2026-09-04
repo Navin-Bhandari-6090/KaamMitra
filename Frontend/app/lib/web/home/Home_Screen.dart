@@ -28,6 +28,8 @@ class _HomeScreenUiState extends State<HomeScreenUi> {
       if (Result == 1) {
         return;
       } else {
+        await Clear_User_Data();
+        await Random_token_Clear();
         Navigator.pushReplacement(context,
             MaterialPageRoute(builder: (context) => ErrorPage()
             )
@@ -36,6 +38,8 @@ class _HomeScreenUiState extends State<HomeScreenUi> {
         return;
       }
     }catch(e){
+      await Clear_User_Data();
+      await Random_token_Clear();
       Navigator.pushReplacement(context,
           MaterialPageRoute(builder: (context) => ErrorPage()
           )
@@ -60,6 +64,8 @@ class _HomeScreenUiState extends State<HomeScreenUi> {
         return;
       }
     } catch (e) {
+      await Clear_User_Data();
+      await Random_token_Clear();
       Navigator.pushReplacement(context,
           MaterialPageRoute(builder: (context) => ErrorPage()
           )
@@ -70,18 +76,16 @@ class _HomeScreenUiState extends State<HomeScreenUi> {
   }
 
 
-
-
   @override
   Widget build(BuildContext context) {
     var shortestval = MediaQuery.of(context).size.shortestSide;
     var widthval = MediaQuery.of(context).size.width;
     var heightval = MediaQuery.of(context).size.height;
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Home Screen"),
-        centerTitle: true,
-      ),
+      // appBar: AppBar(
+      //   title: const Text("Home Screen"),
+      //   centerTitle: true,
+      // ),
       body:SingleChildScrollView(
         physics: AlwaysScrollableScrollPhysics(),
         scrollDirection: Axis.vertical,

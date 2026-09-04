@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:app/web/profile/Provider_add_Sevice_Resources.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -11,61 +10,101 @@ import '../../constant/Style.dart';
 import '../../models/UserInfo.dart';
 import '../authentication/Error_page.dart';
 import '../common method/Commmon_Method.dart';
-import '../common widget/commonbutton.dart';
 import '../common widget/getx_cont_pick_single_photo_int.dart';
 import '../common widget/toast.dart';
 import '../header/Header.dart';
 import 'ProviderAddService.dart';
 import 'Provider_Service_Select.dart';
 import 'Provider_Update_Service_File.dart';
-import 'Provider_Update_Service_Resources.dart';
+import 'Select_Ser_Res_Update.dart';
 import 'Update_Password.dart';
 
-
+/// ---------------------------------------------------------------------------
+/// THEME TOKENS (dark green, modern)
+/// ---------------------------------------------------------------------------
+class _ProfileTheme {
+  static const Color bgTop = Color(0xFF04140E);
+  static const Color bgMid = Color(0xFF0A2A1C);
+  static const Color bgBottom = Color(0xFF0F3D2A);
+  static const Color card = Color(0xFF123A28);
+  static const Color cardBorder = Color(0xFF1F5D42);
+  static const Color accent = Color(0xFF34E89E);
+  static const Color accentDeep = Color(0xFF0F9B6C);
+  static const Color danger = Color(0xFFE5544D);
+  static const Color textPrimary = Color(0xFFF3FBF7);
+  static const Color textMuted = Color(0xFFAFC9BC);
+}
 
 class ProviderProfile extends StatefulWidget {
   final String User_Email;
   final String User_JwtToken;
   final String User_Role;
   final bool UserLogin;
-  const ProviderProfile({super.key,req, required this.User_Email, required this.User_JwtToken, required this.User_Role, required this.UserLogin});
+  const ProviderProfile({
+    super.key,
+    req,
+    required this.User_Email,
+    required this.User_JwtToken,
+    required this.User_Role,
+    required this.UserLogin,
+  });
   @override
   State<ProviderProfile> createState() => _ProviderProfileState();
 }
 
 class _ProviderProfileState extends State<ProviderProfile>
-{
+    with SingleTickerProviderStateMixin {
   final Toast = Toastget();
   final change_photo_cont_getx = Get.put(pick_single_photo_getx_int());
 
+  // Entrance animation controller (UI-only addition, no business logic).
+  late final AnimationController _entranceController;
+  late final Animation<double> _fadeIn;
 
   @override
   void initState() {
     super.initState();
-    Provider_Jwt_Verify(Jwt_Token:widget.User_JwtToken);
+    Provider_Jwt_Verify(Jwt_Token: widget.User_JwtToken);
+
+    _entranceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _fadeIn = CurvedAnimation(
+      parent: _entranceController,
+      curve: Curves.easeOutCubic,
+    );
+    _entranceController.forward();
   }
 
-  Future<void> Provider_Jwt_Verify({required String Jwt_Token})async
-  {
-    int Result=await ProviderJwtVerify(Jwt_Token: Jwt_Token);
-    if (Result==1)
-    {
+  @override
+  void dispose() {
+    _entranceController.dispose();
+    super.dispose();
+  }
+
+  Future<void> Provider_Jwt_Verify({required String Jwt_Token}) async {
+    int Result = await ProviderJwtVerify(Jwt_Token: Jwt_Token);
+    if (Result == 1) {
       return;
     } else {
       await Clear_User_Data();
       await Random_token_Clear();
-      Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (context) => ErrorPage()
-          )
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => ErrorPage()),
+            (route) => false,
       );
       Toastget().Toastmsg("Session End.Relogin please.");
       return;
     }
   }
 
-
   List<UserInfo> UserInfoModelList = [];
-  Future<void> GetUserInfo({required String Email,required String jwttoken}) async {
+  Future<void> GetUserInfo({
+    required String Email,
+    required String jwttoken,
+  }) async {
     try {
       print("profile user info method called");
       const String url = Backend_Server_Url + "api/Profile/getuserinfo";
@@ -74,7 +113,7 @@ class _ProviderProfileState extends State<ProviderProfile>
         Uri.parse(url),
         headers: {
           "Content-Type": "application/json",
-          'Authorization': 'Bearer $jwttoken'
+          'Authorization': 'Bearer $jwttoken',
         },
         body: json.encode(UserDetails),
       );
@@ -96,7 +135,6 @@ class _ProviderProfileState extends State<ProviderProfile>
       return;
     }
   }
-
 
   Future<bool> UpdatePhoto({
     required String Email,
@@ -123,16 +161,13 @@ class _ProviderProfileState extends State<ProviderProfile>
       // 2. Validate extension
       // --------------------------------------------------
 
-      String extension =
-      photoExtension.toLowerCase().trim();
+      String extension = photoExtension.toLowerCase().trim();
 
       if (extension.startsWith(".")) {
         extension = extension.substring(1);
       }
 
-      if (extension != "jpg" &&
-          extension != "jpeg" &&
-          extension != "png") {
+      if (extension != "jpg" && extension != "jpeg" && extension != "png") {
         print("ERROR: Invalid photo extension.");
         return false;
       }
@@ -141,9 +176,7 @@ class _ProviderProfileState extends State<ProviderProfile>
       // 3. API URL
       // --------------------------------------------------
 
-      const String url =
-          Backend_Server_Url +
-              "api/Profile/updateprofilephoto";
+      const String url = Backend_Server_Url + "api/Profile/updateprofilephoto";
 
       print("API URL: $url");
 
@@ -151,17 +184,13 @@ class _ProviderProfileState extends State<ProviderProfile>
       // 4. Create multipart request
       // --------------------------------------------------
 
-      final request = http.MultipartRequest(
-        "PUT",
-        Uri.parse(url),
-      );
+      final request = http.MultipartRequest("PUT", Uri.parse(url));
 
       // --------------------------------------------------
       // 5. JWT
       // --------------------------------------------------
 
-      request.headers["Authorization"] =
-      "Bearer $jwttoken";
+      request.headers["Authorization"] = "Bearer $jwttoken";
 
       // --------------------------------------------------
       // 6. Email
@@ -173,8 +202,7 @@ class _ProviderProfileState extends State<ProviderProfile>
       // 7. Extension
       // --------------------------------------------------
 
-      request.fields["PhotoExtension"] =
-          extension;
+      request.fields["PhotoExtension"] = extension;
 
       // --------------------------------------------------
       // 8. Add image bytes
@@ -195,81 +223,57 @@ class _ProviderProfileState extends State<ProviderProfile>
       // 9. Send request
       // --------------------------------------------------
 
-      final streamedResponse =
-      await request.send();
+      final streamedResponse = await request.send();
 
       // --------------------------------------------------
       // 10. Read response
       // --------------------------------------------------
 
-      final response =
-      await http.Response.fromStream(
-        streamedResponse,
-      );
+      final response = await http.Response.fromStream(streamedResponse);
 
       // --------------------------------------------------
       // 11. Print response
       // --------------------------------------------------
 
-      print(
-        "Response status: ${response.statusCode}",
-      );
+      print("Response status: ${response.statusCode}");
 
-      print(
-        "Response body: ${response.body}",
-      );
+      print("Response body: ${response.body}");
 
       // --------------------------------------------------
       // 12. Status handling
       // --------------------------------------------------
 
       if (response.statusCode == 200) {
-        print(
-          "Profile photo updated successfully.",
-        );
+        print("Profile photo updated successfully.");
 
         return true;
       }
 
       if (response.statusCode == 400) {
-        print(
-          "Bad request: ${response.body}",
-        );
+        print("Bad request: ${response.body}");
 
         return false;
       }
 
       if (response.statusCode == 404) {
-        print(
-          "User not found: ${response.body}",
-        );
+        print("User not found: ${response.body}");
 
         return false;
       }
 
       if (response.statusCode == 500) {
-        print(
-          "Server error: ${response.body}",
-        );
+        print("Server error: ${response.body}");
 
         return false;
       }
 
-      print(
-        "Unexpected status code: ${response.statusCode}",
-      );
+      print("Unexpected status code: ${response.statusCode}");
 
       return false;
-
     } catch (obj) {
+      print("Exception caught while updating profile photo.");
 
-      print(
-        "Exception caught while updating profile photo.",
-      );
-
-      print(
-        "Exception: ${obj.toString()}",
-      );
+      print("Exception: ${obj.toString()}");
 
       return false;
     }
@@ -281,17 +285,66 @@ class _ProviderProfileState extends State<ProviderProfile>
     }
 
     final baseUrl = Backend_Server_Url.endsWith("/")
-        ? Backend_Server_Url.substring(
-      0,
-      Backend_Server_Url.length - 1,
-    )
+        ? Backend_Server_Url.substring(0, Backend_Server_Url.length - 1)
         : Backend_Server_Url;
 
-    final path = photoPath.startsWith("/")
-        ? photoPath
-        : "/$photoPath";
+    final path = photoPath.startsWith("/") ? photoPath : "/$photoPath";
 
     return "$baseUrl$path";
+  }
+
+  // ---------------------------------------------------------------------
+  // Shared onPressed logic for changing the photo — UNCHANGED behavior,
+  // just extracted so it can be triggered from the new edit-avatar button.
+  // ---------------------------------------------------------------------
+  Future<void> _onChangePhotoPressed() async {
+    try {
+      int PhotoResult = await change_photo_cont_getx.pickImage();
+      if (PhotoResult == 1) {
+        bool Result = await UpdatePhoto(
+          Email: widget.User_Email,
+          jwttoken: widget.User_JwtToken,
+          photoExtension: change_photo_cont_getx.imageExtension.value,
+          photoBytes: change_photo_cont_getx.imageBytes.value!,
+        );
+        if (Result == true) {
+          print("Image update success");
+          Toast.Toastmsg("Image update success");
+          setState(() {});
+          return;
+        } else {
+          print("Image update fail.");
+          Toast.Toastmsg("Fail to change photo.Try again.");
+          return;
+        }
+      } else if (PhotoResult == 2) {
+        Toast.Toastmsg("Invalid photo extension(format only jpg,jpeg,png)");
+        return;
+      } else if (PhotoResult == 5) {
+        Toast.Toastmsg("Photo is larger than 100 MB.");
+        return;
+      } else {
+        Toast.Toastmsg(
+          "Pick image fail.Use jpg,jpeg,png format only for photos.",
+        );
+        return;
+      }
+    } catch (exception) {
+      Toast.Toastmsg("Fail to change photo.Try again.");
+      return;
+    }
+  }
+
+  Future<void> _onLogoutPressed() async {
+    await Clear_User_Data();
+    await Random_token_Clear();
+    Toast.Toastmsg("Logout Success");
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => ErrorPage()),
+    );
+    Toastget().Toastmsg("Session End.Relogin please.");
+    return;
   }
 
   @override
@@ -299,23 +352,157 @@ class _ProviderProfileState extends State<ProviderProfile>
     var shortestval = MediaQuery.of(context).size.shortestSide;
     var widthval = MediaQuery.of(context).size.width;
     var heightval = MediaQuery.of(context).size.height;
-    return Scaffold(
-        appBar: AppBar(
-          title: const Text("Profile Screen provider"),
-          centerTitle: true,
+    final orientation = MediaQuery.of(context).orientation;
+    final isLandscape = orientation == Orientation.landscape;
+
+    // Action items — same destinations/params as the original screen,
+    // just modeled as data so they can be laid out responsively.
+    final List<_ActionItem> actions = [
+      _ActionItem(
+        icon: Icons.add_business_rounded,
+        label: "Add service",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProviderAddService(
+              User_Email: widget.User_Email,
+              User_JwtToken: widget.User_JwtToken,
+              User_Role: widget.User_Role,
+            ),
+          ),
         ),
-        body:
-        SingleChildScrollView(
-          physics: AlwaysScrollableScrollPhysics(),
-          scrollDirection: Axis.vertical,
-          child: Column(
-              children:
-              [
+      ),
+      _ActionItem(
+        icon: Icons.inventory_2_rounded,
+        label: "Add service resources",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProviderAddSeviceResources(
+              User_Email: widget.User_Email,
+              User_JwtToken: widget.User_JwtToken,
+              User_Role: widget.User_Role,
+            ),
+          ),
+        ),
+      ),
+      _ActionItem(
+        icon: Icons.photo_library_rounded,
+        label: "My gallery",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProviderServiceSelect(
+              User_Email: widget.User_Email,
+              User_JwtToken: widget.User_JwtToken,
+              User_Role: widget.User_Role,
+            ),
+          ),
+        ),
+      ),
+      _ActionItem(
+        icon: Icons.lock_reset_rounded,
+        label: "Update password",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => UpdatePasswordScreen(
+              User_Email: widget.User_Email,
+              User_JwtToken: widget.User_JwtToken,
+              User_Role: widget.User_Role,
+            ),
+          ),
+        ),
+      ),
+      _ActionItem(
+        icon: Icons.upload_file_rounded,
+        label: "Update service file",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProviderUpdateServiceFile(
+              User_Email: widget.User_Email,
+              User_JwtToken: widget.User_JwtToken,
+              User_Role: widget.User_Role,
+            ),
+          ),
+        ),
+      ),
+      _ActionItem(
+        icon: Icons.build_circle_rounded,
+        label: "Update service resources",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SelectSerResUpdate(
+              User_Email: widget.User_Email,
+              User_JwtToken: widget.User_JwtToken,
+              User_Role: widget.User_Role,
+            ),
+          ),
+        ),
+      ),
+    ];
+
+    return Scaffold(
+      backgroundColor: _ProfileTheme.bgTop,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        title: const Text(
+          "My Profile",
+          style: TextStyle(
+            color: _ProfileTheme.textPrimary,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3,
+          ),
+        ),
+        actions: [
+          IconButton(
+            tooltip: "Logout",
+            icon: const Icon(Icons.logout_rounded, color: _ProfileTheme.danger),
+            onPressed: _onLogoutPressed,
+          ),
+          const SizedBox(width: 6),
+        ],
+      ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              _ProfileTheme.bgTop,
+              _ProfileTheme.bgMid,
+              _ProfileTheme.bgBottom,
+            ],
+            stops: [0.0, 0.45, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            scrollDirection: Axis.vertical,
+            padding: EdgeInsets.symmetric(
+              horizontal: widthval * (isLandscape ? 0.06 : 0.05),
+              vertical: heightval * 0.02,
+            ),
+            child: Column(
+              children: [
                 Container(
-                    height: heightval*0.05,
-                    width: widthval,
-                    child: Header(UserLogin: widget.UserLogin, User_JwtToken:widget.User_JwtToken,)
+                  height: heightval * 0.05,
+                  width: widthval,
+                  child: Header(
+                    UserLogin: widget.UserLogin,
+                    User_JwtToken: widget.User_JwtToken,
+                  ),
                 ),
+
+                SizedBox(height: heightval * 0.015),
 
                 FutureBuilder(
                   future: GetUserInfo(
@@ -324,260 +511,363 @@ class _ProviderProfileState extends State<ProviderProfile>
                   ),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.green[700],
+                      return Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: heightval * 0.08,
+                        ),
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            color: _ProfileTheme.accent,
+                          ),
                         ),
                       );
                     }
 
                     if (snapshot.hasError) {
-                      return const Center(
-                        child: Text("Error: No data available"),
+                      return const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Center(
+                          child: Text(
+                            "Error: No data available",
+                            style: TextStyle(color: _ProfileTheme.textMuted),
+                          ),
+                        ),
                       );
                     }
 
                     if (UserInfoModelList.isNotEmpty) {
                       final user = UserInfoModelList[0];
-
                       final String photoPath = user.photo ?? "";
+                      final String photoUrl =
+                      photoPath.isNotEmpty ? GetPhotoUrl(photoPath) : "";
 
-                      final String photoUrl = photoPath.isNotEmpty
-                          ? GetPhotoUrl(photoPath)
-                          : "";
-                      // print("User photo path: $photoPath");
-                      // print("User photo URL: $photoUrl");
-                      return Column(
-                        children: [
-
-                          // =====================================================
-                          // PROFILE PHOTO
-                          // =====================================================
-
-                          Container(
-                            width: shortestval * 0.4,
-                            height: shortestval * 0.4,
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black26,
-                                  blurRadius: 8,
-                                  offset: Offset(0, 4),
+                      return FadeTransition(
+                        opacity: _fadeIn,
+                        child: Column(
+                          children: [
+                            // =========================================
+                            // PROFILE PHOTO + EDIT BADGE
+                            // =========================================
+                            Stack(
+                              clipBehavior: Clip.none,
+                              alignment: Alignment.center,
+                              children: [
+                                Container(
+                                  width: shortestval * 0.38,
+                                  height: shortestval * 0.38,
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: const LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        _ProfileTheme.accent,
+                                        _ProfileTheme.accentDeep,
+                                      ],
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: _ProfileTheme.accent
+                                            .withOpacity(0.35),
+                                        blurRadius: 24,
+                                        spreadRadius: 2,
+                                      ),
+                                    ],
+                                  ),
+                                  child: ClipOval(
+                                    child: Container(
+                                      color: _ProfileTheme.card,
+                                      child: photoUrl.isEmpty
+                                          ? Image.asset(
+                                        'assets/images/profile/u_p_p_1.jpg',
+                                        fit: BoxFit.cover,
+                                      )
+                                          : Image.network(
+                                        photoUrl,
+                                        fit: BoxFit.cover,
+                                        loadingBuilder: (
+                                            context,
+                                            child,
+                                            loadingProgress,
+                                            ) {
+                                          if (loadingProgress == null) {
+                                            return child;
+                                          }
+                                          return const Center(
+                                            child:
+                                            CircularProgressIndicator(
+                                              color:
+                                              _ProfileTheme.accent,
+                                            ),
+                                          );
+                                        },
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                          print(
+                                            "Profile image loading failed: $error",
+                                          );
+                                          return Image.asset(
+                                            'assets/images/profile/u_p_p_1.jpg',
+                                            fit: BoxFit.cover,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 0,
+                                  right: shortestval * 0.02,
+                                  child: Material(
+                                    color: _ProfileTheme.accent,
+                                    shape: const CircleBorder(),
+                                    elevation: 4,
+                                    child: InkWell(
+                                      customBorder: const CircleBorder(),
+                                      onTap: _onChangePhotoPressed,
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(9),
+                                        child: Icon(
+                                          Icons.camera_alt_rounded,
+                                          size: shortestval * 0.045,
+                                          color: _ProfileTheme.bgTop,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
-                            child: ClipOval(
-                              child: photoUrl.isEmpty
-                                  ? Image.asset(
-                                'assets/images/profile/u_p_p_1.jpg',
-                                fit: BoxFit.cover,
-                              )
-                                  : Image.network(
-                                photoUrl,
-                                fit: BoxFit.cover,
 
-                                // Optional loading widget
-                                loadingBuilder:
-                                    (context, child, loadingProgress) {
-                                  if (loadingProgress == null) {
-                                    return child;
-                                  }
+                            SizedBox(height: shortestval * 0.035),
 
-                                  return Center(
-                                    child: CircularProgressIndicator(
-                                      color: Colors.green[700],
-                                    ),
-                                  );
-                                },
-
-                                // If image URL fails
-                                errorBuilder:
-                                    (context, error, stackTrace) {
-                                  print(
-                                    "Profile image loading failed: $error",
-                                  );
-
-                                  return Image.asset(
-                                    'assets/images/profile/u_p_p_1.jpg',
-                                    fit: BoxFit.cover,
-                                  );
-                                },
+                            // =========================================
+                            // USER NAME
+                            // =========================================
+                            Text(
+                              "User Name : ${user.firstName} ${user.lastName}",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontFamily: bold,
+                                fontSize: shortestval * 0.052,
+                                fontWeight: FontWeight.w700,
+                                color: _ProfileTheme.textPrimary,
+                                letterSpacing: 0.2,
                               ),
                             ),
-                          ),
+                            SizedBox(height: shortestval * 0.008),
 
-                          SizedBox(
-                            height: shortestval * 0.02,
-                          ),
-
-                          // =====================================================
-                          // USER NAME
-                          // =====================================================
-
-                          Text(
-                            "Name: ${user.firstName} ${user.lastName}",
-                            style: TextStyle(
-                              fontFamily: bold,
-                              fontSize: shortestval * 0.05,
-                              color: Colors.grey[800],
+                            Container (
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _ProfileTheme.accent.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: _ProfileTheme.accent.withOpacity(0.4),
+                                ),
+                              ),
+                              child: Text(
+                                "Latitude:  ${user.latitude}",
+                                style: TextStyle(
+                                  fontFamily: semibold,
+                                  fontSize: shortestval * 0.026,
+                                  color: _ProfileTheme.accent,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
+
+                            SizedBox(height: shortestval * 0.008),
+
+                            Container (
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _ProfileTheme.accent.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: _ProfileTheme.accent.withOpacity(0.4),
+                                ),
+                              ),
+                              child: Text(
+                                "Longitude: :  ${user.longitude}",
+                                style: TextStyle(
+                                  fontFamily: semibold,
+                                  fontSize: shortestval * 0.026,
+                                  color: _ProfileTheme.accent,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
+                            ),
+
+
+                          ],
+                        ),
                       );
                     }
 
-                    return const Text(
-                      "No user data available",
+                    return const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        "No user data available",
+                        style: TextStyle(color: _ProfileTheme.textMuted),
+                      ),
                     );
                   },
                 ),
 
-                Commonbutton("Logout", ()async{
-                  await Clear_User_Data();
-                  await Random_token_Clear();
-                  Toast.Toastmsg("Logout Success");
-                  Navigator.pushReplacement(context,
-                      MaterialPageRoute(builder: (context) => ErrorPage())
-                  );
-                  Toastget().Toastmsg("Session End.Relogin please.");
-                  return;
+                SizedBox(height: heightval * 0.035),
 
-                }, context, Colors.red),
+                // =============================================
+                // ACTIONS — responsive grid (landscape) / list (portrait)
+                // =============================================
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final crossAxisCount = isLandscape
+                        ? (constraints.maxWidth > 900 ? 3 : 2)
+                        : (constraints.maxWidth > 600 ? 2 : 1);
 
-                SizedBox(height: shortestval * 0.02),
-
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[600],
-                    shape:
-                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: EdgeInsets.symmetric(
-                        horizontal: shortestval * 0.05, vertical: shortestval * 0.03),
-                  ),
-                  onPressed: ()async{
-                    try {
-                      int Result = await change_photo_cont_getx.pickImage();
-                      if (Result == 1)
-                      {
-                        bool Result = await UpdatePhoto(
-                            Email: widget.User_Email,
-                            jwttoken:widget.User_JwtToken,
-                          photoExtension: change_photo_cont_getx.imageExtension.value,
-                          photoBytes: change_photo_cont_getx.imageBytes.value! ,
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: actions.length,
+                      gridDelegate:
+                      SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: 14,
+                        mainAxisSpacing: 14,
+                        childAspectRatio: crossAxisCount == 1 ? 4.6 : 2.9,
+                      ),
+                      itemBuilder: (context, index) {
+                        final item = actions[index];
+                        final delayStart = (index * 0.08).clamp(0.0, 0.6);
+                        final anim = CurvedAnimation(
+                          parent: _entranceController,
+                          curve: Interval(
+                            delayStart,
+                            (delayStart + 0.4).clamp(0.0, 1.0),
+                            curve: Curves.easeOutCubic,
+                          ),
+                        );
+                        return AnimatedBuilder(
+                          animation: anim,
+                          builder: (context, child) {
+                            return Opacity(
+                              opacity: anim.value,
+                              child: Transform.translate(
+                                offset: Offset(0, (1 - anim.value) * 24),
+                                child: child,
+                              ),
                             );
-                        if (Result == true)
-                        {
-                          print("Image update success");
-                          Toast.Toastmsg("Image update success");
-                          setState(() {
-
-                          });
-                          return;
-                        }
-                        else{
-                          print("Image update fail.");
-                          Toast.Toastmsg("Fail to change photo.Try again.");
-                          return;
-                        }
-                      }
-                      else{
-                        Toast.Toastmsg("Pick image fail.Use jpg,jpeg,png format only for photos.");
-                        return;
-                      }
-
-                  }catch (exception)
-                    {
-                      Toast.Toastmsg("Fail to change photo.Try again.");
-                      return;
-                    }
+                          },
+                          child: _ActionTile(item: item),
+                        );
+                      },
+                    );
                   },
-                  child:Text(
-                    "Change Photo",
-                    style: TextStyle(
-                        fontFamily: semibold,
-                        color: Colors.white,
-                        fontSize: shortestval * 0.04),
-                  ),
                 ),
 
-                SizedBox(height: shortestval * 0.02),
-
-ElevatedButton(onPressed: (){
-
-  Navigator.push(context, MaterialPageRoute(builder: (context) => ProviderAddService(
-    User_Email: widget.User_Email,
-    User_JwtToken:widget.User_JwtToken,
-    User_Role: widget.User_Role,),));
-
-}, child: Text("Add service.")),
-                SizedBox(height: shortestval * 0.02),
-
-                ElevatedButton(onPressed: (){
-
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => ProviderAddSeviceResources(
-                    User_Email: widget.User_Email,
-                    User_JwtToken:widget.User_JwtToken,
-                    User_Role: widget.User_Role,),));
-
-                }, child: Text("Add service resources.")),
-                SizedBox(height: shortestval * 0.02),
-
-        ElevatedButton(onPressed: () {
-          Navigator.push(context,MaterialPageRoute(builder:
-(context) =>ProviderServiceSelect (User_Email: widget.User_Email,
-  User_JwtToken:widget.User_JwtToken,
-  User_Role: widget.User_Role,
-          )
-          )
-          );
-    }, child:Text("My gallery.")),
-
-                SizedBox(height: shortestval * 0.02),
-
-                ElevatedButton(onPressed: () {
-                  Navigator.push(context,MaterialPageRoute(builder:
-                      (context) =>UpdatePasswordScreen (User_Email: widget.User_Email,
-                    User_JwtToken:widget.User_JwtToken,
-                    User_Role: widget.User_Role,
-                  )
-                  )
-                  );
-                }, child:Text("Update password.")),
-
-                SizedBox(height: shortestval * 0.02),
-
-                ElevatedButton(onPressed: () {
-                  Navigator.push(context,MaterialPageRoute(builder:
-                      (context) =>ProviderUpdateServiceFile (User_Email: widget.User_Email,
-                    User_JwtToken:widget.User_JwtToken,
-                    User_Role: widget.User_Role,
-                  )
-                  )
-                  );
-                }, child:Text("Update service file.")),
-
-                SizedBox(height: shortestval * 0.02),
-
-                ElevatedButton(onPressed: () {
-                  Navigator.push(context,MaterialPageRoute(builder:
-                      (context) =>ProviderUpdateServiceResources (User_Email: widget.User_Email,
-                    User_JwtToken:widget.User_JwtToken,
-                    User_Role: widget.User_Role,
-                  )
-                  )
-                  );
-                }, child:Text("Update service resources.")),
-
-
-
-
-              ]
+                SizedBox(height: heightval * 0.03),
+              ],
+            ),
           ),
-        )
-
+        ),
+      ),
     );
   }
 }
 
+class _ActionItem {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  _ActionItem({required this.icon, required this.label, required this.onTap});
+}
 
+class _ActionTile extends StatefulWidget {
+  final _ActionItem item;
+  const _ActionTile({required this.item});
+
+  @override
+  State<_ActionTile> createState() => _ActionTileState();
+}
+
+class _ActionTileState extends State<_ActionTile> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedScale(
+      scale: _pressed ? 0.97 : 1.0,
+      duration: const Duration(milliseconds: 120),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: widget.item.onTap,
+          onTapDown: (_) => setState(() => _pressed = true),
+          onTapCancel: () => setState(() => _pressed = false),
+          onTapUp: (_) => setState(() => _pressed = false),
+          child: Container(
+            decoration: BoxDecoration(
+              color: _ProfileTheme.card,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: _ProfileTheme.cardBorder),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        _ProfileTheme.accent,
+                        _ProfileTheme.accentDeep,
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    widget.item.icon,
+                    color: _ProfileTheme.bgTop,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    widget.item.label,
+                    style: const TextStyle(
+                      color: _ProfileTheme.textPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14.5,
+                    ),
+                  ),
+                ),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  color: _ProfileTheme.textMuted,
+                  size: 14,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

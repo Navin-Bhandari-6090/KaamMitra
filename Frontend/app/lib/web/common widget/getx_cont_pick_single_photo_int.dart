@@ -1,55 +1,74 @@
 
-import 'dart:io';
 import 'dart:typed_data';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
-class pick_single_photo_getx_int extends GetxController
-{
-  RxString imagePath = "".obs; // To store the file path
-  RxString imageExtension = "".obs; // To store the file extension
-  Rx<Uint8List?> imageBytes = Rx<Uint8List?>(null); // To store the image in bytes
-  // Method to pick an image
+class pick_single_photo_getx_int extends GetxController {
+  RxString imagePath = "".obs;
+  RxString imageExtension = "".obs;
+  Rx<Uint8List?> imageBytes = Rx<Uint8List?>(null);
+
   Future<int> pickImage() async {
-    try
-    {
+    try {
       final ImagePicker imagePicker = ImagePicker();
-      final XFile? image = await imagePicker.pickImage(source: ImageSource.gallery);
+
+      final XFile? image = await imagePicker.pickImage(
+        source: ImageSource.gallery,
+      );
+
       if (image != null) {
-        // Validate file extension
-        // String fileExtension = image.path.split('.').last.toLowerCase();
-        String fileExtension = image.name.split('.').last.toLowerCase();
-        print("Photo Extension type = ${fileExtension}");
-        if (fileExtension == 'jpg' || fileExtension == 'jpeg' || fileExtension == 'png') {
-          // Update the file extension
-          imageExtension.value = fileExtension;
-          // Update the image path
-          imagePath.value = image.path;
-          // Convert the image file to bytes and store
-          File imageFile = File(image.path);
-          // imageBytes.value = await imageFile.readAsBytes();
-          imageBytes.value = await image.readAsBytes();
-          print("image select success.");
-          return 1;
-        }
-        else
-        {
-          print("invalid photo format.");
+        // Get file extension
+        String fileExtension =
+        image.name.split('.').last.toLowerCase();
+
+        print("Photo Extension type = $fileExtension");
+
+        // Validate extension
+        if (fileExtension != 'jpg' &&
+            fileExtension != 'jpeg' &&
+            fileExtension != 'png') {
+          print("Invalid photo format.");
           return 2;
         }
-      }
-      else
-      {
-        print("Image not select.image picker");
+
+        // Read image bytes
+        final Uint8List bytes = await image.readAsBytes();
+
+        // 100 MB
+        const int maxSize = 100 * 1024 * 1024;
+
+        print("Photo size = ${bytes.length} bytes");
+        print("Photo size = ${(bytes.length / (1024 * 1024)).toStringAsFixed(2)} MB");
+
+        // Validate file size
+        if (bytes.length > maxSize) {
+          print("Photo is larger than 100 MB.");
+
+          // Clear previous image if necessary
+          imagePath.value = "";
+          imageExtension.value = "";
+          imageBytes.value = null;
+
+          return 5;
+        }
+
+        // Store data
+        imageExtension.value = fileExtension;
+        imagePath.value = image.path;
+        imageBytes.value = bytes;
+
+        print("Image select success.");
+
+        return 1;
+      } else {
+        print("Image not selected. Image picker.");
         return 3;
       }
-    }
-    catch (obj)
-    {
+    } catch (obj) {
       print("Exception caught while selecting image");
       print("Exception = ${obj.toString()}");
+
       return 4;
     }
   }
-
 }

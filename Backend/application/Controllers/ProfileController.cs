@@ -527,6 +527,11 @@ namespace application.Controllers
                     $"/{documentFolder}/{fileName}";
 
 
+                //Finding user
+                var User_Data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
+
+
+
                 // =========================================================
                 // 15. Create entity
                 // =========================================================
@@ -541,7 +546,9 @@ namespace application.Controllers
                             relativeDocumentPath,
 
                         Email =
-                            obj.Email.Trim()
+                            obj.Email.Trim(),
+
+                        UserNumber=User_Data.UserNumber
                     };
 
 
@@ -650,8 +657,12 @@ namespace application.Controllers
             }
         }
 
+
+
 [Authorize(Policy = "RequireProviderRole")]
 [HttpPost]
+[RequestSizeLimit(2_147_483_648)]
+[RequestFormLimits(MultipartBodyLengthLimit = 2_147_483_648)]
 [Route("addserviceresources")]
 public async Task<IActionResult> AddServiceResources(
     [FromForm] ProviderServiceResources obj)
@@ -1090,9 +1101,16 @@ public async Task<IActionResult> AddServiceResources(
                     $"/{videoFolder}/{videoFileName}";
 
 
+
+                //Finding user
+                var User_Data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
+
+
                 // =========================================================
                 // 29. Create Entity
                 // =========================================================
+
+
 
                 var serviceResource =
                     new ProviderRegisterServiceResources
@@ -1107,7 +1125,9 @@ public async Task<IActionResult> AddServiceResources(
                             obj.ProviderServiceId,
 
                         Email =
-                            obj.Email
+                            obj.Email,
+
+                        UserNumber=User_Data.UserNumber
                     };
 
 
@@ -2689,10 +2709,83 @@ public async Task<IActionResult> AddServiceResources(
 
 
 
+        [Authorize(Policy = "RequireProviderUserRole")]
+        [HttpPut]
+        [Route("updateemail")]
+        public async Task<IActionResult> UpdateEmail([FromBody] UpdateEmailDTO obj)
+        {
+            try
+            {
+                if (!ModelState.IsValid) 
+                {
+                    return StatusCode(501, "Details are not in correct format.");
+                }
+
+                var User_Data = await Database.UserInfos.FirstOrDefaultAsync(x=>x.Email==obj.OldEmail);
+                if (User_Data != null)
+                {
+                    User_Data.Email = obj.NewEmail;
+                    await Database.SaveChangesAsync();
+                    return Ok("Update success.");
+                }
+                else {
+                    return StatusCode(502,"User doesn't exist.Old email doesn't match.");
+                }
+
+            }
+            catch (Exception e) {
+
+                return StatusCode(500
+                    ,
+                    new
+                    {
+                        message = "Exception caught while updating email.",
+                        error = e.Message
+                    }
+                    );
+            }
+            }
+
+
+        [Authorize(Policy = "RequireProviderUserRole")]
+        [HttpPut]
+        [Route("updatelocation")]
+        public async Task<IActionResult> UpdateUserLocation([FromBody] Update_Loccation_DTO obj)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return StatusCode(501, "Details are not in correct format.");
+                }
+
+                var User_Data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
+                if (User_Data != null)
+                {
+                    User_Data.Latitude = obj.Latitude;
+                    User_Data.Longitude = obj.Longitude;
+                    await Database.SaveChangesAsync();
+                    return Ok("Location Update success.");
+                }
+                else
+                {
+                    return StatusCode(502, "User doesn't exist.Email doesn't match.");
+                }
+
+            }
+            catch (Exception e)
+            {
+
+                return StatusCode(500, "Exception caught while updating email.");
+            }
+        }
+
+
+
 
 
 
 
 
     }
-    }
+}

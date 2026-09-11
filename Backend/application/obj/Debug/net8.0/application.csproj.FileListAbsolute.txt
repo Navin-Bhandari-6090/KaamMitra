@@ -121,5 +121,5 @@ E:\workplace\programming\01 practice\Service app\Backend\application\obj\Debug\n
 E:\workplace\programming\01 practice\Service app\Backend\application\obj\Debug\net8.0\application.pdb
 E:\workplace\programming\01 practice\Service app\Backend\application\obj\Debug\net8.0\application.genruntimeconfig.cache
 E:\workplace\programming\01 practice\Service app\Backend\application\obj\Debug\net8.0\ref\application.dll
-E:\workplace\programming\01 practice\Service app\Backend\application\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt
 E:\workplace\programming\01 practice\Service app\Backend\application\bin\Debug\net8.0\application.staticwebassets.runtime.json
+E:\workplace\programming\01 practice\Service app\Backend\application\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt

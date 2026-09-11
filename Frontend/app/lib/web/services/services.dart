@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../authentication/Error_page.dart';
+import '../common method/Commmon_Method.dart';
+import '../common widget/toast.dart';
+
 class ServicesScreen extends StatefulWidget {
   final String User_Email;
   final String User_JwtToken;
@@ -11,6 +15,35 @@ class ServicesScreen extends StatefulWidget {
 }
 
 class _ServicesScreenState extends State<ServicesScreen> {
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    JwtVerify(Jwt_Token:widget.User_JwtToken);
+  }
+
+
+  Future<void> JwtVerify({required String Jwt_Token})async
+  {
+    int Result=await UserProviderJwtVerify(Jwt_Token: Jwt_Token);
+    if (Result==1)
+    {
+      return;
+    } else
+    {
+      Navigator.pushAndRemoveUntil(context,
+        MaterialPageRoute(builder: (context) => ErrorPage())
+        ,
+            (route) => false,
+      );
+      Toastget().Toastmsg("Session End.Relogin please.");
+      return;
+    }
+  }
+
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

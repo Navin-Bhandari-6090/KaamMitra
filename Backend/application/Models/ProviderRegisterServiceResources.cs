@@ -24,10 +24,15 @@ namespace application.Models
         [EmailAddress]
         public string Email { get; set; } = string.Empty;
 
+
+        [Required]
+        public int UserNumber { get; set; }
+
+
         [ForeignKey("ProviderServiceId")]
         public ProviderRegisterServices? ProviderServices { get; set; }
 
-        [ForeignKey("Email")]
+        [ForeignKey("UserNumber")]
         public UserInfo? Users { get; set; }
 
     }

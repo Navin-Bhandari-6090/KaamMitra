@@ -17,6 +17,18 @@ namespace application.Models
         [Required]
         public string ServiceDescription { get; set; } = string.Empty;
 
+        [Required]
+        public int DomesticPrice { get; set; }
+
+        [Required]
+        public int DomesticPriceDiscount { get; set; }
+
+        [Required]
+        public int InternationalPrice { get; set; }
+
+        [Required]
+        public int InternationalPriceDiscount { get; set; }
+
 
     }
 }

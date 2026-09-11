@@ -156,7 +156,14 @@ class _LoginScreenState extends State<LoginScreen>
         Toast.Toastmsg("Invalid password.");
         print("Invalid password.");
         return 3;
-      } else if (response.statusCode == 501) {
+      }
+     else if (response.statusCode == 504)
+     {
+    Toast.Toastmsg("You have been blocked by community.Please contact customer service.");
+    print("You have been blocked by community.");
+    return 7;
+    }
+    else if (response.statusCode == 501) {
         Toast.Toastmsg("Email don't found.User don't exist.");
         print("Email don't found.User don't exist.");
         return 4;

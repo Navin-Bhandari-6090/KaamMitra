@@ -24,7 +24,11 @@ namespace application.Models
         public string Email { get; set; } = string.Empty;
 
 
-        [ForeignKey("Email")]
+        [Required]
+        public int UserNumber { get; set; }
+
+
+        [ForeignKey("UserNumber")]
         public UserInfo? Users { get; set; }
 
         public ICollection<ProviderRegisterServiceResources> ProviderServicesResources { get; set; } = [];

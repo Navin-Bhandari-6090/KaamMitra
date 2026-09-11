@@ -342,6 +342,38 @@
   },
   {
     "ContainingType": "application.Controllers.ProfileController",
+    "Method": "UpdateEmail",
+    "RelativePath": "api/Profile/updateemail",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UpdateEmailDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "UpdateUserLocation",
+    "RelativePath": "api/Profile/updatelocation",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.Update_Loccation_DTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
     "Method": "UpdatePassword",
     "RelativePath": "api/Profile/updatepassword",
     "HttpMethod": "PUT",
@@ -466,6 +498,54 @@
         "Name": "ProviderServiceId",
         "Type": "System.Int32",
         "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ServiceController",
+    "Method": "GetRatingInfo",
+    "RelativePath": "api/Service/getratinginfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UserEmailInfoModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ServiceController",
+    "Method": "GetServiceInfo",
+    "RelativePath": "api/Service/getserviceinfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UserEmailInfoModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ServiceController",
+    "Method": "GetUserInfo",
+    "RelativePath": "api/Service/getuserinfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UserEmailInfoModel",
+        "IsRequired": true
       }
     ],
     "ReturnTypes": []

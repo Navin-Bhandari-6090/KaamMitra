@@ -21,7 +21,8 @@ namespace application.Data
 
         public DbSet<ServiceInfoModel> ServiceInfos { get; set; }
 
-     
+        public DbSet<RatingInfoModel> RatingInfos { get; set; }
+
 
     }
 }

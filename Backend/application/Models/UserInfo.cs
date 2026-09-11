@@ -7,6 +7,7 @@ namespace application.Models
     public class UserInfo
     {
 
+        [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int UserNumber { get; set; }
 
@@ -19,7 +20,6 @@ namespace application.Models
         public string LastName { get; set; } = string.Empty;
 
         [Required]
-        [Key]
         [StringLength(200)]
         [EmailAddress]
         public string Email { get; set; } = string.Empty;
@@ -48,6 +48,8 @@ namespace application.Models
         [Required]
         [StringLength(50)]
         public string Role { get; set; } = string.Empty;
+
+        public bool LoginAccess { get; set; } = true; 
 
         public ICollection<ProviderRegisterServices> ProviderServices { get; set; } = [];
 

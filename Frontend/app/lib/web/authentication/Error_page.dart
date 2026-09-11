@@ -23,7 +23,7 @@ class ErrorPage extends StatefulWidget {
     super.key,
     this.title = "Session end.Close tab.Revisit again.",
     this.message =
-    "We couldn't load this page.\nPlease close tab and relogin.",
+    "Please close tab and relogin.",
   });
 
   @override

@@ -179,7 +179,8 @@ namespace application.Controllers
 
                     Photo = string.Empty,
 
-                    Role = obj.Role
+                    Role = obj.Role,
+                    LoginAccess = true
                 };
 
                 // 4. Save user
@@ -210,6 +211,11 @@ namespace application.Controllers
 
                     if (user_data != null)
                     {
+                        if (!user_data.LoginAccess)
+                        {
+                            return StatusCode(504, "Your account is not authorized for login.");
+                        }
+
                         // Validate password (assuming you store hashed passwords)
                         if (user_data.Password == HashPassword(obj.Password))
                         {

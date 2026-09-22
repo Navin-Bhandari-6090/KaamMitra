@@ -27,7 +27,7 @@ namespace application.Controllers
         }
 
 
-        [Authorize(Policy = "RequireProviderUserRole")]
+        //[Authorize(Policy = "RequireProviderUserRole")]
         [HttpPost]
         [Route("getuserinfo")]
         public async Task<IActionResult> GetUserInfo([FromBody] UserEmailInfoModel obj)
@@ -330,7 +330,7 @@ namespace application.Controllers
         [HttpPost]
         [Route("addservice")]
         public async Task<IActionResult> AddService(
-    [FromForm] ProviderServices obj)
+    [FromForm] ProviderServicesDTO obj)
         {
             try
             {
@@ -2781,7 +2781,540 @@ public async Task<IActionResult> AddServiceResources(
         }
 
 
+        [Authorize(Policy = "RequireProviderUserRole")]
+        [HttpPut]
+        [Route("updateusername")]
+        public async Task<IActionResult> UpdateUserName([FromBody] Update_UserName_DTO obj)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return StatusCode(501, "Details are not in correct format.");
+                }
 
+                var User_Data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
+                if (User_Data != null)
+                {
+                    User_Data.FirstName = obj.FirstName;
+                    User_Data.LastName = obj.LastName;
+                    await Database.SaveChangesAsync();
+                    return Ok("Username Update success.");
+                }
+                else
+                {
+                    return StatusCode(502, "User doesn't exist.Email doesn't match.");
+                }
+
+            }
+            catch (Exception e)
+            {
+
+                return StatusCode(500, "Exception caught while updating email.");
+            }
+        }
+
+
+        [Authorize(Policy = "RequireProviderRole")]
+        [HttpPost]
+        [RequestSizeLimit(104857600)] // 100 MB
+        [RequestFormLimits(MultipartBodyLengthLimit = 104857600)]
+        [Route("addfonepayqr")]
+        public async Task<IActionResult> AddFonepayQr(
+       [FromForm] AdvancePaymentQRInfoModelDTO obj)
+        {
+            string? physicalQrPhotoPath = null;
+            string? newRelativeQrPhotoPath = null;
+
+            try
+            {
+                // =========================================================
+                // 1. Validate ModelState
+                // =========================================================
+
+                if (!ModelState.IsValid)
+                {
+                    return StatusCode(
+                        400,
+                        "Data are not in correct format."
+                    );
+                }
+
+
+                // =========================================================
+                // 2. Validate Provider Email
+                // =========================================================
+
+                if (string.IsNullOrWhiteSpace(obj.ProviderEmail))
+                {
+                    return StatusCode(
+                        400,
+                        "Provider email is required."
+                    );
+                }
+
+                obj.ProviderEmail = obj.ProviderEmail.Trim();
+
+
+                // =========================================================
+                // 3. Validate QR Photo
+                // =========================================================
+
+                if (obj.QRPhoto == null ||
+                    obj.QRPhoto.Length == 0)
+                {
+                    return StatusCode(
+                        400,
+                        "QR photo is required."
+                    );
+                }
+
+
+                // =========================================================
+                // 4. Get User Information Using Email
+                // =========================================================
+
+                var userData =
+                    await Database.UserInfos
+                        .FirstOrDefaultAsync(
+                            x => x.Email == obj.ProviderEmail
+                        );
+
+
+                // =========================================================
+                // 5. Check Provider User Exists
+                // =========================================================
+
+                if (userData == null)
+                {
+                    return StatusCode(
+                        404,
+                        "Provider user not found."
+                    );
+                }
+
+
+                // =========================================================
+                // 6. Get UserNumber From UserInfos
+                // =========================================================
+
+                int providerNumber = userData.UserNumber;
+
+
+                // =========================================================
+                // 7. Get Existing Fonepay QR
+                // =========================================================
+
+                var existingQr =
+                    await Database.AdvancePaymentQrInfos
+                        .FirstOrDefaultAsync(
+                            x => x.ProviderEmail == obj.ProviderEmail
+                        );
+
+
+                // =========================================================
+                // 8. Main Folder
+                // =========================================================
+
+                const string qrFolder =
+                    "uploads/advance-payment-qr";
+
+
+                // =========================================================
+                // 9. Get wwwroot
+                // =========================================================
+
+                var webRootPath =
+                    _environment.WebRootPath;
+
+                if (string.IsNullOrWhiteSpace(webRootPath))
+                {
+                    return StatusCode(
+                        500,
+                        "Server wwwroot folder is not configured."
+                    );
+                }
+
+
+                // =========================================================
+                // 10. Physical QR Folder
+                // =========================================================
+
+                var physicalQrFolderPath =
+                    Path.Combine(
+                        webRootPath,
+                        qrFolder.Replace(
+                            '/',
+                            Path.DirectorySeparatorChar
+                        )
+                    );
+
+
+                // =========================================================
+                // 11. Create QR Folder
+                // =========================================================
+
+                if (!Directory.Exists(
+                        physicalQrFolderPath))
+                {
+                    Directory.CreateDirectory(
+                        physicalQrFolderPath
+                    );
+                }
+
+
+                // =========================================================
+                // 12. Get Uploaded Extension
+                // =========================================================
+
+                var qrExtension =
+                    Path.GetExtension(
+                        obj.QRPhoto.FileName)
+                    .TrimStart('.')
+                    .ToLowerInvariant();
+
+
+                // =========================================================
+                // 13. Validate QR Extension
+                // =========================================================
+
+                var allowedExtensions =
+                    new HashSet<string>(
+                        StringComparer.OrdinalIgnoreCase)
+                    {
+                "jpg",
+                "jpeg",
+                "png"
+                    };
+
+                if (!allowedExtensions.Contains(
+                        qrExtension))
+                {
+                    return StatusCode(
+                        400,
+                        "Invalid QR photo format. Only JPG, JPEG and PNG are allowed."
+                    );
+                }
+
+
+                // =========================================================
+                // 14. Generate Unique Filename
+                // =========================================================
+
+                var qrFileName =
+                    $"{Guid.NewGuid():N}.{qrExtension}";
+
+
+                // =========================================================
+                // 15. Physical QR Photo Path
+                // =========================================================
+
+                physicalQrPhotoPath =
+                    Path.Combine(
+                        physicalQrFolderPath,
+                        qrFileName
+                    );
+
+
+                // =========================================================
+                // 16. Save New QR Photo
+                // =========================================================
+
+                await using (
+                    var qrStream =
+                        new FileStream(
+                            physicalQrPhotoPath,
+                            FileMode.CreateNew,
+                            FileAccess.Write,
+                            FileShare.None))
+                {
+                    await obj.QRPhoto
+                        .CopyToAsync(qrStream);
+                }
+
+
+                // =========================================================
+                // 17. Database QR Photo Path
+                // =========================================================
+
+                newRelativeQrPhotoPath =
+                    $"/{qrFolder}/{qrFileName}";
+
+
+                // =========================================================
+                // 18. Existing QR Found
+                // =========================================================
+
+                if (existingQr != null)
+                {
+                    // -----------------------------------------------------
+                    // Store old database path
+                    // -----------------------------------------------------
+
+                    var oldQrPhotoPath =
+                        existingQr.QRPhoto;
+
+
+                    // -----------------------------------------------------
+                    // Update existing database row
+                    // -----------------------------------------------------
+
+                    existingQr.ProviderEmail =
+                        obj.ProviderEmail;
+
+                    existingQr.ProviderNumber =
+                        providerNumber;
+
+                    existingQr.QRPhoto =
+                        newRelativeQrPhotoPath;
+
+
+                    // -----------------------------------------------------
+                    // Save database
+                    // -----------------------------------------------------
+
+                    try
+                    {
+                        await Database.SaveChangesAsync();
+                    }
+                    catch
+                    {
+                        // Database update failed.
+                        // Delete newly uploaded QR photo.
+
+                        try
+                        {
+                            if (System.IO.File.Exists(
+                                    physicalQrPhotoPath))
+                            {
+                                System.IO.File.Delete(
+                                    physicalQrPhotoPath
+                                );
+                            }
+                        }
+                        catch
+                        {
+                            // Ignore cleanup failure.
+                        }
+
+                        throw;
+                    }
+
+
+                    // =====================================================
+                    // 19. Delete Old QR Photo
+                    // =====================================================
+
+                    try
+                    {
+                        if (!string.IsNullOrWhiteSpace(
+                                oldQrPhotoPath))
+                        {
+                            var oldPhysicalPath =
+                                Path.Combine(
+                                    webRootPath,
+                                    oldQrPhotoPath
+                                        .TrimStart('/')
+                                        .Replace(
+                                            '/',
+                                            Path.DirectorySeparatorChar
+                                        )
+                                );
+
+                            if (System.IO.File.Exists(
+                                    oldPhysicalPath))
+                            {
+                                System.IO.File.Delete(
+                                    oldPhysicalPath
+                                );
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Database is already updated.
+                        // Ignore old file cleanup failure.
+                    }
+
+
+                    // =====================================================
+                    // 20. Return Updated
+                    // =====================================================
+
+                    return StatusCode(
+                        200,
+                        new
+                        {
+                            Message =
+                                "Fonepay QR photo updated successfully.",
+
+                            QRId =
+                                existingQr.QRId,
+
+                            ProviderEmail =
+                                existingQr.ProviderEmail,
+
+                            ProviderNumber =
+                                existingQr.ProviderNumber,
+
+                            QRPhoto =
+                                existingQr.QRPhoto
+                        }
+                    );
+                }
+
+
+                // =========================================================
+                // 21. No Existing QR - Create New Row
+                // =========================================================
+
+                var newQr =
+                    new AdvancePaymentQrInfoModel
+                    {
+                        ProviderEmail =
+                            obj.ProviderEmail,
+
+                        ProviderNumber =
+                            providerNumber,
+
+                        QRPhoto =
+                            newRelativeQrPhotoPath
+                    };
+
+
+                // =========================================================
+                // 22. Add Database Entity
+                // =========================================================
+
+                await Database
+                    .AdvancePaymentQrInfos
+                    .AddAsync(newQr);
+
+
+                // =========================================================
+                // 23. Save Database
+                // =========================================================
+
+                try
+                {
+                    await Database.SaveChangesAsync();
+                }
+                catch
+                {
+                    // Database save failed.
+                    // Delete uploaded QR photo.
+
+                    try
+                    {
+                        if (System.IO.File.Exists(
+                                physicalQrPhotoPath))
+                        {
+                            System.IO.File.Delete(
+                                physicalQrPhotoPath
+                            );
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore cleanup failure.
+                    }
+
+                    throw;
+                }
+
+
+                // =========================================================
+                // 24. Success
+                // =========================================================
+
+                return StatusCode(
+                    200,
+                    new
+                    {
+                        Message =
+                            "Fonepay QR photo added successfully.",
+
+                        QRId =
+                            newQr.QRId,
+
+                        ProviderEmail =
+                            newQr.ProviderEmail,
+
+                        ProviderNumber =
+                            newQr.ProviderNumber,
+
+                        QRPhoto =
+                            newQr.QRPhoto
+                    }
+                );
+            }
+            catch (Exception ex)
+            {
+                // =========================================================
+                // 25. Cleanup Unexpected Error
+                // =========================================================
+
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(
+                            physicalQrPhotoPath) &&
+                        System.IO.File.Exists(
+                            physicalQrPhotoPath))
+                    {
+                        System.IO.File.Delete(
+                            physicalQrPhotoPath
+                        );
+                    }
+                }
+                catch
+                {
+                    // Ignore cleanup failure.
+                }
+
+
+                // =========================================================
+                // 26. Server Error
+                // =========================================================
+
+                return StatusCode(
+                    500,
+                    $"An error occurred while saving Fonepay QR photo: {ex.Message}"
+                );
+            }
+        }
+
+
+        [Authorize(Policy = "RequireProviderUserRole")]
+        [HttpPut]
+        [Route("updateaddress")]
+        public async Task<IActionResult> UpdateAddress([FromBody] UpdateAddressDTO obj)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return StatusCode(501, "Details are not in correct format.");
+                }
+
+                var User_Data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
+                if (User_Data != null)
+                {
+                    User_Data.Address = obj.Address;
+                    await Database.SaveChangesAsync();
+                    return Ok("Username Update success.");
+                }
+                else
+                {
+                    return StatusCode(502, "User doesn't exist.Email doesn't match.");
+                }
+
+            }
+            catch (Exception e)
+            {
+
+                return StatusCode(500, "Exception caught while updating email.");
+            }
+        }
 
 
 

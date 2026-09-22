@@ -108,6 +108,18 @@
         }
       }
     },
+    "/api/Authentication/alluserjwtverify": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Authentication/signin": {
       "post": {
         "tags": [
@@ -118,6 +130,7 @@
             "multipart/form-data": {
               "schema": {
                 "required": [
+                  "Address",
                   "Email",
                   "FirstName",
                   "LastName",
@@ -149,6 +162,11 @@
                     "minLength": 0,
                     "type": "string",
                     "format": "email"
+                  },
+                  "Address": {
+                    "maxLength": 1000,
+                    "minLength": 0,
+                    "type": "string"
                   },
                   "PhoneNumber": {
                     "maxLength": 50,
@@ -195,6 +213,9 @@
                   "style": "form"
                 },
                 "Email": {
+                  "style": "form"
+                },
+                "Address": {
                   "style": "form"
                 },
                 "PhoneNumber": {
@@ -265,6 +286,316 @@
         "tags": [
           "Authentication"
         ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/sendbookinginfouser": {
+      "post": {
+        "tags": [
+          "Booking"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/sendbookinginfopro": {
+      "post": {
+        "tags": [
+          "Booking"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/sendnotification": {
+      "post": {
+        "tags": [
+          "Booking"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/sendnewnotification": {
+      "post": {
+        "tags": [
+          "Booking"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/updatenewnotification": {
+      "put": {
+        "tags": [
+          "Booking"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/updatedate": {
+      "put": {
+        "tags": [
+          "Booking"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDateBookingDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDateBookingDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateDateBookingDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/updateadvanceamount": {
+      "put": {
+        "tags": [
+          "Booking"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAdvanceAmountDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAdvanceAmountDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAdvanceAmountDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/updateproviderapprovalstatus": {
+      "put": {
+        "tags": [
+          "Booking"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProviderApprovalStatusDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProviderApprovalStatusDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProviderApprovalStatusDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/proupdatetaskcompletestatus": {
+      "put": {
+        "tags": [
+          "Booking"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProviderApprovalStatusDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProviderApprovalStatusDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProviderApprovalStatusDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/updateproviderdescp": {
+      "put": {
+        "tags": [
+          "Booking"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DescriptionBookingDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DescriptionBookingDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DescriptionBookingDTO"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK"
@@ -921,6 +1252,113 @@
         }
       }
     },
+    "/api/Profile/updateusername": {
+      "put": {
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Update_UserName_DTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Update_UserName_DTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/Update_UserName_DTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Profile/addfonepayqr": {
+      "post": {
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "ProviderEmail",
+                  "QRPhoto"
+                ],
+                "type": "object",
+                "properties": {
+                  "ProviderEmail": {
+                    "maxLength": 200,
+                    "minLength": 0,
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "QRPhoto": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "ProviderEmail": {
+                  "style": "form"
+                },
+                "QRPhoto": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Profile/updateaddress": {
+      "put": {
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAddressDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAddressDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAddressDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Service/getratinginfo": {
       "post": {
         "tags": [
@@ -1013,10 +1451,276 @@
           }
         }
       }
+    },
+    "/api/Service/addbookinginfo": {
+      "post": {
+        "tags": [
+          "Service"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookinInfoModel"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookinInfoModel"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookinInfoModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Service/addnotification": {
+      "post": {
+        "tags": [
+          "Service"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationInfoModelDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationInfoModelDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationInfoModelDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Service/addnewnotification": {
+      "post": {
+        "tags": [
+          "Service"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewNotificationInfoModelDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewNotificationInfoModelDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewNotificationInfoModelDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AdvancePaymentInfoModel": {
+        "required": [
+          "bookId",
+          "paymentPhoto",
+          "providerEmail",
+          "providerNumber",
+          "userEmail",
+          "userNumber"
+        ],
+        "type": "object",
+        "properties": {
+          "paymentId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "paymentPhoto": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "bookId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "userEmail": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
+          },
+          "providerEmail": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
+          },
+          "providerNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "userNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "bookingInfos": {
+            "$ref": "#/components/schemas/BookinInfoModel"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BookinInfoModel": {
+        "required": [
+          "createdAt",
+          "distance",
+          "providerApprovalStatus",
+          "providerEmail",
+          "providerTaskCompleteStatus",
+          "requiredAdvancePayment",
+          "serviceName",
+          "userApprovalStatus",
+          "userBookingDescription",
+          "userEmail",
+          "userTaskCompleteStatus"
+        ],
+        "type": "object",
+        "properties": {
+          "bookId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "providerBookingDescription": {
+            "type": "string",
+            "nullable": true
+          },
+          "userBookingDescription": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "serviceName": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "distance": {
+            "type": "number",
+            "format": "double"
+          },
+          "userEmail": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
+          },
+          "providerEmail": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
+          },
+          "providerApprovalStatus": {
+            "type": "boolean"
+          },
+          "userApprovalStatus": {
+            "type": "boolean"
+          },
+          "providerTaskCompleteStatus": {
+            "type": "boolean"
+          },
+          "userTaskCompleteStatus": {
+            "type": "boolean"
+          },
+          "advancePaymentAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "userNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "requiredAdvancePayment": {
+            "type": "boolean"
+          },
+          "users": {
+            "$ref": "#/components/schemas/UserInfo"
+          },
+          "advancePaymentInfos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdvancePaymentInfoModel"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DescriptionBookingDTO": {
+        "required": [
+          "bookId",
+          "userBookingDescription",
+          "userEmail"
+        ],
+        "type": "object",
+        "properties": {
+          "userBookingDescription": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "bookId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "userEmail": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
+          }
+        },
+        "additionalProperties": false
+      },
       "LoginModel": {
         "required": [
           "email",
@@ -1033,6 +1737,145 @@
           "password": {
             "minLength": 1,
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NewNotificationInfoModelDTO": {
+        "required": [
+          "currentUserEmail",
+          "receiverEmail",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "receiverEmail": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "status": {
+            "type": "boolean"
+          },
+          "currentUserEmail": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NotificationInfoModelDTO": {
+        "required": [
+          "currentUserEmail",
+          "message",
+          "receiverEmail"
+        ],
+        "type": "object",
+        "properties": {
+          "receiverEmail": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "message": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "currentUserEmail": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProviderRegisterServiceResources": {
+        "required": [
+          "email",
+          "providerServiceId",
+          "servicePhoto",
+          "serviceVideo",
+          "userNumber"
+        ],
+        "type": "object",
+        "properties": {
+          "providerServiceResourcesId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "servicePhoto": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "serviceVideo": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "providerServiceId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "email": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
+          },
+          "userNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "providerServices": {
+            "$ref": "#/components/schemas/ProviderRegisterServices"
+          },
+          "users": {
+            "$ref": "#/components/schemas/UserInfo"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProviderRegisterServices": {
+        "required": [
+          "email",
+          "serviceDocument",
+          "serviceName",
+          "userNumber"
+        ],
+        "type": "object",
+        "properties": {
+          "providerServiceId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "serviceName": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "serviceDocument": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
+          },
+          "userNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "users": {
+            "$ref": "#/components/schemas/UserInfo"
+          },
+          "providerServicesResources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProviderRegisterServiceResources"
+            },
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -1101,6 +1944,82 @@
         },
         "additionalProperties": false
       },
+      "UpdateAddressDTO": {
+        "required": [
+          "address",
+          "email"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
+          },
+          "address": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateAdvanceAmountDTO": {
+        "required": [
+          "advancePaymentAmount",
+          "bookId",
+          "userEmail"
+        ],
+        "type": "object",
+        "properties": {
+          "advancePaymentAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "bookId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "userEmail": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateDateBookingDTO": {
+        "required": [
+          "bookId",
+          "endDate",
+          "startDate",
+          "userEmail"
+        ],
+        "type": "object",
+        "properties": {
+          "startDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "bookId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "userEmail": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
+          }
+        },
+        "additionalProperties": false
+      },
       "UpdateEmailDTO": {
         "required": [
           "newEmail",
@@ -1115,6 +2034,26 @@
           },
           "newEmail": {
             "minLength": 1,
+            "type": "string",
+            "format": "email"
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateProviderApprovalStatusDTO": {
+        "required": [
+          "bookId",
+          "userEmail"
+        ],
+        "type": "object",
+        "properties": {
+          "bookId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "userEmail": {
+            "maxLength": 200,
+            "minLength": 0,
             "type": "string",
             "format": "email"
           }
@@ -1145,6 +2084,33 @@
         },
         "additionalProperties": false
       },
+      "Update_UserName_DTO": {
+        "required": [
+          "email",
+          "firstName",
+          "lastName"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
+          },
+          "firstName": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "lastName": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "UserEmailInfoModel": {
         "required": [
           "email"
@@ -1156,6 +2122,106 @@
             "minLength": 0,
             "type": "string",
             "format": "email"
+          }
+        },
+        "additionalProperties": false
+      },
+      "UserInfo": {
+        "required": [
+          "address",
+          "email",
+          "firstName",
+          "lastName",
+          "latitude",
+          "longitude",
+          "password",
+          "phoneNumber",
+          "role",
+          "whatsappPhoneNumber"
+        ],
+        "type": "object",
+        "properties": {
+          "userNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "firstName": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "lastName": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
+          },
+          "address": {
+            "maxLength": 1000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "phoneNumber": {
+            "maxLength": 50,
+            "minLength": 0,
+            "pattern": "^\\+\\d+$",
+            "type": "string"
+          },
+          "whatsappPhoneNumber": {
+            "maxLength": 50,
+            "minLength": 0,
+            "pattern": "^\\+\\d+$",
+            "type": "string"
+          },
+          "password": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "photo": {
+            "type": "string",
+            "nullable": true
+          },
+          "role": {
+            "maxLength": 50,
+            "minLength": 0,
+            "type": "string"
+          },
+          "loginAccess": {
+            "type": "boolean"
+          },
+          "providerServices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProviderRegisterServices"
+            },
+            "nullable": true
+          },
+          "providerServicesResources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProviderRegisterServiceResources"
+            },
+            "nullable": true
+          },
+          "bookings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookinInfoModel"
+            },
+            "nullable": true
           }
         },
         "additionalProperties": false

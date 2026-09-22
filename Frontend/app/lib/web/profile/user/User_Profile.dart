@@ -17,6 +17,8 @@ import '../../header/Header.dart';
 import '../provider_user/Update_Location.dart';
 import '../provider_user/Update_Email.dart';
 import '../provider_user/Update_Password.dart';
+import '../provider_user/update_address.dart';
+import '../provider_user/update_user_name.dart';
 
 /// ---------------------------------------------------------------------------
 /// THEME TOKENS (dark green, modern) — identical to ProviderProfile
@@ -286,7 +288,8 @@ class _UserProfileState extends State<UserProfile>
     }
   }
 
-  String GetPhotoUrl(String photoPath) {
+  String GetPhotoUrl(String photoPath)
+  {
     if (photoPath.isEmpty) {
       return "";
     }
@@ -405,6 +408,41 @@ class _UserProfileState extends State<UserProfile>
           context,
           MaterialPageRoute(
             builder: (context) => UpdateLocation(
+              User_Email: widget.User_Email,
+              User_JwtToken: widget.User_JwtToken,
+              User_Role: widget.User_Role,
+            ),
+          ),
+        ),
+      ),
+
+      _ActionItem(
+          icon: Icons.location_city_rounded,
+          label: "Update address.",
+          onTap: () {
+            final user = UserInfoModelList[0];
+            Navigator.push
+              (
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    UpdateAddress(
+                      User_Email: widget.User_Email,
+                      User_JwtToken: widget.User_JwtToken,
+                      User_Role: widget.User_Role,
+                    ),
+              ),
+            );
+          }
+      ),
+
+      _ActionItem(
+        icon: Icons.location_city_rounded,
+        label: "Update User name",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => UpdateUserName(
               User_Email: widget.User_Email,
               User_JwtToken: widget.User_JwtToken,
               User_Role: widget.User_Role,
@@ -539,9 +577,11 @@ class _UserProfileState extends State<UserProfile>
                                             ? GetPhotoUrl(photoPath)
                                             : "";
 
-                                        return FadeTransition(
+                                        return FadeTransition
+                                          (
                                           opacity: _fadeIn,
-                                          child: Column(
+                                          child:
+                                          Column(
                                             children: [
                                               // =========================================
                                               // PROFILE PHOTO + EDIT BADGE
@@ -573,6 +613,7 @@ class _UserProfileState extends State<UserProfile>
                                                         ),
                                                       ],
                                                     ),
+
                                                     child: ClipOval(
                                                       child: Container(
                                                         color: _ProfileTheme.card,
@@ -618,6 +659,7 @@ class _UserProfileState extends State<UserProfile>
                                                         ),
                                                       ),
                                                     ),
+
                                                   ),
 
 
@@ -666,9 +708,34 @@ class _UserProfileState extends State<UserProfile>
                                                 ),
                                               ),
                                               SizedBox(height: shortestval * 0.008),
+                                              Text(
+                                                "Id : ${user.userNumber}",
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  fontFamily: bold,
+                                                  fontSize: shortestval * 0.052,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: _ProfileTheme.textPrimary,
+                                                  letterSpacing: 0.2,
+                                                ),
+                                              ),
+                                              SizedBox(height: shortestval * 0.008),
 
                                               Text(
                                                 "Email : ${user.email}",
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  fontFamily: bold,
+                                                  fontSize: shortestval * 0.052,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: _ProfileTheme.textPrimary,
+                                                  letterSpacing: 0.2,
+                                                ),
+                                              ),
+                                              SizedBox(height: shortestval * 0.008),
+
+                                              Text(
+                                                "Address : ${user.address}",
                                                 textAlign: TextAlign.center,
                                                 style: TextStyle(
                                                   fontFamily: bold,

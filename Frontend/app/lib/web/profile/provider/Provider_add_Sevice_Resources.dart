@@ -112,7 +112,8 @@ class _ProviderAddSeviceResourcesState
     super.dispose();
   }
 
-  Future<void> Provider_Jwt_Verify({required String Jwt_Token}) async {
+  Future<void> Provider_Jwt_Verify({required String Jwt_Token}) async
+  {
     int Result = await ProviderJwtVerify(Jwt_Token: Jwt_Token);
     if (Result == 1) {
       return;
@@ -517,7 +518,16 @@ class _ProviderAddSeviceResourcesState
       if (PhotoResult == 1) {
         Toast.Toastmsg("Pick photo for service resources success.");
         return;
-      } else {
+      }
+      else if(PhotoResult==2){
+        Toast.Toastmsg("Only .png,.jpg,.jpeg format accepted.");
+        return;
+      }
+      else if(PhotoResult==5){
+        Toast.Toastmsg("Image is larger then 100mb.Please compressed and upload..");
+        return;
+      }
+      else {
         Toast.Toastmsg("Pick photo for service resources fail.");
         return;
       }

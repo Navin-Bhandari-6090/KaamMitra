@@ -12,8 +12,8 @@ using application.Data;
 namespace application.Migrations
 {
     [DbContext(typeof(DatabaseController))]
-    [Migration("20260911111525_initialize databse")]
-    partial class initializedatabse
+    [Migration("20260921131038_add RequiredAdvancePayment column in booking info table")]
+    partial class addRequiredAdvancePaymentcolumninbookinginfotable
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,185 @@ namespace application.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("application.Models.AdvancePaymentInfoModel", b =>
+                {
+                    b.Property<int>("PaymentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("PaymentId"));
+
+                    b.Property<int>("BookId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PaymentPhoto")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProviderEmail")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("ProviderNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("UserEmail")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("UserNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("PaymentId");
+
+                    b.HasIndex("BookId");
+
+                    b.ToTable("AdvancePaymentInfos");
+                });
+
+            modelBuilder.Entity("application.Models.AdvancePaymentQrInfoModel", b =>
+                {
+                    b.Property<int>("QRId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("QRId"));
+
+                    b.Property<string>("ProviderEmail")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("ProviderNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("QRPhoto")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("QRId");
+
+                    b.ToTable("AdvancePaymentQrInfos");
+                });
+
+            modelBuilder.Entity("application.Models.BookinInfoModel", b =>
+                {
+                    b.Property<int>("BookId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("BookId"));
+
+                    b.Property<double>("AdvancePaymentAmount")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double>("Distance")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("ProviderApprovalStatus")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ProviderBookingDescription")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProviderEmail")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("ProviderTaskCompleteStatus")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RequiredAdvancePayment")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ServiceName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("UserApprovalStatus")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("UserBookingDescription")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("UserEmail")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("UserNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("UserTaskCompleteStatus")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("BookId");
+
+                    b.HasIndex("UserNumber");
+
+                    b.ToTable("BookingInfos");
+                });
+
+            modelBuilder.Entity("application.Models.NewNotificationInfoModel", b =>
+                {
+                    b.Property<int>("NewNotId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("NewNotId"));
+
+                    b.Property<string>("ReceiverEmail")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("Status")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("NewNotId");
+
+                    b.ToTable("NewNotificationInfos");
+                });
+
+            modelBuilder.Entity("application.Models.NotificationInfoModel", b =>
+                {
+                    b.Property<int>("NotId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("NotId"));
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ReceiverEmail")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("NotId");
+
+                    b.ToTable("NotificationInfos");
+                });
 
             modelBuilder.Entity("application.Models.ProviderRegisterServiceResources", b =>
                 {
@@ -117,6 +296,11 @@ namespace application.Migrations
                     b.Property<int>("RatingValue")
                         .HasColumnType("integer");
 
+                    b.Property<string>("ServiceName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.HasKey("RtingId");
 
                     b.ToTable("RatingInfos");
@@ -163,6 +347,11 @@ namespace application.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("UserNumber"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -216,6 +405,28 @@ namespace application.Migrations
                     b.ToTable("UserInfos");
                 });
 
+            modelBuilder.Entity("application.Models.AdvancePaymentInfoModel", b =>
+                {
+                    b.HasOne("application.Models.BookinInfoModel", "BookingInfos")
+                        .WithMany("AdvancePaymentInfos")
+                        .HasForeignKey("BookId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BookingInfos");
+                });
+
+            modelBuilder.Entity("application.Models.BookinInfoModel", b =>
+                {
+                    b.HasOne("application.Models.UserInfo", "Users")
+                        .WithMany("Bookings")
+                        .HasForeignKey("UserNumber")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Users");
+                });
+
             modelBuilder.Entity("application.Models.ProviderRegisterServiceResources", b =>
                 {
                     b.HasOne("application.Models.ProviderRegisterServices", "ProviderServices")
@@ -246,6 +457,11 @@ namespace application.Migrations
                     b.Navigation("Users");
                 });
 
+            modelBuilder.Entity("application.Models.BookinInfoModel", b =>
+                {
+                    b.Navigation("AdvancePaymentInfos");
+                });
+
             modelBuilder.Entity("application.Models.ProviderRegisterServices", b =>
                 {
                     b.Navigation("ProviderServicesResources");
@@ -253,6 +469,8 @@ namespace application.Migrations
 
             modelBuilder.Entity("application.Models.UserInfo", b =>
                 {
+                    b.Navigation("Bookings");
+
                     b.Navigation("ProviderServices");
 
                     b.Navigation("ProviderServicesResources");

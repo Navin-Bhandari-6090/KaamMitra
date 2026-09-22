@@ -2,14 +2,20 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+import 'package:velocity_x/velocity_x.dart';
 import '../../constant/Server_Database.dart';
 import '../../state management/bloc/common state/common_variable_bloc.dart';
 import '../common method/Commmon_Method.dart';
+import '../common widget/location/get_location_getx.dart';
 import '../common widget/toast.dart';
 import '../common widget/toast_long_period.dart';
 import 'Error_page.dart';
 import 'Login.dart';
+
+// Adjust the get_location_getx.dart import path above to wherever you
+// actually place that file relative to this one.
 
 /// ============================================================
 /// GREEN REGISTER SCREEN — fully responsive (mobile / tablet /
@@ -17,7 +23,14 @@ import 'Login.dart';
 /// entrance animations. Matches LoginScreen's visual language.
 ///
 /// Fields: First name, Last name, Email, Phone number, WhatsApp
-/// number, Role (User / Provider), Password, Retype password.
+/// number, Role (User / Provider), Latitude, Longitude, Password,
+/// Retype password.
+///
+/// Latitude/Longitude can be typed manually OR auto-filled via the
+/// "Use my current location" button, which is backed by the same
+/// GetLocationGetx controller/service used on the UpdateLocation
+/// screen (GetX-only for this piece; everything else on this screen
+/// still uses Bloc).
 ///
 /// Uses your existing logo:
 ///   assets/images/logo/app_logo.png
@@ -57,13 +70,25 @@ class _RegisterScreenState extends State<RegisterScreen>
   final _passCtrl = TextEditingController();
   final _retypeCtrl = TextEditingController();
   final _latitude = TextEditingController();
+  final _address = TextEditingController();
   final _longitude = TextEditingController();
   final _toast = Toastget_Long_Period();
+
+  // ---------------------------------------------------------------
+  // GetX — "use my current location" piece only. Same controller/
+  // service used by UpdateLocation, put/deleted with a tag unique to
+  // this screen instance so it never collides with any other screen.
+  // ---------------------------------------------------------------
+  late final GetLocationGetx locationCont;
+  final String _tag = UniqueKey().toString();
 
   @override
   void initState() {
     super.initState();
     JwtVerify(Jwt_Token:widget.User_JwtToken);
+
+    locationCont = Get.put(GetLocationGetx(), tag: _tag);
+
     _entrance = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1100),
@@ -83,8 +108,8 @@ class _RegisterScreenState extends State<RegisterScreen>
     } else
     {
       Navigator.pushAndRemoveUntil(context,
-          MaterialPageRoute(builder: (context) => ErrorPage()
-          )
+        MaterialPageRoute(builder: (context) => ErrorPage()
+        )
         ,
             (route) => false,
       );
@@ -104,6 +129,9 @@ class _RegisterScreenState extends State<RegisterScreen>
     _whatsappCtrl.dispose();
     _passCtrl.dispose();
     _retypeCtrl.dispose();
+    _latitude.dispose();
+    _longitude.dispose();
+    Get.delete<GetLocationGetx>(tag: _tag);
     super.dispose();
   }
 
@@ -114,6 +142,35 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
   }
 
+  // ---------------------------------------------------------------
+  // NEW — "Use my current location" flow. Fetches via GetLocationGetx,
+  // then fills the two text fields with the result so the person can
+  // still see/edit the value before submitting the form.
+  //
+  // GetLocationGetx.fetchCurrentLocation() already catches every
+  // failure internally and reports it via toast, so this only needs
+  // to guard against the widget having been disposed while the await
+  // was pending (e.g. user navigated back mid-fetch) before touching
+  // State.
+  // ---------------------------------------------------------------
+  Future<void> _handleUseCurrentLocation() async {
+    try {
+      final bool success = await locationCont.fetchCurrentLocation();
+      if (!success || !mounted) return;
+
+      final double? lat = locationCont.latitude.value;
+      final double? lng = locationCont.longitude.value;
+      if (lat == null || lng == null) return;
+
+      _latitude.text = lat.toString();
+      _longitude.text = lng.toString();
+    } catch (e) {
+      // Defensive fallback only — fetchCurrentLocation() shouldn't
+      // throw, but this keeps a stray exception from ever crashing
+      // the screen.
+      print("Unexpected error in _handleUseCurrentLocation: $e");
+    }
+  }
 
   Future<int> _handleCreateAccount(BuildContext context) async {
     try {
@@ -129,6 +186,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       final retype = _retypeCtrl.text.trim();
       final latitude = _latitude.text.trim();
       final longitude = _longitude.text.trim();
+      final address = _address.text.trim();
 
       // Get role from Bloc
       final blocState = context.read<CommonVariableBloc>().state;
@@ -153,6 +211,12 @@ class _RegisterScreenState extends State<RegisterScreen>
       if (email.isEmpty) {
         _toast.Toastmsg('Email is required');
         print('Email is required');
+        return 3;
+      }
+
+      if (address.isEmptyOrNull) {
+        _toast.Toastmsg('Address is required');
+        print('Address is required');
         return 3;
       }
 
@@ -294,6 +358,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       request.fields['Email'] = email;
       request.fields['PhoneNumber'] = phone;
       request.fields['WhatsappPhoneNumber'] = whatsapp;
+      request.fields['Address'] = address;
       request.fields['Password'] = password;
       request.fields['Latitude'] = latitudeValue.toString();
       request.fields['Longitude'] = longitudeValue.toString();
@@ -434,9 +499,9 @@ class _RegisterScreenState extends State<RegisterScreen>
               child: isWide
                   ? _WideLayout(state: this, panelFlex: width > 1300 ? 5 : 4)
                   : _CompactLayout(
-                      state: this,
-                      isPortraitCompact: isPortraitCompact,
-                    ),
+                state: this,
+                isPortraitCompact: isPortraitCompact,
+              ),
             ),
           );
         },
@@ -526,6 +591,125 @@ class _RegisterScreenState extends State<RegisterScreen>
         ],
       ),
     );
+  }
+
+  // ---------------------------------------------------------------
+  // NEW — "Use my current location" button. Outlined style so it
+  // stays visually distinct from the filled _GreenField boxes and
+  // the primary "Create account" button, built from the same
+  // AppColors palette as the rest of the form.
+  // ---------------------------------------------------------------
+  Widget _buildUseLocationButton() {
+    return Obx(() {
+      final bool fetching = locationCont.isFetchingLocation.value;
+
+      return Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: fetching ? null : _handleUseCurrentLocation,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.fieldFill,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: AppColors.bgMid.withOpacity(fetching ? 0.35 : 0.6),
+                width: 1.4,
+              ),
+            ),
+            child: Center(
+              child: fetching
+                  ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(
+                    width: 17,
+                    height: 17,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      valueColor:
+                      AlwaysStoppedAnimation<Color>(AppColors.bgMid),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Getting your location...',
+                    style: TextStyle(
+                      color: AppColors.textDark,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13.5,
+                    ),
+                  ),
+                ],
+              )
+                  : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.my_location_rounded,
+                      color: AppColors.bgMid, size: 18),
+                  SizedBox(width: 9),
+                  Text(
+                    'Use my current location',
+                    style: TextStyle(
+                      color: AppColors.bgMid,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  /// Small chip that appears under the button once a live fix has been
+  /// captured, confirming what just got filled into the fields.
+  Widget _buildDetectedLocationChip() {
+    return Obx(() {
+      final double? lat = locationCont.latitude.value;
+      final double? lng = locationCont.longitude.value;
+
+      return AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        child: (lat == null || lng == null)
+            ? const SizedBox.shrink(key: ValueKey('no-fix'))
+            : Container(
+          key: const ValueKey('fix'),
+          margin: const EdgeInsets.only(top: 10),
+          padding:
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            color: AppColors.accent.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded,
+                  color: AppColors.bgMid, size: 15),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Detected: $lat, $lng',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.textDark,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
   }
 
   Widget formCard(BuildContext context, {required bool compact}) {
@@ -643,6 +827,16 @@ class _RegisterScreenState extends State<RegisterScreen>
               const SizedBox(height: 16),
 
               _GreenField(
+                controller: _address,
+                label: 'Address',
+                hintText:
+                'Address',
+                icon: Icons.map,
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 16),
+
+              _GreenField(
                 controller: _phoneCtrl,
                 label: 'Phone number',
                 hintText: '+91 98765 43210',
@@ -660,11 +854,16 @@ class _RegisterScreenState extends State<RegisterScreen>
               ),
               const SizedBox(height: 16),
 
+              // --- Use my current location ---
+              _buildUseLocationButton(),
+              _buildDetectedLocationChip(),
+              const SizedBox(height: 16),
+
               _GreenField(
                 controller: _latitude,
                 label: 'Latitude',
                 hintText:
-                    '23.567(Long press on your current location in google map.First decimal value of google map)',
+                '23.567(Long press on your current location in google map.First decimal value of google map)',
                 icon: Icons.map,
                 keyboardType: TextInputType.phone,
               ),
@@ -674,7 +873,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                 controller: _longitude,
                 label: 'Longitude',
                 hintText:
-                    '23.567(Long press on your current location in google map.Second decimal value of google map)',
+                '23.567(Long press on your current location in google map.Second decimal value of google map)',
                 icon: Icons.map,
                 keyboardType: TextInputType.phone,
               ),
@@ -696,48 +895,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                 },
               ),
 
-
               const SizedBox(height: 16),
-              //
-              // _GreenField(
-              //   controller: _passCtrl,
-              //   label: 'Password',
-              //   icon: Icons.lock_outline_rounded,
-              //   obscure: _obscurePass,
-              //   suffix: IconButton(
-              //     splashRadius: 18,
-              //     icon: Icon(
-              //       _obscurePass
-              //           ? Icons.visibility_off_rounded
-              //           : Icons.visibility_rounded,
-              //       size: 19,
-              //       color: AppColors.textMuted,
-              //     ),
-              //     onPressed: () =>
-              //         setState(() => _obscurePass = !_obscurePass),
-              //   ),
-              // ),
-              // const SizedBox(height: 16),
-              //
-              // _GreenField(
-              //   controller: _retypeCtrl,
-              //   label: 'Retype password',
-              //   icon: Icons.lock_reset_rounded,
-              //   obscure: _obscureRetype,
-              //   suffix: IconButton(
-              //     splashRadius: 18,
-              //     icon: Icon(
-              //       _obscureRetype
-              //           ? Icons.visibility_off_rounded
-              //           : Icons.visibility_rounded,
-              //       size: 19,
-              //       color: AppColors.textMuted,
-              //     ),
-              //     onPressed: () =>
-              //         setState(() => _obscureRetype = !_obscureRetype),
-              //   ),
-              // ),
-              // const SizedBox(height: 24),
 
               BlocBuilder<CommonVariableBloc, CommonVariableState>(
                 builder: (context, state) {
@@ -961,13 +1119,13 @@ class _WavePainter extends CustomPainter {
   }
 
   void _layer(
-    Canvas canvas,
-    Size size, {
-    required double phase,
-    required double amp,
-    required Color color,
-    required double baseline,
-  }) {
+      Canvas canvas,
+      Size size, {
+        required double phase,
+        required double amp,
+        required Color color,
+        required double baseline,
+      }) {
     final path = Path();
     final base = size.height * baseline;
     path.moveTo(0, base);
@@ -1029,12 +1187,12 @@ class _GreenFieldState extends State<_GreenField> {
           ),
           boxShadow: _focused
               ? [
-                  BoxShadow(
-                    color: AppColors.bgMid.withOpacity(0.15),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
+            BoxShadow(
+              color: AppColors.bgMid.withOpacity(0.15),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ]
               : [],
         ),
         child: TextField(

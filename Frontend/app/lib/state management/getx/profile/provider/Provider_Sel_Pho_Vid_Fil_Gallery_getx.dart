@@ -17,7 +17,7 @@ class ProviderSelPhoVidFilGalleryGetx extends GetxController {
   Future<void> verifyJwt({required String jwtToken}) async {
     isVerifying.value = true;
 
-    final int result = await ProviderJwtVerify(Jwt_Token: jwtToken);
+    final int result = await UserProviderJwtVerify(Jwt_Token: jwtToken);
 
     if (result == 1) {
       isSessionValid.value = true;

@@ -133,7 +133,23 @@ namespace application.Controllers
 
         }
 
-       
+        [HttpGet]
+        [Route("alluserjwtverify")]
+        [Authorize(Policy = "RequireforAllRole")]
+        public async Task<ActionResult> AllUserVerifyToken()
+        {
+            try
+            {
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500);
+            }
+
+        }
+
+
         [HttpPost]
         [Route("signin")]
         [Authorize]
@@ -171,6 +187,7 @@ namespace application.Controllers
                     Email = obj.Email,
                     PhoneNumber = obj.PhoneNumber,
                     WhatsappPhoneNumber = obj.WhatsappPhoneNumber,
+                    Address = obj.Address,
 
                     Password = HashPassword(obj.Password),
 

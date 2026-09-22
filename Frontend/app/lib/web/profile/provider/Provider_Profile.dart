@@ -16,12 +16,15 @@ import '../../common widget/getx_cont_pick_single_photo_int.dart';
 import '../../common widget/toast.dart';
 import '../../header/Header.dart';
 import '../provider_user/Update_Location.dart';
+import '../provider_user/update_address.dart';
+import '../provider_user/update_user_name.dart';
 import 'ProviderAddService.dart';
 import 'Provider_Service_Select.dart';
 import 'Provider_Update_Service_File.dart';
 import 'Select_Ser_Res_Update.dart';
 import '../provider_user/Update_Email.dart';
 import '../provider_user/Update_Password.dart';
+import 'add_update_fonepay_qr.dart';
 
 /// ---------------------------------------------------------------------------
 /// THEME TOKENS (dark green, modern)
@@ -487,6 +490,67 @@ class _ProviderProfileState extends State<ProviderProfile>
       ),
 
 
+      _ActionItem(
+        icon: Icons.location_city_rounded,
+        label: "Update User name",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => UpdateUserName(
+              User_Email: widget.User_Email,
+              User_JwtToken: widget.User_JwtToken,
+              User_Role: widget.User_Role,
+            ),
+          ),
+        ),
+      ),
+
+      _ActionItem(
+        icon: Icons.location_city_rounded,
+        label: "Add/Update fonepay QR photo.",
+        onTap: () {
+          final user = UserInfoModelList[0];
+           Navigator.push
+            (
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  AddUpdateFonepayQr(
+                    User_Email: widget.User_Email,
+                    User_JwtToken: widget.User_JwtToken,
+                    User_Role: widget.User_Role,
+                  ),
+            ),
+          );
+        }
+      ),
+
+      _ActionItem(
+          icon: Icons.location_city_rounded,
+          label: "Update address.",
+          onTap: () {
+            final user = UserInfoModelList[0];
+            Navigator.push
+              (
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    UpdateAddress(
+                      User_Email: widget.User_Email,
+                      User_JwtToken: widget.User_JwtToken,
+                      User_Role: widget.User_Role,
+                    ),
+              ),
+            );
+          }
+      ),
+
+
+
+
+
+
+
     ];
 
     return Scaffold(
@@ -605,7 +669,9 @@ class _ProviderProfileState extends State<ProviderProfile>
                                     );
                                   }
 
-                                  if (UserInfoModelList.isNotEmpty) {
+                                  if (UserInfoModelList.isNotEmpty)
+                                  {
+
                                     final user = UserInfoModelList[0];
                                     final String photoPath = user.photo ?? "";
                                     final String photoUrl = photoPath.isNotEmpty
@@ -741,7 +807,33 @@ class _ProviderProfileState extends State<ProviderProfile>
                                           SizedBox(height: shortestval * 0.008),
 
                                           Text(
+                                            "Id: ${user.userNumber}",
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontFamily: bold,
+                                              fontSize: shortestval * 0.052,
+                                              fontWeight: FontWeight.w700,
+                                              color: _ProfileTheme.textPrimary,
+                                              letterSpacing: 0.2,
+                                            ),
+                                          ),
+                                          SizedBox(height: shortestval * 0.008),
+
+                                          Text(
                                             "Email : ${user.email}",
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontFamily: bold,
+                                              fontSize: shortestval * 0.052,
+                                              fontWeight: FontWeight.w700,
+                                              color: _ProfileTheme.textPrimary,
+                                              letterSpacing: 0.2,
+                                            ),
+                                          ),
+                                          SizedBox(height: shortestval * 0.008),
+
+                                          Text(
+                                            "Address : ${user.address}",
                                             textAlign: TextAlign.center,
                                             style: TextStyle(
                                               fontFamily: bold,

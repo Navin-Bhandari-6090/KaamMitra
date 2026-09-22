@@ -19,13 +19,15 @@ void main() async {
   // print("mainLogout Success");
  int UserData=await CheckUserJwtToken();
   print("User data token result = ${UserData}");
- if(UserData==1){
+ if(UserData==1)
+ {
    final box = await Hive.openBox('User_Data');
    String? Jwt_Token = box.get('jwt_token');
    String? User_Role = box.get('user_role');
    String? User_Email=box.get('user_email');
-   int User_Provider_Jwt_Verify=await UserProviderJwtVerify(Jwt_Token:Jwt_Token!);
-   if(User_Provider_Jwt_Verify==1){
+   int AllUserVerify=await AllUserJwtVerify(Jwt_Token:Jwt_Token!);
+   if(AllUserVerify==1)
+   {
      runApp(MyApp(Result: 1,UserLogin: true, User_JwtToken: Jwt_Token!, User_Role:User_Role!, User_Email:User_Email!,));
    }
    else

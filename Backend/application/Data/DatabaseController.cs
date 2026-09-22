@@ -23,6 +23,14 @@ namespace application.Data
 
         public DbSet<RatingInfoModel> RatingInfos { get; set; }
 
+        public DbSet<BookinInfoModel> BookingInfos { get; set; }
+        public DbSet<NotificationInfoModel> NotificationInfos { get; set; }
+        public DbSet<NewNotificationInfoModel> NewNotificationInfos { get; set; }
+
+        public DbSet<AdvancePaymentInfoModel> AdvancePaymentInfos { get; set; }
+
+        public DbSet<AdvancePaymentQrInfoModel> AdvancePaymentQrInfos { get; set; }
+
 
     }
 }

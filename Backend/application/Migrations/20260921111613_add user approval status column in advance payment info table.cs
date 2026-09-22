@@ -7,11 +7,81 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace application.Migrations
 {
     /// <inheritdoc />
-    public partial class initializedatabse : Migration
+    public partial class adduserapprovalstatuscolumninadvancepaymentinfotable : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.CreateTable(
+                name: "AdvancePaymentQrInfos",
+                columns: table => new
+                {
+                    QRId = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    ProviderEmail = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    ProviderNumber = table.Column<int>(type: "integer", nullable: false),
+                    QRPhoto = table.Column<string>(type: "text", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AdvancePaymentQrInfos", x => x.QRId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "BookingInfos",
+                columns: table => new
+                {
+                    BookId = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    StartDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    EndDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ProviderBookingDescription = table.Column<string>(type: "text", nullable: false),
+                    UserBookingDescription = table.Column<string>(type: "text", nullable: false),
+                    ServiceName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Distance = table.Column<double>(type: "double precision", nullable: false),
+                    UserEmail = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    ProviderEmail = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    ProviderApprovalStatus = table.Column<bool>(type: "boolean", nullable: false),
+                    UserApprovalStatus = table.Column<bool>(type: "boolean", nullable: false),
+                    ProviderTaskCompleteStatus = table.Column<bool>(type: "boolean", nullable: false),
+                    UserTaskCompleteStatus = table.Column<bool>(type: "boolean", nullable: false),
+                    AdvancePaymentAmount = table.Column<double>(type: "double precision", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BookingInfos", x => x.BookId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "NewNotificationInfos",
+                columns: table => new
+                {
+                    NewNotId = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    ReceiverEmail = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Status = table.Column<bool>(type: "boolean", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_NewNotificationInfos", x => x.NewNotId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "NotificationInfos",
+                columns: table => new
+                {
+                    NotId = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    ReceiverEmail = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Message = table.Column<string>(type: "text", nullable: false),
+                    Date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_NotificationInfos", x => x.NotId);
+                });
+
             migrationBuilder.CreateTable(
                 name: "RatingInfos",
                 columns: table => new
@@ -21,7 +91,8 @@ namespace application.Migrations
                     RatingReceiver = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     RatingGiver = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     RatingValue = table.Column<int>(type: "integer", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ServiceName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -55,6 +126,7 @@ namespace application.Migrations
                     FirstName = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     LastName = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     Email = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Address = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: false),
                     PhoneNumber = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     WhatsappPhoneNumber = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     Password = table.Column<string>(type: "text", nullable: false),
@@ -67,6 +139,30 @@ namespace application.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_UserInfos", x => x.UserNumber);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "AdvancePaymentInfos",
+                columns: table => new
+                {
+                    PaymentId = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    PaymentPhoto = table.Column<string>(type: "text", nullable: false),
+                    BookId = table.Column<int>(type: "integer", nullable: false),
+                    UserEmail = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    ProviderEmail = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    ProviderNumber = table.Column<int>(type: "integer", nullable: false),
+                    UserNumber = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AdvancePaymentInfos", x => x.PaymentId);
+                    table.ForeignKey(
+                        name: "FK_AdvancePaymentInfos_BookingInfos_BookId",
+                        column: x => x.BookId,
+                        principalTable: "BookingInfos",
+                        principalColumn: "BookId",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -121,6 +217,11 @@ namespace application.Migrations
                 });
 
             migrationBuilder.CreateIndex(
+                name: "IX_AdvancePaymentInfos_BookId",
+                table: "AdvancePaymentInfos",
+                column: "BookId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ProviderServiceInfo_UserNumber",
                 table: "ProviderServiceInfo",
                 column: "UserNumber");
@@ -140,6 +241,18 @@ namespace application.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "AdvancePaymentInfos");
+
+            migrationBuilder.DropTable(
+                name: "AdvancePaymentQrInfos");
+
+            migrationBuilder.DropTable(
+                name: "NewNotificationInfos");
+
+            migrationBuilder.DropTable(
+                name: "NotificationInfos");
+
+            migrationBuilder.DropTable(
                 name: "ProviderServiceResourcesInfo");
 
             migrationBuilder.DropTable(
@@ -147,6 +260,9 @@ namespace application.Migrations
 
             migrationBuilder.DropTable(
                 name: "ServiceInfos");
+
+            migrationBuilder.DropTable(
+                name: "BookingInfos");
 
             migrationBuilder.DropTable(
                 name: "ProviderServiceInfo");

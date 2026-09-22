@@ -41,14 +41,13 @@ class pick_single_photo_getx_int extends GetxController {
         print("Photo size = ${(bytes.length / (1024 * 1024)).toStringAsFixed(2)} MB");
 
         // Validate file size
-        if (bytes.length > maxSize) {
+        if (bytes.length > maxSize)
+        {
           print("Photo is larger than 100 MB.");
-
           // Clear previous image if necessary
           imagePath.value = "";
           imageExtension.value = "";
           imageBytes.value = null;
-
           return 5;
         }
 

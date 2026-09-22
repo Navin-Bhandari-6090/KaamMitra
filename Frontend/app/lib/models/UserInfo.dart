@@ -1,14 +1,16 @@
-/// userNumber : 4
-/// firstName : "fssd"
-/// lastName : "sddsds"
-/// email : "user@example1.com"
-/// phoneNumber : "+55550634448547750255535670982453752693424087452"
-/// whatsappPhoneNumber : "+4671661170239377785110992968776516972478221"
-/// password : "ae118a7acd2ff2f77598c7316bced68d92bf8c8f0ca30ffb28f4edf6fc7c2f3d"
-/// latitude : 34
-/// longitude : 45
+/// userNumber : 1
+/// firstName : "ppp111"
+/// lastName : "ppp111"
+/// email : "sd@.com"
+/// address : "gdffddgfdf"
+/// phoneNumber : "+543453"
+/// whatsappPhoneNumber : "+54334"
+/// password : "b6197fe0d62a4e463edd2925382d4d268c4fce0859378682608efa4fda326f26"
+/// latitude : 26.740530333333332
+/// longitude : 87.54193883333333
 /// photo : ""
-/// role : "User"
+/// role : "Provider"
+/// loginAccess : true
 
 class UserInfo {
   UserInfo({
@@ -16,17 +18,20 @@ class UserInfo {
       String? firstName, 
       String? lastName, 
       String? email, 
+      String? address, 
       String? phoneNumber, 
       String? whatsappPhoneNumber, 
       String? password, 
       num? latitude, 
       num? longitude, 
       String? photo, 
-      String? role,}){
+      String? role, 
+      bool? loginAccess,}){
     _userNumber = userNumber;
     _firstName = firstName;
     _lastName = lastName;
     _email = email;
+    _address = address;
     _phoneNumber = phoneNumber;
     _whatsappPhoneNumber = whatsappPhoneNumber;
     _password = password;
@@ -34,6 +39,7 @@ class UserInfo {
     _longitude = longitude;
     _photo = photo;
     _role = role;
+    _loginAccess = loginAccess;
 }
 
   UserInfo.fromJson(dynamic json) {
@@ -41,6 +47,7 @@ class UserInfo {
     _firstName = json['firstName'];
     _lastName = json['lastName'];
     _email = json['email'];
+    _address = json['address'];
     _phoneNumber = json['phoneNumber'];
     _whatsappPhoneNumber = json['whatsappPhoneNumber'];
     _password = json['password'];
@@ -48,11 +55,13 @@ class UserInfo {
     _longitude = json['longitude'];
     _photo = json['photo'];
     _role = json['role'];
+    _loginAccess = json['loginAccess'];
   }
   num? _userNumber;
   String? _firstName;
   String? _lastName;
   String? _email;
+  String? _address;
   String? _phoneNumber;
   String? _whatsappPhoneNumber;
   String? _password;
@@ -60,10 +69,12 @@ class UserInfo {
   num? _longitude;
   String? _photo;
   String? _role;
+  bool? _loginAccess;
 UserInfo copyWith({  num? userNumber,
   String? firstName,
   String? lastName,
   String? email,
+  String? address,
   String? phoneNumber,
   String? whatsappPhoneNumber,
   String? password,
@@ -71,10 +82,12 @@ UserInfo copyWith({  num? userNumber,
   num? longitude,
   String? photo,
   String? role,
+  bool? loginAccess,
 }) => UserInfo(  userNumber: userNumber ?? _userNumber,
   firstName: firstName ?? _firstName,
   lastName: lastName ?? _lastName,
   email: email ?? _email,
+  address: address ?? _address,
   phoneNumber: phoneNumber ?? _phoneNumber,
   whatsappPhoneNumber: whatsappPhoneNumber ?? _whatsappPhoneNumber,
   password: password ?? _password,
@@ -82,11 +95,13 @@ UserInfo copyWith({  num? userNumber,
   longitude: longitude ?? _longitude,
   photo: photo ?? _photo,
   role: role ?? _role,
+  loginAccess: loginAccess ?? _loginAccess,
 );
   num? get userNumber => _userNumber;
   String? get firstName => _firstName;
   String? get lastName => _lastName;
   String? get email => _email;
+  String? get address => _address;
   String? get phoneNumber => _phoneNumber;
   String? get whatsappPhoneNumber => _whatsappPhoneNumber;
   String? get password => _password;
@@ -94,6 +109,7 @@ UserInfo copyWith({  num? userNumber,
   num? get longitude => _longitude;
   String? get photo => _photo;
   String? get role => _role;
+  bool? get loginAccess => _loginAccess;
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
@@ -101,6 +117,7 @@ UserInfo copyWith({  num? userNumber,
     map['firstName'] = _firstName;
     map['lastName'] = _lastName;
     map['email'] = _email;
+    map['address'] = _address;
     map['phoneNumber'] = _phoneNumber;
     map['whatsappPhoneNumber'] = _whatsappPhoneNumber;
     map['password'] = _password;
@@ -108,6 +125,7 @@ UserInfo copyWith({  num? userNumber,
     map['longitude'] = _longitude;
     map['photo'] = _photo;
     map['role'] = _role;
+    map['loginAccess'] = _loginAccess;
     return map;
   }
 

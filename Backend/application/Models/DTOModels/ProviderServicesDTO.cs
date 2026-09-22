@@ -3,7 +3,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace application.Models.DTOModels
 {
-    public class ProviderServices
+    public class ProviderServicesDTO
+
     {
    
         public int ProviderServiceId { get; set; }

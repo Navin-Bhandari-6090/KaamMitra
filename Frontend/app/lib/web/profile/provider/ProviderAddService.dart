@@ -425,17 +425,39 @@ class _ProviderAddServiceState extends State<ProviderAddService>
   // SUBMIT HANDLER — same logic/branches as before, wrapped with
   // a GetX-driven loading state instead of any setState.
   // ============================================================
-
   Future<void> _onSubmitPressed() async {
     if (SearchTextGetxCont.isSubmitting.value) return;
 
+    // Get entered service name
+    final String enteredServiceName =
+    ProviderAddServiceNameCont.text.trim().toLowerCase();
+
+    // Check whether service name exists in the list
+    final bool serviceExists = RegisterSearchlList.any(
+          (service) =>
+      service.serviceName?.trim().toLowerCase() ==
+          enteredServiceName.toLowerCase(),
+    );
+
+    // If service does not exist, stop here
+    if (!serviceExists) {
+      print("Service name not found.Please send report to KaamMitra community to add.");
+      Toast.Toastmsg("Service name not found.Please send report to KaamMitra community to add.");
+      return;
+    }
+
+    // Service exists, continue
     SearchTextGetxCont.setSubmitting(true);
+
     try {
       int Result = await change_file_cont_getx.pickFile();
+
       if (Result == 1) {
         int Result = await AddService(
-            FileBytes: change_file_cont_getx.fileBytes.value!,
-            ServiceName: ProviderAddServiceNameCont.text.toString().trim());
+          FileBytes: change_file_cont_getx.fileBytes.value!,
+          ServiceName: enteredServiceName,
+        );
+
         if (Result == 1) {
           return;
         } else {
@@ -445,6 +467,7 @@ class _ProviderAddServiceState extends State<ProviderAddService>
         return;
       }
     } catch (exception) {
+      print("Exception: $exception");
       return;
     } finally {
       SearchTextGetxCont.setSubmitting(false);
@@ -1169,7 +1192,8 @@ class _ProviderAddServiceState extends State<ProviderAddService>
           GreenField(
               controller: ProviderAddServiceNameCont,
               label: "Enter service name.",
-              icon: Icons.work),
+              icon: Icons.work,
+          ),
         ],
       ),
     );

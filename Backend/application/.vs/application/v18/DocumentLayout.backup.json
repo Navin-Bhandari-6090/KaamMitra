@@ -3,12 +3,16 @@
   "WorkspaceRootPath": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\models\\ratinginfomodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:models\\ratinginfomodel.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\controllers\\profilecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:controllers\\profilecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\controllers\\servicecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:controllers\\servicecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\models\\dtomodels\\updateaddressdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:models\\dtomodels\\updateaddressdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -18,32 +22,45 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 1,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "RatingInfoModel.cs",
-              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Models\\RatingInfoModel.cs",
-              "RelativeDocumentMoniker": "Models\\RatingInfoModel.cs",
-              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Models\\RatingInfoModel.cs",
-              "RelativeToolTip": "Models\\RatingInfoModel.cs",
-              "ViewState": "AgIAAAgAAAAAAAAAAAAswA4AAAAWAAAAAAAAAA==",
+              "DocumentIndex": 1,
+              "Title": "UpdateAddressDTO.cs",
+              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Models\\DTOModels\\UpdateAddressDTO.cs",
+              "RelativeDocumentMoniker": "Models\\DTOModels\\UpdateAddressDTO.cs",
+              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Models\\DTOModels\\UpdateAddressDTO.cs",
+              "RelativeToolTip": "Models\\DTOModels\\UpdateAddressDTO.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAuwA8AAAAdAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-11T11:19:11.324Z",
+              "WhenOpened": "2026-09-21T15:04:57.703Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "ServiceController.cs",
-              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Controllers\\ServiceController.cs",
-              "RelativeDocumentMoniker": "Controllers\\ServiceController.cs",
-              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Controllers\\ServiceController.cs",
-              "RelativeToolTip": "Controllers\\ServiceController.cs",
-              "ViewState": "AgIAADEAAAAAAAAAAAAswIEAAAABAAAAAAAAAA==",
+              "DocumentIndex": 0,
+              "Title": "ProfileController.cs",
+              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Controllers\\ProfileController.cs",
+              "RelativeDocumentMoniker": "Controllers\\ProfileController.cs",
+              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Controllers\\ProfileController.cs*",
+              "RelativeToolTip": "Controllers\\ProfileController.cs*",
+              "ViewState": "AgIAABcAAAAAAAAAAAAgwB0AAAA5AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-11T10:34:38.823Z",
+              "WhenOpened": "2026-09-21T15:03:35.471Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Program.cs",
+              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Program.cs",
+              "RelativeDocumentMoniker": "Program.cs",
+              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Program.cs",
+              "RelativeToolTip": "Program.cs",
+              "ViewState": "AgIAAC0AAAAAAAAAAAAAADcAAAAsAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-21T14:51:12.225Z",
               "EditorCaption": ""
             }
           ]

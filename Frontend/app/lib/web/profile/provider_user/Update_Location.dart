@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 
 import '../../../state management/getx/profile/provider_user/change_location_getx.dart';
+import '../../common widget/location/get_location_getx.dart';
+import '../../common widget/location/get_location_textfield_getx.dart';
 
 
+
+// Adjust the get_location_getx.dart import path above to wherever you
+// actually place that file.
 
 /// =============================================================================
 /// DARK GREEN PALETTE (kept identical across the app for brand consistency)
@@ -37,6 +43,8 @@ class UpdateLocation extends StatefulWidget {
 
 class _UpdateLocationState extends State<UpdateLocation> with SingleTickerProviderStateMixin {
   late final ChangeLocationGetx controller;
+  late final GetLocationGetx locationCont;
+  late final UpdateLocationFieldsGetx fieldsCont;
   final String _tag = UniqueKey().toString();
 
   final LatitudeCont = TextEditingController();
@@ -48,20 +56,25 @@ class _UpdateLocationState extends State<UpdateLocation> with SingleTickerProvid
   late final Animation<double> _fadeAnimation;
   late final Animation<Offset> _slideAnimation;
 
-  bool _latHasFocus = false;
-  bool _lngHasFocus = false;
-
   @override
   void initState() {
     super.initState();
     controller = Get.put(ChangeLocationGetx(), tag: _tag);
     controller.init(email: widget.User_Email, jwtToken: widget.User_JwtToken);
 
+    // Separate, reusable location controller — same pattern (put with a
+    // unique tag, delete in dispose) so this screen's instance never
+    // collides with any other screen using the same GetLocationGetx.
+    locationCont = Get.put(GetLocationGetx(), tag: "$_tag-location");
+
+    // Field-focus UI state — GetX-driven, no setState anywhere.
+    fieldsCont = Get.put(UpdateLocationFieldsGetx(), tag: _tag);
+
     _latFocus.addListener(() {
-      setState(() => _latHasFocus = _latFocus.hasFocus);
+      fieldsCont.setLatFocused(_latFocus.hasFocus);
     });
     _lngFocus.addListener(() {
-      setState(() => _lngHasFocus = _lngFocus.hasFocus);
+      fieldsCont.setLngFocused(_lngFocus.hasFocus);
     });
 
     _entranceController = AnimationController(
@@ -82,6 +95,8 @@ class _UpdateLocationState extends State<UpdateLocation> with SingleTickerProvid
     _latFocus.dispose();
     _lngFocus.dispose();
     Get.delete<ChangeLocationGetx>(tag: _tag);
+    Get.delete<GetLocationGetx>(tag: "$_tag-location");
+    Get.delete<UpdateLocationFieldsGetx>(tag: _tag);
     super.dispose();
   }
 
@@ -211,10 +226,48 @@ class _UpdateLocationState extends State<UpdateLocation> with SingleTickerProvid
   }
 
   Future<void> _handleUpdate() async {
-    await controller.ChangeLocation(
-      Latitude: LatitudeCont.text.trim().toString(),
-      Longitude: LongitudeCont.text.trim().toString(),
-    );
+    try {
+      await controller.ChangeLocation(
+        Latitude: LatitudeCont.text.trim().toString(),
+        Longitude: LongitudeCont.text.trim().toString(),
+      );
+    } catch (e) {
+      // Defensive fallback only — ChangeLocation() already handles its
+      // own errors internally, this just keeps anything unexpected from
+      // ever crashing the screen.
+      print("Unexpected error in _handleUpdate: $e");
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // NEW — "Use my current location" flow. Fetches via GetLocationGetx,
+  // then fills the two text fields with the result so the person can
+  // still see/edit the value before hitting Update Location.
+  //
+  // GetLocationGetx.fetchCurrentLocation() already catches every failure
+  // internally and reports it via toast, so this only needs to guard
+  // against the widget having been disposed while the await was pending
+  // (e.g. the user navigated back mid-fetch) before touching State.
+  // ---------------------------------------------------------------------
+  Future<void> _handleUseCurrentLocation() async {
+    try {
+      final bool success = await locationCont.fetchCurrentLocation();
+      if (!success || !mounted) return;
+
+      final double? lat = locationCont.latitude.value;
+      final double? lng = locationCont.longitude.value;
+      if (lat == null || lng == null) return;
+
+      // Assigning `.text` on a TextEditingController already notifies the
+      // TextField that's listening to it — no setState/rebuild trigger
+      // needed here at all.
+      LatitudeCont.text = lat.toString();
+      LongitudeCont.text = lng.toString();
+    } catch (e) {
+      // Defensive fallback only — fetchCurrentLocation() shouldn't throw,
+      // but this keeps a stray exception from ever crashing the screen.
+      print("Unexpected error in _handleUseCurrentLocation: $e");
+    }
   }
 
   @override
@@ -275,21 +328,21 @@ class _UpdateLocationState extends State<UpdateLocation> with SingleTickerProvid
   Widget _styledField({
     required TextEditingController controller,
     required FocusNode focusNode,
-    required bool hasFocus,
+    required RxBool hasFocus,
     required String hint,
     required IconData icon,
     TextInputType? keyboardType,
   }) {
-    return AnimatedContainer(
+    return Obx(() => AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       decoration: BoxDecoration(
         color: _Palette.bodyBg,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: hasFocus ? _Palette.accent.withOpacity(0.75) : _Palette.borderColor,
-          width: hasFocus ? 1.6 : 1.2,
+          color: hasFocus.value ? _Palette.accent.withOpacity(0.75) : _Palette.borderColor,
+          width: hasFocus.value ? 1.6 : 1.2,
         ),
-        boxShadow: hasFocus
+        boxShadow: hasFocus.value
             ? [BoxShadow(color: _Palette.accent.withOpacity(0.15), blurRadius: 14, offset: const Offset(0, 4))]
             : [],
       ),
@@ -308,7 +361,122 @@ class _UpdateLocationState extends State<UpdateLocation> with SingleTickerProvid
           contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
         ),
       ),
-    );
+    ));
+  }
+
+  // ---------------------------------------------------------------------
+  // NEW — "Use my current location" button. Outlined style (vs. the
+  // gradient primary Update button) so the two actions stay visually
+  // distinct, but built from the exact same palette/shadow/radius
+  // language as the rest of the card.
+  // ---------------------------------------------------------------------
+  Widget _buildUseLocationButton() {
+    return Obx(() {
+      final bool fetching = locationCont.isFetchingLocation.value;
+
+      return Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: fetching ? null : _handleUseCurrentLocation,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            height: 48,
+            decoration: BoxDecoration(
+              color: _Palette.bodyBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: _Palette.accentMint.withOpacity(fetching ? 0.35 : 0.55),
+                width: 1.4,
+              ),
+            ),
+            child: Center(
+              child: fetching
+                  ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  SizedBox(
+                    width: 17,
+                    height: 17,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      valueColor: AlwaysStoppedAnimation<Color>(_Palette.accentMint),
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'Getting your location...',
+                    style: TextStyle(
+                      color: _Palette.textPrimary,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13.5,
+                    ),
+                  ),
+                ],
+              )
+                  : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.my_location_rounded, color: _Palette.accentMint, size: 18),
+                  SizedBox(width: 9),
+                  Text(
+                    'Use my current location latitude and longitude.',
+                    style: TextStyle(
+                      color: _Palette.accentMint,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  /// Small fading chip that appears under the button once a live fix has
+  /// been captured, confirming what just got filled into the fields.
+  Widget _buildDetectedLocationChip() {
+    return Obx(() {
+      final double? lat = locationCont.latitude.value;
+      final double? lng = locationCont.longitude.value;
+
+      return AnimatedSwitcher(
+        duration: const Duration(milliseconds: 220),
+        child: (lat == null || lng == null)
+            ? const SizedBox.shrink(key: ValueKey('no-fix'))
+            : Container(
+          key: const ValueKey('fix'),
+          margin: const EdgeInsets.only(top: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            color: _Palette.accent.withOpacity(0.10),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _Palette.accent.withOpacity(0.25)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: _Palette.accentMint, size: 15),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Detected: ${lat}, ${lng}',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _Palette.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
   }
 
   Widget _buildCard(double width) {
@@ -359,7 +527,13 @@ class _UpdateLocationState extends State<UpdateLocation> with SingleTickerProvid
             'Enter the latitude and longitude coordinates for your current location.',
             style: TextStyle(color: _Palette.textMuted, fontSize: 13, height: 1.5),
           ),
-          const SizedBox(height: 26),
+          const SizedBox(height: 20),
+
+          // --- Use my current location ---
+          _buildUseLocationButton(),
+          _buildDetectedLocationChip(),
+
+          const SizedBox(height: 22),
 
           // --- Latitude field ---
           _fieldLabel('Latitude'),
@@ -367,7 +541,7 @@ class _UpdateLocationState extends State<UpdateLocation> with SingleTickerProvid
           _styledField(
             controller: LatitudeCont,
             focusNode: _latFocus,
-            hasFocus: _latHasFocus,
+            hasFocus: fieldsCont.isLatFocused,
             hint: 'e.g. 26.4525',
             icon: Icons.map_rounded,
             keyboardType: TextInputType.multiline,
@@ -381,7 +555,7 @@ class _UpdateLocationState extends State<UpdateLocation> with SingleTickerProvid
           _styledField(
             controller: LongitudeCont,
             focusNode: _lngFocus,
-            hasFocus: _lngHasFocus,
+            hasFocus: fieldsCont.isLngFocused,
             hint: 'e.g. 87.2718',
             icon: Icons.map_rounded,
             keyboardType: TextInputType.multiline,
@@ -397,7 +571,7 @@ class _UpdateLocationState extends State<UpdateLocation> with SingleTickerProvid
               const SizedBox(width: 7),
               Expanded(
                 child: Text(
-                  'Use decimal coordinates, e.g. from your maps app\'s "share location" option.',
+                  'Use decimal coordinates, e.g. from your maps app\'s "share location" option, or tap "Use my current location" above.',
                   style: TextStyle(color: _Palette.textMuted, fontSize: 12, height: 1.4),
                 ),
               ),

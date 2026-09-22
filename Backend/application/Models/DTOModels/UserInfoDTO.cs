@@ -23,6 +23,10 @@ namespace application.Models.DTOModels
         public string Email { get; set; } = string.Empty;
 
         [Required]
+        [StringLength(1000)]
+        public string Address { get; set; } = string.Empty;
+
+        [Required]
         [StringLength(50)]
         [RegularExpression(@"^\+\d+$", ErrorMessage = "Phone number must start with '+' followed by digits only.")]
         public string PhoneNumber { get; set; } = string.Empty;

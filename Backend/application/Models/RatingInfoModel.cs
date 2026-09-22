@@ -26,5 +26,10 @@ namespace application.Models
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        [Required]
+        [StringLength(200)]
+        [EmailAddress]
+        public string ServiceName { get; set; } = string.Empty;
+
     }
 }

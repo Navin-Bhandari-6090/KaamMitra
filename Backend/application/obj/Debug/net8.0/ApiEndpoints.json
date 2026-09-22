@@ -27,6 +27,16 @@
   },
   {
     "ContainingType": "application.Controllers.AuthenticationController",
+    "Method": "AllUserVerifyToken",
+    "RelativePath": "api/Authentication/alluserjwtverify",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AuthenticationController",
     "Method": "Provide_Token",
     "RelativePath": "api/Authentication/gettoken",
     "HttpMethod": "GET",
@@ -120,6 +130,11 @@
         "IsRequired": false
       },
       {
+        "Name": "Address",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
         "Name": "PhoneNumber",
         "Type": "System.String",
         "IsRequired": false
@@ -165,6 +180,187 @@
     "IsController": true,
     "Order": 0,
     "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "UpdateTaskCompleteStatus",
+    "RelativePath": "api/Booking/proupdatetaskcompletestatus",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UpdateProviderApprovalStatusDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "GetBookingInfoPro",
+    "RelativePath": "api/Booking/sendbookinginfopro",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UserEmailInfoModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "GetBookingInfoUser",
+    "RelativePath": "api/Booking/sendbookinginfouser",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UserEmailInfoModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "GetNewNotification",
+    "RelativePath": "api/Booking/sendnewnotification",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UserEmailInfoModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "GetNotification",
+    "RelativePath": "api/Booking/sendnotification",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UserEmailInfoModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "UpdateAdvanceAmount",
+    "RelativePath": "api/Booking/updateadvanceamount",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UpdateAdvanceAmountDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "UpdateDate",
+    "RelativePath": "api/Booking/updatedate",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UpdateDateBookingDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "UpdateNewNotification",
+    "RelativePath": "api/Booking/updatenewnotification",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UserEmailInfoModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "UpdateProviderApprovalStatus",
+    "RelativePath": "api/Booking/updateproviderapprovalstatus",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UpdateProviderApprovalStatusDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "UpdateProviderDescription",
+    "RelativePath": "api/Booking/updateproviderdescp",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.DescriptionBookingDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "AddFonepayQr",
+    "RelativePath": "api/Profile/addfonepayqr",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "ProviderEmail",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "QRPhoto",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
     "ReturnTypes": []
   },
   {
@@ -342,6 +538,22 @@
   },
   {
     "ContainingType": "application.Controllers.ProfileController",
+    "Method": "UpdateAddress",
+    "RelativePath": "api/Profile/updateaddress",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UpdateAddressDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
     "Method": "UpdateEmail",
     "RelativePath": "api/Profile/updateemail",
     "HttpMethod": "PUT",
@@ -498,6 +710,70 @@
         "Name": "ProviderServiceId",
         "Type": "System.Int32",
         "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "UpdateUserName",
+    "RelativePath": "api/Profile/updateusername",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.Update_UserName_DTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ServiceController",
+    "Method": "AddBookingInfo",
+    "RelativePath": "api/Service/addbookinginfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.BookinInfoModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ServiceController",
+    "Method": "AddNotification",
+    "RelativePath": "api/Service/addnewnotification",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.NewNotificationInfoModelDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ServiceController",
+    "Method": "AddNotification",
+    "RelativePath": "api/Service/addnotification",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.NotificationInfoModelDTO",
+        "IsRequired": true
       }
     ],
     "ReturnTypes": []

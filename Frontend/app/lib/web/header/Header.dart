@@ -15,8 +15,6 @@ import '../profile/provider/Provider_Profile.dart';
 class Header extends StatelessWidget {
   final bool UserLogin;
   final String User_JwtToken;
-
-
   final commonGetxCont = Get.put(HeaderGetX());
 
   Header({
@@ -493,29 +491,34 @@ class Header extends StatelessWidget {
               String? User_Role =
               box.get('user_role');
 
-              if (User_Role == "Provider") {
+              if (User_Role == "Provider")
+              {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(
                     builder: (context) {
                       return ProviderBookingsScreen(
-                        User_Email: User_Email!,
-                        User_JwtToken: Jwt_Token!,
-                        User_Role: User_Role!,
+                     Current_User_Email: User_Email!,
+                        Current_User_JwtToken: Jwt_Token!,
+                        Current_User_Role: User_Role!, 
+                        UserLogin: UserLogin,
                       );
                     },
                   ),
                       (route) => false,
                 );
-              } else {
+              }
+              else
+              {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(
                     builder: (context) {
-                      return MyBookingScreenUser(
-                        User_Email: User_Email!,
-                        User_JwtToken: Jwt_Token!,
-                        User_Role: User_Role!,
+                      return UserBookingScreenUser(
+                        Current_User_Email: User_Email!,
+                        Current_User_JwtToken: Jwt_Token!,
+                        Current_User_Role: User_Role!,
+                        UserLogin: UserLogin,
                       );
                     },
                   ),
@@ -930,12 +933,12 @@ class Header extends StatelessWidget {
                                         MaterialPageRoute(
                                           builder: (context) {
                                             return ProviderBookingsScreen(
-                                              User_Email:
+                                              Current_User_Email:
                                               User_Email!,
-                                              User_JwtToken:
+                                              Current_User_JwtToken:
                                               Jwt_Token!,
-                                              User_Role:
-                                              User_Role!,
+                                              Current_User_Role:
+                                              User_Role!, UserLogin: UserLogin,
                                             );
                                           },
                                         ),
@@ -947,13 +950,13 @@ class Header extends StatelessWidget {
                                         context,
                                         MaterialPageRoute(
                                           builder: (context) {
-                                            return MyBookingScreenUser(
-                                              User_Email:
+                                            return UserBookingScreenUser(
+                                              Current_User_Email:
                                               User_Email!,
-                                              User_JwtToken:
+                                              Current_User_JwtToken:
                                               Jwt_Token!,
-                                              User_Role:
-                                              User_Role!,
+                                              Current_User_Role:
+                                              User_Role!, UserLogin: UserLogin,
                                             );
                                           },
                                         ),

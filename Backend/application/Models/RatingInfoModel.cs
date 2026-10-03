@@ -10,15 +10,11 @@ namespace application.Models
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int RtingId { get; set; }
 
-        [Required]
-        [StringLength(200)]
-        [EmailAddress]
-        public string RatingReceiver { get; set; } = string.Empty;
+        //[Required]
+        public int RatingReceiverNumber { get; set; } 
 
-        [Required]
-        [StringLength(200)]
-        [EmailAddress]
-        public string RatingGiver { get; set; } = string.Empty;
+        //[Required]
+        public int RatingGiverNumber { get; set; } 
 
         [Required]
         [RegularExpression(@"^(10|[1-9])$", ErrorMessage = "Rating must be a number between 1 and 10.")]
@@ -28,8 +24,15 @@ namespace application.Models
 
         [Required]
         [StringLength(200)]
-        [EmailAddress]
         public string ServiceName { get; set; } = string.Empty;
+
+        [Required]
+        public int BookId { get; set; }
+
+        [ForeignKey("BookId")]
+        public BookinInfoModel? Bookings { get; set; }
+
+
 
     }
 }

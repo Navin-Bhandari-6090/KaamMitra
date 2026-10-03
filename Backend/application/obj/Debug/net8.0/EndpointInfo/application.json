@@ -48,10 +48,217 @@
         }
       }
     },
-    "/api/Authentication/jwtverify": {
+    "/api/Admin/updateservice": {
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegServicePriceUpdateDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegServicePriceUpdateDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegServicePriceUpdateDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/deleteservice": {
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceIdDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceIdDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceIdDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderServiceIdDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderServiceIdDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderServiceIdDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/addadvertisement": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "Tittle"
+                ],
+                "type": "object",
+                "properties": {
+                  "Photo": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "Video": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "Tittle": {
+                    "type": "string"
+                  },
+                  "UrlLink": {
+                    "type": "string"
+                  }
+                }
+              },
+              "encoding": {
+                "Photo": {
+                  "style": "form"
+                },
+                "Video": {
+                  "style": "form"
+                },
+                "Tittle": {
+                  "style": "form"
+                },
+                "UrlLink": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/deleteadvertisement": {
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ADidDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ADidDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ADidDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/updateloginaccess": {
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserNumberDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserNumberDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserNumberDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/getuserinfo": {
       "get": {
         "tags": [
-          "Authentication"
+          "Admin"
         ],
         "responses": {
           "200": {
@@ -60,10 +267,10 @@
         }
       }
     },
-    "/api/Authentication/jwtverifyprovider": {
+    "/api/Admin/getallproviderservices": {
       "get": {
         "tags": [
-          "Authentication"
+          "Admin"
         ],
         "responses": {
           "200": {
@@ -72,10 +279,10 @@
         }
       }
     },
-    "/api/Authentication/jwtverifyuser": {
+    "/api/Admin/getallproviderserviceresources": {
       "get": {
         "tags": [
-          "Authentication"
+          "Admin"
         ],
         "responses": {
           "200": {
@@ -84,10 +291,10 @@
         }
       }
     },
-    "/api/Authentication/jwtverifyadmin": {
+    "/api/Admin/getalladvancepaymentinfos": {
       "get": {
         "tags": [
-          "Authentication"
+          "Admin"
         ],
         "responses": {
           "200": {
@@ -96,10 +303,10 @@
         }
       }
     },
-    "/api/Authentication/userorproviderjwtverify": {
+    "/api/Admin/getalladvancepaymentqrinfos": {
       "get": {
         "tags": [
-          "Authentication"
+          "Admin"
         ],
         "responses": {
           "200": {
@@ -108,11 +315,229 @@
         }
       }
     },
-    "/api/Authentication/alluserjwtverify": {
+    "/api/Admin/deleteadvancepaymentinfo": {
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdvancePayPhotoIdDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdvancePayPhotoIdDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdvancePayPhotoIdDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/deleteadvancepaymentqrinfo": {
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdvPayQRIDDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdvPayQRIDDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdvPayQRIDDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/getalladvertisementinfos": {
       "get": {
         "tags": [
-          "Authentication"
+          "Admin"
         ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/addadminqr": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "DomesticQRPhoto": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "InternationalQRPhoto": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "DomesticQRPhoto": {
+                  "style": "form"
+                },
+                "InternationalQRPhoto": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/getadminqr": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/getalltaskcompletepayments": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/proupdatetaskcompletestatus": {
+      "put": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProviderApprovalStatusDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProviderApprovalStatusDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProviderApprovalStatusDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/deletebooking": {
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnlyBookingIDDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnlyBookingIDDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/OnlyBookingIDDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/deletetaskcompletepayment": {
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProTaskComPayIDDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProTaskComPayIDDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProTaskComPayIDDTO"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "OK"
@@ -274,6 +699,78 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Authentication/jwtverify": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Authentication/jwtverifyprovider": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Authentication/jwtverifyuser": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Authentication/jwtverifyadmin": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Authentication/userorproviderjwtverify": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Authentication/alluserjwtverify": {
+      "get": {
+        "tags": [
+          "Authentication"
+        ],
         "responses": {
           "200": {
             "description": "OK"
@@ -541,7 +1038,69 @@
         }
       }
     },
-    "/api/Booking/proupdatetaskcompletestatus": {
+    "/api/Booking/updateproviderdescp": {
+      "put": {
+        "tags": [
+          "Booking"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DescriptionBookingDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DescriptionBookingDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DescriptionBookingDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/updateuserrating": {
+      "put": {
+        "tags": [
+          "Booking"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RatingInfoModel"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RatingInfoModel"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/RatingInfoModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/updateuserapprovalstatus": {
       "put": {
         "tags": [
           "Booking"
@@ -572,7 +1131,7 @@
         }
       }
     },
-    "/api/Booking/updateproviderdescp": {
+    "/api/Booking/userupdatetaskcompletestatus": {
       "put": {
         "tags": [
           "Booking"
@@ -581,17 +1140,230 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/DescriptionBookingDTO"
+                "$ref": "#/components/schemas/UpdateProviderApprovalStatusDTO"
               }
             },
             "text/json": {
               "schema": {
-                "$ref": "#/components/schemas/DescriptionBookingDTO"
+                "$ref": "#/components/schemas/UpdateProviderApprovalStatusDTO"
               }
             },
             "application/*+json": {
               "schema": {
-                "$ref": "#/components/schemas/DescriptionBookingDTO"
+                "$ref": "#/components/schemas/UpdateProviderApprovalStatusDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/uploadadvancepaymentphoto": {
+      "post": {
+        "tags": [
+          "Booking"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "BookId",
+                  "PaymentPhoto"
+                ],
+                "type": "object",
+                "properties": {
+                  "PaymentPhoto": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "BookId": {
+                    "type": "integer",
+                    "format": "int32"
+                  }
+                }
+              },
+              "encoding": {
+                "PaymentPhoto": {
+                  "style": "form"
+                },
+                "BookId": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/getadvancepaymentphoto": {
+      "post": {
+        "tags": [
+          "Booking"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookIngIdDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookIngIdDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookIngIdDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/getadvanceqrphoto": {
+      "post": {
+        "tags": [
+          "Booking"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserNumberDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserNumberDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserNumberDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/addtaskcompletepayment": {
+      "post": {
+        "tags": [
+          "Booking"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "BookId",
+                  "PaymentAmount",
+                  "PaymentMethod",
+                  "PaymentPhoto"
+                ],
+                "type": "object",
+                "properties": {
+                  "PaymentAmount": {
+                    "type": "number",
+                    "format": "double"
+                  },
+                  "PaymentDate": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "BookId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "PaymentMethod": {
+                    "type": "string"
+                  },
+                  "PaymentPhoto": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "PaymentAmount": {
+                  "style": "form"
+                },
+                "PaymentDate": {
+                  "style": "form"
+                },
+                "BookId": {
+                  "style": "form"
+                },
+                "PaymentMethod": {
+                  "style": "form"
+                },
+                "PaymentPhoto": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/getprovidertaskcompletepayments": {
+      "get": {
+        "tags": [
+          "Booking"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/adminaddnot": {
+      "post": {
+        "tags": [
+          "Booking"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageDTO"
               }
             }
           }
@@ -1548,14 +2320,49 @@
   },
   "components": {
     "schemas": {
+      "ADidDTO": {
+        "required": [
+          "advertisementId"
+        ],
+        "type": "object",
+        "properties": {
+          "advertisementId": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AdvPayQRIDDTO": {
+        "required": [
+          "qrId"
+        ],
+        "type": "object",
+        "properties": {
+          "qrId": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AdvancePayPhotoIdDTO": {
+        "required": [
+          "paymentId"
+        ],
+        "type": "object",
+        "properties": {
+          "paymentId": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "AdvancePaymentInfoModel": {
         "required": [
           "bookId",
-          "paymentPhoto",
-          "providerEmail",
-          "providerNumber",
-          "userEmail",
-          "userNumber"
+          "paymentPhoto"
         ],
         "type": "object",
         "properties": {
@@ -1571,28 +2378,28 @@
             "type": "integer",
             "format": "int32"
           },
+          "bookingInfos": {
+            "$ref": "#/components/schemas/BookinInfoModel"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BookIngIdDTO": {
+        "required": [
+          "bookId",
+          "userEmail"
+        ],
+        "type": "object",
+        "properties": {
+          "bookId": {
+            "type": "integer",
+            "format": "int32"
+          },
           "userEmail": {
             "maxLength": 200,
             "minLength": 0,
             "type": "string",
             "format": "email"
-          },
-          "providerEmail": {
-            "maxLength": 200,
-            "minLength": 0,
-            "type": "string",
-            "format": "email"
-          },
-          "providerNumber": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "userNumber": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "bookingInfos": {
-            "$ref": "#/components/schemas/BookinInfoModel"
           }
         },
         "additionalProperties": false
@@ -1602,13 +2409,13 @@
           "createdAt",
           "distance",
           "providerApprovalStatus",
-          "providerEmail",
+          "providerNumber",
           "providerTaskCompleteStatus",
           "requiredAdvancePayment",
+          "serviceId",
           "serviceName",
           "userApprovalStatus",
           "userBookingDescription",
-          "userEmail",
           "userTaskCompleteStatus"
         ],
         "type": "object",
@@ -1635,26 +2442,17 @@
             "minLength": 1,
             "type": "string"
           },
+          "serviceId": {
+            "type": "integer",
+            "format": "int32"
+          },
           "serviceName": {
-            "maxLength": 200,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "distance": {
             "type": "number",
             "format": "double"
-          },
-          "userEmail": {
-            "maxLength": 200,
-            "minLength": 0,
-            "type": "string",
-            "format": "email"
-          },
-          "providerEmail": {
-            "maxLength": 200,
-            "minLength": 0,
-            "type": "string",
-            "format": "email"
           },
           "providerApprovalStatus": {
             "type": "boolean"
@@ -1680,8 +2478,16 @@
             "type": "integer",
             "format": "int32"
           },
+          "providerNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
           "requiredAdvancePayment": {
             "type": "boolean"
+          },
+          "ratingValueUser": {
+            "type": "number",
+            "format": "double"
           },
           "users": {
             "$ref": "#/components/schemas/UserInfo"
@@ -1690,6 +2496,20 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/AdvancePaymentInfoModel"
+            },
+            "nullable": true
+          },
+          "ratingInfos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RatingInfoModel"
+            },
+            "nullable": true
+          },
+          "taskCompletePayments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProTaskCompletePaymentInfos"
             },
             "nullable": true
           }
@@ -1741,51 +2561,115 @@
         },
         "additionalProperties": false
       },
+      "MessageDTO": {
+        "required": [
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "message": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "NewNotificationInfoModelDTO": {
         "required": [
-          "currentUserEmail",
-          "receiverEmail",
+          "receiverNumber",
           "status"
         ],
         "type": "object",
         "properties": {
-          "receiverEmail": {
-            "maxLength": 200,
-            "minLength": 0,
-            "type": "string"
+          "receiverNumber": {
+            "type": "integer",
+            "format": "int32"
           },
           "status": {
             "type": "boolean"
-          },
-          "currentUserEmail": {
-            "maxLength": 200,
-            "minLength": 0,
-            "type": "string"
           }
         },
         "additionalProperties": false
       },
       "NotificationInfoModelDTO": {
         "required": [
-          "currentUserEmail",
           "message",
-          "receiverEmail"
+          "receiverNumber"
         ],
         "type": "object",
         "properties": {
-          "receiverEmail": {
-            "maxLength": 200,
-            "minLength": 0,
-            "type": "string"
+          "receiverNumber": {
+            "type": "integer",
+            "format": "int32"
           },
           "message": {
             "minLength": 1,
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "OnlyBookingIDDTO": {
+        "required": [
+          "bookId"
+        ],
+        "type": "object",
+        "properties": {
+          "bookId": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProTaskComPayIDDTO": {
+        "required": [
+          "taskCompletePaymentId"
+        ],
+        "type": "object",
+        "properties": {
+          "taskCompletePaymentId": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ProTaskCompletePaymentInfos": {
+        "required": [
+          "bookId",
+          "paymentAmount",
+          "paymentMethod",
+          "paymentPhoto"
+        ],
+        "type": "object",
+        "properties": {
+          "taskCompletePaymentId": {
+            "type": "integer",
+            "format": "int32"
           },
-          "currentUserEmail": {
-            "maxLength": 200,
-            "minLength": 0,
+          "paymentAmount": {
+            "type": "number",
+            "format": "double"
+          },
+          "paymentDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "bookId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "paymentMethod": {
+            "minLength": 1,
             "type": "string"
+          },
+          "paymentPhoto": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "bookingInfos": {
+            "$ref": "#/components/schemas/BookinInfoModel"
           }
         },
         "additionalProperties": false
@@ -1901,6 +2785,116 @@
         },
         "additionalProperties": false
       },
+      "ProviderServiceIdDTO": {
+        "required": [
+          "email",
+          "providerServiceId"
+        ],
+        "type": "object",
+        "properties": {
+          "providerServiceId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "email": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RatingInfoModel": {
+        "required": [
+          "bookId",
+          "ratingValue",
+          "serviceName"
+        ],
+        "type": "object",
+        "properties": {
+          "rtingId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ratingReceiverNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ratingGiverNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ratingValue": {
+            "pattern": "^(10|[1-9])$",
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "serviceName": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "bookId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "bookings": {
+            "$ref": "#/components/schemas/BookinInfoModel"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegServicePriceUpdateDTO": {
+        "required": [
+          "domesticPrice",
+          "domesticPriceDiscount",
+          "internationalPrice",
+          "internationalPriceDiscount",
+          "serviceId"
+        ],
+        "type": "object",
+        "properties": {
+          "serviceId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "domesticPrice": {
+            "type": "number",
+            "format": "double"
+          },
+          "domesticPriceDiscount": {
+            "type": "number",
+            "format": "double"
+          },
+          "internationalPrice": {
+            "type": "number",
+            "format": "double"
+          },
+          "internationalPriceDiscount": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ServiceIdDTO": {
+        "required": [
+          "serviceId"
+        ],
+        "type": "object",
+        "properties": {
+          "serviceId": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
       "ServiceInfoModel": {
         "required": [
           "domesticPrice",
@@ -1926,20 +2920,20 @@
             "type": "string"
           },
           "domesticPrice": {
-            "type": "integer",
-            "format": "int32"
+            "type": "number",
+            "format": "double"
           },
           "domesticPriceDiscount": {
-            "type": "integer",
-            "format": "int32"
+            "type": "number",
+            "format": "double"
           },
           "internationalPrice": {
-            "type": "integer",
-            "format": "int32"
+            "type": "number",
+            "format": "double"
           },
           "internationalPriceDiscount": {
-            "type": "integer",
-            "format": "int32"
+            "type": "number",
+            "format": "double"
           }
         },
         "additionalProperties": false
@@ -2042,20 +3036,13 @@
       },
       "UpdateProviderApprovalStatusDTO": {
         "required": [
-          "bookId",
-          "userEmail"
+          "bookId"
         ],
         "type": "object",
         "properties": {
           "bookId": {
             "type": "integer",
             "format": "int32"
-          },
-          "userEmail": {
-            "maxLength": 200,
-            "minLength": 0,
-            "type": "string",
-            "format": "email"
           }
         },
         "additionalProperties": false
@@ -2222,6 +3209,19 @@
               "$ref": "#/components/schemas/BookinInfoModel"
             },
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "UserNumberDTO": {
+        "required": [
+          "userNumber"
+        ],
+        "type": "object",
+        "properties": {
+          "userNumber": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false

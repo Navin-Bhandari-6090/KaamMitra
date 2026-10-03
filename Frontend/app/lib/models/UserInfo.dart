@@ -1,15 +1,14 @@
 /// userNumber : 1
-/// firstName : "ppp111"
-/// lastName : "ppp111"
-/// email : "sd@.com"
-/// address : "gdffddgfdf"
-/// phoneNumber : "+543453"
-/// whatsappPhoneNumber : "+54334"
-/// password : "b6197fe0d62a4e463edd2925382d4d268c4fce0859378682608efa4fda326f26"
-/// latitude : 26.740530333333332
-/// longitude : 87.54193883333333
+/// firstName : "admm"
+/// lastName : "admm"
+/// email : "sd3@.com"
+/// address : "gdfdgf"
+/// phoneNumber : "+5343434"
+/// whatsappPhoneNumber : "+534354"
+/// latitude : 26.7405285
+/// longitude : 87.54193525
 /// photo : ""
-/// role : "Provider"
+/// role : "admin"
 /// loginAccess : true
 
 class UserInfo {
@@ -21,7 +20,6 @@ class UserInfo {
       String? address, 
       String? phoneNumber, 
       String? whatsappPhoneNumber, 
-      String? password, 
       num? latitude, 
       num? longitude, 
       String? photo, 
@@ -34,7 +32,6 @@ class UserInfo {
     _address = address;
     _phoneNumber = phoneNumber;
     _whatsappPhoneNumber = whatsappPhoneNumber;
-    _password = password;
     _latitude = latitude;
     _longitude = longitude;
     _photo = photo;
@@ -50,7 +47,6 @@ class UserInfo {
     _address = json['address'];
     _phoneNumber = json['phoneNumber'];
     _whatsappPhoneNumber = json['whatsappPhoneNumber'];
-    _password = json['password'];
     _latitude = json['latitude'];
     _longitude = json['longitude'];
     _photo = json['photo'];
@@ -64,7 +60,6 @@ class UserInfo {
   String? _address;
   String? _phoneNumber;
   String? _whatsappPhoneNumber;
-  String? _password;
   num? _latitude;
   num? _longitude;
   String? _photo;
@@ -77,7 +72,6 @@ UserInfo copyWith({  num? userNumber,
   String? address,
   String? phoneNumber,
   String? whatsappPhoneNumber,
-  String? password,
   num? latitude,
   num? longitude,
   String? photo,
@@ -90,7 +84,6 @@ UserInfo copyWith({  num? userNumber,
   address: address ?? _address,
   phoneNumber: phoneNumber ?? _phoneNumber,
   whatsappPhoneNumber: whatsappPhoneNumber ?? _whatsappPhoneNumber,
-  password: password ?? _password,
   latitude: latitude ?? _latitude,
   longitude: longitude ?? _longitude,
   photo: photo ?? _photo,
@@ -104,7 +97,6 @@ UserInfo copyWith({  num? userNumber,
   String? get address => _address;
   String? get phoneNumber => _phoneNumber;
   String? get whatsappPhoneNumber => _whatsappPhoneNumber;
-  String? get password => _password;
   num? get latitude => _latitude;
   num? get longitude => _longitude;
   String? get photo => _photo;
@@ -120,7 +112,6 @@ UserInfo copyWith({  num? userNumber,
     map['address'] = _address;
     map['phoneNumber'] = _phoneNumber;
     map['whatsappPhoneNumber'] = _whatsappPhoneNumber;
-    map['password'] = _password;
     map['latitude'] = _latitude;
     map['longitude'] = _longitude;
     map['photo'] = _photo;

@@ -1,31 +1,38 @@
-/// userAddress : "letang"
-/// userPhoneNumber : "+543453"
-/// userWhatsappPhoneNumber : "+54334"
-/// providerAddress : "letang"
-/// providerPhoneNumber : "+543453"
-/// providerWhatsappPhoneNumber : "+54334"
-/// providerNumber : 1
-/// userNumber : 3
-/// userLatitude : 33.34
-/// userLongitude : 67.35
+/// userAddress : "gadgs"
+/// userPhoneNumber : "+5363536645"
+/// userWhatsappPhoneNumber : "+56334535443"
+/// providerAddress : "gadgs"
+/// providerPhoneNumber : "+5363536645"
+/// providerWhatsappPhoneNumber : "+56334535443"
+/// providerNumber : 5
+/// userNumber : 6
+/// userLatitude : 26.740530333333332
+/// userLongitude : 87.54193883333333
 /// providerLatitude : 26.740530333333332
 /// providerLongitude : 87.54193883333333
-/// bookId : 2
+/// bookId : 10
 /// startDate : null
 /// endDate : null
 /// providerBookingDescription : ""
-/// userBookingDescription : "ggrddfdgfdfg"
+/// userBookingDescription : "gvddsvds"
 /// serviceName : "plumber"
-/// distance : 2073.1605746373652
+/// providerServiceId : 7
+/// serviceId : 1
+/// distance : 0
 /// userEmail : "sd1@.com"
-/// providerEmail : "sd@.com"
+/// providerEmail : "sd2@.com"
 /// providerApprovalStatus : false
 /// userApprovalStatus : true
 /// providerTaskCompleteStatus : false
 /// userTaskCompleteStatus : false
 /// advancePaymentAmount : 0
-/// createdAt : "2026-09-21T12:33:34.1332Z"
+/// createdAt : "2026-10-01T12:26:20.549487Z"
+/// ratingValueUser : 5
 /// requiredAdvancePayment : false
+/// domesticPrice : 56
+/// domesticPriceDiscount : 3
+/// internationalPrice : 5445
+/// internationalPriceDiscount : 3
 
 class BookingInfoModel {
   BookingInfoModel({
@@ -47,6 +54,8 @@ class BookingInfoModel {
       String? providerBookingDescription, 
       String? userBookingDescription, 
       String? serviceName, 
+      num? providerServiceId, 
+      num? serviceId, 
       num? distance, 
       String? userEmail, 
       String? providerEmail, 
@@ -56,7 +65,12 @@ class BookingInfoModel {
       bool? userTaskCompleteStatus, 
       num? advancePaymentAmount, 
       String? createdAt, 
-      bool? requiredAdvancePayment,}){
+      num? ratingValueUser, 
+      bool? requiredAdvancePayment, 
+      num? domesticPrice, 
+      num? domesticPriceDiscount, 
+      num? internationalPrice, 
+      num? internationalPriceDiscount,}){
     _userAddress = userAddress;
     _userPhoneNumber = userPhoneNumber;
     _userWhatsappPhoneNumber = userWhatsappPhoneNumber;
@@ -75,6 +89,8 @@ class BookingInfoModel {
     _providerBookingDescription = providerBookingDescription;
     _userBookingDescription = userBookingDescription;
     _serviceName = serviceName;
+    _providerServiceId = providerServiceId;
+    _serviceId = serviceId;
     _distance = distance;
     _userEmail = userEmail;
     _providerEmail = providerEmail;
@@ -84,7 +100,12 @@ class BookingInfoModel {
     _userTaskCompleteStatus = userTaskCompleteStatus;
     _advancePaymentAmount = advancePaymentAmount;
     _createdAt = createdAt;
+    _ratingValueUser = ratingValueUser;
     _requiredAdvancePayment = requiredAdvancePayment;
+    _domesticPrice = domesticPrice;
+    _domesticPriceDiscount = domesticPriceDiscount;
+    _internationalPrice = internationalPrice;
+    _internationalPriceDiscount = internationalPriceDiscount;
 }
 
   BookingInfoModel.fromJson(dynamic json) {
@@ -106,6 +127,8 @@ class BookingInfoModel {
     _providerBookingDescription = json['providerBookingDescription'];
     _userBookingDescription = json['userBookingDescription'];
     _serviceName = json['serviceName'];
+    _providerServiceId = json['providerServiceId'];
+    _serviceId = json['serviceId'];
     _distance = json['distance'];
     _userEmail = json['userEmail'];
     _providerEmail = json['providerEmail'];
@@ -115,7 +138,12 @@ class BookingInfoModel {
     _userTaskCompleteStatus = json['userTaskCompleteStatus'];
     _advancePaymentAmount = json['advancePaymentAmount'];
     _createdAt = json['createdAt'];
+    _ratingValueUser = json['ratingValueUser'];
     _requiredAdvancePayment = json['requiredAdvancePayment'];
+    _domesticPrice = json['domesticPrice'];
+    _domesticPriceDiscount = json['domesticPriceDiscount'];
+    _internationalPrice = json['internationalPrice'];
+    _internationalPriceDiscount = json['internationalPriceDiscount'];
   }
   String? _userAddress;
   String? _userPhoneNumber;
@@ -135,6 +163,8 @@ class BookingInfoModel {
   String? _providerBookingDescription;
   String? _userBookingDescription;
   String? _serviceName;
+  num? _providerServiceId;
+  num? _serviceId;
   num? _distance;
   String? _userEmail;
   String? _providerEmail;
@@ -144,7 +174,12 @@ class BookingInfoModel {
   bool? _userTaskCompleteStatus;
   num? _advancePaymentAmount;
   String? _createdAt;
+  num? _ratingValueUser;
   bool? _requiredAdvancePayment;
+  num? _domesticPrice;
+  num? _domesticPriceDiscount;
+  num? _internationalPrice;
+  num? _internationalPriceDiscount;
 BookingInfoModel copyWith({  String? userAddress,
   String? userPhoneNumber,
   String? userWhatsappPhoneNumber,
@@ -163,6 +198,8 @@ BookingInfoModel copyWith({  String? userAddress,
   String? providerBookingDescription,
   String? userBookingDescription,
   String? serviceName,
+  num? providerServiceId,
+  num? serviceId,
   num? distance,
   String? userEmail,
   String? providerEmail,
@@ -172,7 +209,12 @@ BookingInfoModel copyWith({  String? userAddress,
   bool? userTaskCompleteStatus,
   num? advancePaymentAmount,
   String? createdAt,
+  num? ratingValueUser,
   bool? requiredAdvancePayment,
+  num? domesticPrice,
+  num? domesticPriceDiscount,
+  num? internationalPrice,
+  num? internationalPriceDiscount,
 }) => BookingInfoModel(  userAddress: userAddress ?? _userAddress,
   userPhoneNumber: userPhoneNumber ?? _userPhoneNumber,
   userWhatsappPhoneNumber: userWhatsappPhoneNumber ?? _userWhatsappPhoneNumber,
@@ -191,6 +233,8 @@ BookingInfoModel copyWith({  String? userAddress,
   providerBookingDescription: providerBookingDescription ?? _providerBookingDescription,
   userBookingDescription: userBookingDescription ?? _userBookingDescription,
   serviceName: serviceName ?? _serviceName,
+  providerServiceId: providerServiceId ?? _providerServiceId,
+  serviceId: serviceId ?? _serviceId,
   distance: distance ?? _distance,
   userEmail: userEmail ?? _userEmail,
   providerEmail: providerEmail ?? _providerEmail,
@@ -200,7 +244,12 @@ BookingInfoModel copyWith({  String? userAddress,
   userTaskCompleteStatus: userTaskCompleteStatus ?? _userTaskCompleteStatus,
   advancePaymentAmount: advancePaymentAmount ?? _advancePaymentAmount,
   createdAt: createdAt ?? _createdAt,
+  ratingValueUser: ratingValueUser ?? _ratingValueUser,
   requiredAdvancePayment: requiredAdvancePayment ?? _requiredAdvancePayment,
+  domesticPrice: domesticPrice ?? _domesticPrice,
+  domesticPriceDiscount: domesticPriceDiscount ?? _domesticPriceDiscount,
+  internationalPrice: internationalPrice ?? _internationalPrice,
+  internationalPriceDiscount: internationalPriceDiscount ?? _internationalPriceDiscount,
 );
   String? get userAddress => _userAddress;
   String? get userPhoneNumber => _userPhoneNumber;
@@ -220,6 +269,8 @@ BookingInfoModel copyWith({  String? userAddress,
   String? get providerBookingDescription => _providerBookingDescription;
   String? get userBookingDescription => _userBookingDescription;
   String? get serviceName => _serviceName;
+  num? get providerServiceId => _providerServiceId;
+  num? get serviceId => _serviceId;
   num? get distance => _distance;
   String? get userEmail => _userEmail;
   String? get providerEmail => _providerEmail;
@@ -229,7 +280,12 @@ BookingInfoModel copyWith({  String? userAddress,
   bool? get userTaskCompleteStatus => _userTaskCompleteStatus;
   num? get advancePaymentAmount => _advancePaymentAmount;
   String? get createdAt => _createdAt;
+  num? get ratingValueUser => _ratingValueUser;
   bool? get requiredAdvancePayment => _requiredAdvancePayment;
+  num? get domesticPrice => _domesticPrice;
+  num? get domesticPriceDiscount => _domesticPriceDiscount;
+  num? get internationalPrice => _internationalPrice;
+  num? get internationalPriceDiscount => _internationalPriceDiscount;
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
@@ -251,6 +307,8 @@ BookingInfoModel copyWith({  String? userAddress,
     map['providerBookingDescription'] = _providerBookingDescription;
     map['userBookingDescription'] = _userBookingDescription;
     map['serviceName'] = _serviceName;
+    map['providerServiceId'] = _providerServiceId;
+    map['serviceId'] = _serviceId;
     map['distance'] = _distance;
     map['userEmail'] = _userEmail;
     map['providerEmail'] = _providerEmail;
@@ -260,7 +318,12 @@ BookingInfoModel copyWith({  String? userAddress,
     map['userTaskCompleteStatus'] = _userTaskCompleteStatus;
     map['advancePaymentAmount'] = _advancePaymentAmount;
     map['createdAt'] = _createdAt;
+    map['ratingValueUser'] = _ratingValueUser;
     map['requiredAdvancePayment'] = _requiredAdvancePayment;
+    map['domesticPrice'] = _domesticPrice;
+    map['domesticPriceDiscount'] = _domesticPriceDiscount;
+    map['internationalPrice'] = _internationalPrice;
+    map['internationalPriceDiscount'] = _internationalPriceDiscount;
     return map;
   }
 

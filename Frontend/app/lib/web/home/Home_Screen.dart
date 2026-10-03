@@ -7,7 +7,9 @@ import '../authentication/Login.dart';
 import '../common method/Commmon_Method.dart';
 import '../common widget/toast.dart';
 
-class HomeScreenUi extends StatefulWidget {
+class HomeScreenUi extends StatefulWidget
+{
+
   final bool UserLogin;
   final String User_JwtToken;
 
@@ -28,7 +30,9 @@ class _HomeScreenUiState extends State<HomeScreenUi>
   late Animation<Offset> _slideAnimation;
 
   @override
-  void initState() {
+  void initState()
+  {
+
     super.initState();
 
     widget.UserLogin == true
@@ -81,7 +85,9 @@ class _HomeScreenUiState extends State<HomeScreenUi>
 
         return;
       }
-    } catch (e) {
+    } catch (e)
+    {
+
       await Clear_User_Data();
       await Random_token_Clear();
 
@@ -93,6 +99,7 @@ class _HomeScreenUiState extends State<HomeScreenUi>
       Toastget().Toastmsg("Session End.Relogin please.");
 
       return;
+
     }
   }
 
@@ -161,11 +168,14 @@ class _HomeScreenUiState extends State<HomeScreenUi>
                   children: [
                     Column(
                       children: [
+
                         Header(
                           UserLogin: widget.UserLogin,
                           User_JwtToken: widget.User_JwtToken,
                         ),
-                        FadeTransition(
+
+                        FadeTransition
+                          (
                           opacity: _fadeAnimation,
                           child: SlideTransition(
                             position: _slideAnimation,
@@ -174,7 +184,9 @@ class _HomeScreenUiState extends State<HomeScreenUi>
                         ),
                       ],
                     ),
+
                     Footer(),
+
                   ],
                 ),
               ),

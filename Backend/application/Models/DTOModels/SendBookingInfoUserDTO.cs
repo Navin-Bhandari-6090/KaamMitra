@@ -75,6 +75,12 @@ namespace application.Models.DTOModels
 
 
         [Required]
+        public int ProviderServiceId { get; set; }
+
+        [Required]
+        public int ServiceId { get; set; }
+
+        [Required]
         public double Distance { get; set; }
 
         [Required]
@@ -105,10 +111,23 @@ namespace application.Models.DTOModels
         [Required]
         public DateTime CreatedAt { get; set; }
 
+        public double RatingValueUser { get; set; }
+
 
         [Required]
         public bool RequiredAdvancePayment { get; set; }
 
+        [Required]
+        public double DomesticPrice { get; set; }
+
+        [Required]
+        public double DomesticPriceDiscount { get; set; }
+
+        [Required]
+        public double InternationalPrice { get; set; }
+
+        [Required]
+        public double InternationalPriceDiscount { get; set; }
 
 
 

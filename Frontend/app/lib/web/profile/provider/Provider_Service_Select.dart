@@ -216,9 +216,10 @@ class _ProviderServiceSelectState extends State<ProviderServiceSelect> {
         final service = controller.serviceList[index];
         return SizedBox(
           width: cardWidth,
-          child: _ServiceCard(
+          child:
+          _ServiceCard(
             index: index,
-            label: service.serviceName ?? "Unknown Service",
+            label: "${service.serviceName} # ${service.serviceID!}" ?? "Unknown Service",
             controller: controller,
             onTap: () {
               Navigator.push(

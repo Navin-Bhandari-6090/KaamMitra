@@ -1,28 +1,38 @@
 import 'dart:convert';
 
+import 'package:app/web/bookings/pro_task_complete_status.dart';
 import 'package:app/web/common%20widget/GreenTextfield.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get_core/src/get_main.dart';
+import 'package:get/get_instance/src/extension_instance.dart';
+import 'package:get/get_state_manager/src/rx_flutter/rx_obx_widget.dart';
 import 'package:http/http.dart' as http;
 import 'package:velocity_x/velocity_x.dart';
 
 import '../../constant/Server_Database.dart';
 import '../../models/BookingInfoModel.dart';
+import '../../state management/getx/booking/ProviderBookingDetalsGetX.dart';
+
 import '../authentication/Error_page.dart';
 import '../common method/Commmon_Method.dart';
+import '../common widget/getx_cont_pick_single_photo_int.dart';
 import '../common widget/toast.dart';
+
 
 class Providerbookinginfodetailsscreen extends StatefulWidget {
   final String Current_User_Email;
   final String Current_User_JwtToken;
   final String Current_User_Role;
+  final int Current_User_Number;
   final List<BookingInfoModel> BookingInfoListInfo;
 
-  Providerbookinginfodetailsscreen({
+   const Providerbookinginfodetailsscreen({
     super.key,
     required this.Current_User_Email,
     required this.Current_User_JwtToken,
     required this.Current_User_Role,
     required this.BookingInfoListInfo,
+    required this.Current_User_Number,
   });
 
   @override
@@ -39,12 +49,27 @@ class _ProviderbookinginfodetailsscreenState
   final AdvanceAmountController = TextEditingController();
   final ProviderDescriptionCont = TextEditingController();
   final Toast = Toastget();
+
+
+  final PickPhotoCont=Get.put(pick_single_photo_getx_int());
+
+  final AdvancePayPhoGetxCont=Get.put(Providerbookingdetalsgetx());
+
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     Provider_Jwt_Verify(Jwt_Token: widget.Current_User_JwtToken);
     print("Booking info list length = ${widget.BookingInfoListInfo.length}");
+  }
+
+  @override
+  void dispose()
+  {
+    super.dispose();
+    PickPhotoCont.imageBytes.value=null;
+    PickPhotoCont.imageExtension.value="";
+    PickPhotoCont.imagePath.value="";
   }
 
   Future<void> Provider_Jwt_Verify({required String Jwt_Token}) async {
@@ -80,6 +105,8 @@ class _ProviderbookinginfodetailsscreenState
       return;
     }
   }
+
+
 
   Future<int> UpdateDate({
     required String UserEmail,
@@ -267,7 +294,15 @@ class _ProviderbookinginfodetailsscreenState
         );
         print("Invalid data format.Please provide data in correct format.");
         return 5;
-      } else {
+      }
+      else if (response.statusCode == 504) {
+        Toast.Toastmsg(
+          "You have already change advance amount value.You cannot update advance amount value.",
+        );
+        print( "You have already change advance amount value.You cannot update advance amount value.");
+        return 5;
+      }
+      else {
         print("Other status code.Error.");
         print("Status code = ${response.statusCode}");
         Toast.Toastmsg("Update advance amount  fail.Try again.Server error.");
@@ -329,7 +364,13 @@ class _ProviderbookinginfodetailsscreenState
         );
         print("No provider approval status data available of taht book id.");
         return 4;
-      } else if (response.statusCode == 501) {
+      }
+      else if (response.statusCode == 504) {
+        Toast.Toastmsg("You have already accept it.You cannot update approval status.");
+        print("You have already accept it.You cannot update approval status.");
+        return 8;
+      }
+      else if (response.statusCode == 501) {
         Toast.Toastmsg(
           "Invalid provider approval status data format.Please provide data in correct format.",
         );
@@ -355,79 +396,6 @@ class _ProviderbookinginfodetailsscreenState
     }
   }
 
-  Future<int> ProRequestTaskComplete({
-    required String UserEmail,
-    required num BookId,
-  }) async {
-    try {
-      final Map<String, dynamic> userData = {
-        "UserEmail": UserEmail,
-        "BookId": BookId,
-      };
-      const String url =
-          Backend_Server_Url + "api/Booking/proupdatetaskcompletestatus";
-      final response = await http.put(
-        Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': 'Bearer ${widget.Current_User_JwtToken}',
-        },
-        body: json.encode(userData),
-      );
-      if (response.statusCode == 200) {
-        print("Update provider task complete status info success");
-        Toast.Toastmsg("Update provider task complete status success.");
-        return 1;
-      } else if (response.statusCode == 500) {
-        Toast.Toastmsg(
-          "Update provider task complete status   fail.Try again.Server error.",
-        );
-        print(
-          "Update provider task complete status   fail.Try again.Server error.",
-        );
-        print("SERVER ERROR: ${response.body}");
-        return 2;
-      } else if (response.statusCode == 502) {
-        Toast.Toastmsg("Current user doesn't match.");
-        print("Current user doesn't match.");
-        await Clear_User_Data();
-        await Random_token_Clear();
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => ErrorPage()),
-          (route) => false,
-        );
-        Toastget().Toastmsg("Session End.Relogin please.");
-        return 3;
-      } else if (response.statusCode == 503) {
-        Toast.Toastmsg("No booking data  available of that book id.");
-        print("No booking data   data available of taht book id.");
-        return 4;
-      } else if (response.statusCode == 501) {
-        Toast.Toastmsg(
-          "Invalid provider task complete data format.Please provide data in correct format.",
-        );
-        print(
-          "Invalid provider task complete data format.Please provide data in correct format.",
-        );
-        return 5;
-      } else {
-        print("Other status code.Error.");
-        print("Status code = ${response.statusCode}");
-        Toast.Toastmsg(
-          "Update provider task complete status  fail.Try again.Server error.",
-        );
-        return 6;
-      }
-    } catch (Obj) {
-      print("Exception caught while Updating provider task completestatus .");
-      print(Obj.toString());
-      Toast.Toastmsg(
-        "Update provider task complete status  fail.Try again.Server error.",
-      );
-      return 7;
-    }
-  }
 
 
   Future<int> UpdateDescription({
@@ -641,6 +609,22 @@ class _ProviderbookinginfodetailsscreenState
                   print(
                     "Adance amount update result = ${UpdateAdvanceAmountResult}",
                   );
+
+                  final AddNotificationsResult = await AddNotifications(
+                    ReceiverNumber: widget.BookingInfoListInfo[0].userNumber!,
+                    Message:
+                    "Booking amount = ${AdvanceAmountValue} is required.Provider have change advance amount for the booking id = ${BookIdValue}.",
+                    Current_User_JwtToken: widget.Current_User_JwtToken,
+                    context: context,
+                  );
+
+                  final AddNewNotificationsResult = await AddNewNotifications(
+                    ReceiverNumber: widget.BookingInfoListInfo[0].userNumber!,
+                    Status: true,
+                    Current_User_JwtToken: widget.Current_User_JwtToken,
+                    context: context,
+                  );
+
                 } catch (e) {
                   print(e.toString());
                 }
@@ -651,7 +635,9 @@ class _ProviderbookinginfodetailsscreenState
             ElevatedButton(
               onPressed: () async {
                 try {
+
                   num BookIdValue = widget.BookingInfoListInfo[0].bookId!;
+
                   final ProviderApprovalResult =
                       await UpdateProviderApprovalStatus(
                         UserEmail: widget.Current_User_Email,
@@ -661,64 +647,36 @@ class _ProviderbookinginfodetailsscreenState
                   print(
                     "provider approval update result = ${ProviderApprovalResult}",
                   );
-                } catch (e) {
-                  print(e.toString());
-                  return;
-                }
-              },
-              child: Text("Update booking confirmation status."),
-            ),
-
-            ElevatedButton(
-              onPressed: () async {
-                try {
-                  num BookIdValue = widget.BookingInfoListInfo[0].bookId!;
-
-                  String ProviderEmail =
-                      widget.BookingInfoListInfo[0].providerEmail!;
-
-                  final RequestTaskResult = await ProRequestTaskComplete(
-                    UserEmail: widget.Current_User_Email,
-                    BookId: BookIdValue,
-                  );
-
-                  print(
-                    "Request for task complete result = ${RequestTaskResult}",
-                  );
 
                   final AddNotificationsResult = await AddNotifications(
-                    CurrentUserEmail: widget.Current_User_Email,
-                    ReceiverEmail: ProviderEmail,
+
+                    ReceiverNumber: widget.BookingInfoListInfo[0].userNumber!,
                     Message:
-                        "Please chnage task complete status if provider have finish your work for the booking id = ${BookIdValue}.",
+                    "Provider have change approval status for the booking id = ${BookIdValue}.",
                     Current_User_JwtToken: widget.Current_User_JwtToken,
                     context: context,
                   );
-                  if (AddNotificationsResult == 1) {
+
+
                     final AddNewNotificationsResult = await AddNewNotifications(
-                      CurrentUserEmail: widget.Current_User_Email,
-                      ReceiverEmail: ProviderEmail,
+
+                      ReceiverNumber: widget.BookingInfoListInfo[0].userNumber!,
                       Status: true,
                       Current_User_JwtToken: widget.Current_User_JwtToken,
                       context: context,
                     );
-                    if (AddNewNotificationsResult == 1) {
-                      print("Add new notification success.");
-                    } else {
-                      print("Add new notification failed");
-                      return;
-                    }
-                  } else {
-                    print("Add notification failed");
-                    return;
-                  }
-                } catch (e) {
+
+                }
+                catch (e)
+                {
                   print(e.toString());
                   return;
                 }
               },
-              child: Text("Request for task complete."),
+              child: Text("Update provider approval status."),
             ),
+
+
 
             GreenField(controller: ProviderDescriptionCont, label: "Enter your service description.", icon:Icons.description),
 
@@ -732,6 +690,7 @@ class _ProviderbookinginfodetailsscreenState
                     return;
                   }
                   num BookIdValue = widget.BookingInfoListInfo[0].bookId!;
+
                   final UpdateDescriptionResult =
                   await UpdateDescription(
                     UserEmail: widget.Current_User_Email,
@@ -742,13 +701,313 @@ class _ProviderbookinginfodetailsscreenState
                   print(
                     "update result = ${UpdateDescriptionResult}",
                   );
+
                 } catch (e) {
                   print(e.toString());
                   return;
                 }
               },
-              child: Text("Update your booking description value(provider)."),
+              child: Text("Update provider booking description value."),
             ),
+
+            Obx(
+                  ()=>FutureBuilder<int>(
+                future: GetAdvancePaymentPhoto(
+                  BookId: widget.BookingInfoListInfo[0].bookId!.toString(),
+                  UserEmail: widget.Current_User_Email,
+                  context: context,
+                  Current_User_JwtToken:
+                  widget.Current_User_JwtToken,
+                  UpdateStatePhotoUpload: AdvancePayPhoGetxCont.UpdateStatePhotoUpload.value,
+                ),
+                builder: (context, snapshot) {
+                  // =====================================================
+                  // Loading
+                  // =====================================================
+
+                  if (snapshot.connectionState ==
+                      ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
+                  }
+
+                  // =====================================================
+                  // Future error
+                  // =====================================================
+
+                  if (snapshot.hasError) {
+                    print(
+                      "Advance payment photo Future error: "
+                          "${snapshot.error}",
+                    );
+
+                    return const Center(
+                      child: Text(
+                        "Unable to load advance payment photo.",
+                      ),
+                    );
+                  }
+
+                  // =====================================================
+                  // Check list
+                  // =====================================================
+
+                  if (AdvancePaymentPhotoList.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        "No advance payment photo available.",
+                      ),
+                    );
+                  }
+
+                  // =====================================================
+                  // Get model
+                  // =====================================================
+
+                  final advancePayment =
+                  AdvancePaymentPhotoList[0];
+
+                  // =====================================================
+                  // Get photo path safely
+                  // =====================================================
+
+                  final String photoPath =
+                      advancePayment.paymentPhoto ?? "";
+
+                  // =====================================================
+                  // Get URL
+                  // =====================================================
+
+                  final String photoUrl =
+                  GetPhotoUrl(photoPath);
+
+                  // =====================================================
+                  // Empty URL
+                  // =====================================================
+
+                  if (photoUrl.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        "No advance payment photo available.",
+                      ),
+                    );
+                  }
+
+                  // =====================================================
+                  // Show image
+                  // =====================================================
+
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      photoUrl,
+                      width: double.infinity,
+                      height: 220,
+                      fit: BoxFit.cover,
+
+                      loadingBuilder:
+                          (
+                          context,
+                          child,
+                          loadingProgress,
+                          ) {
+                        if (loadingProgress == null) {
+                          return child;
+                        }
+
+                        return const SizedBox(
+                          height: 220,
+                          child: Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      },
+
+                      errorBuilder:
+                          (
+                          context,
+                          error,
+                          stackTrace,
+                          ) {
+                        print(
+                          "Advance payment photo loading failed: "
+                              "$error",
+                        );
+
+                        return const SizedBox(
+                          height: 220,
+                          child: Center(
+                            child: Text(
+                              "Unable to load advance payment photo.",
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            FutureBuilder<int>(
+              future: GetAdvancePaymentQRPhoto(
+                UserNumber: widget.BookingInfoListInfo[0].providerNumber!,
+                context: context,
+                Current_User_JwtToken:
+                widget.Current_User_JwtToken,
+              ),
+              builder: (context, snapshot) {
+                // =====================================================
+                // Loading
+                // =====================================================
+
+                if (snapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                }
+
+                // =====================================================
+                // Future error
+                // =====================================================
+
+                if (snapshot.hasError) {
+                  print(
+                    "Advance payment QR Future error: "
+                        "${snapshot.error}",
+                  );
+
+                  return const Center(
+                    child: Text(
+                      "Unable to load advance payment QR.",
+                    ),
+                  );
+                }
+
+                // =====================================================
+                // Check list
+                // =====================================================
+
+                if (AdvancePaymentQrPhotoList.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      "No advance payment QR photo available.",
+                    ),
+                  );
+                }
+
+                // =====================================================
+                // Get model
+                // =====================================================
+
+                final advancePaymentQr =
+                AdvancePaymentQrPhotoList[0];
+
+                // =====================================================
+                // Get QR photo path safely
+                // =====================================================
+
+                final String qrPhotoPath =
+                    advancePaymentQr.qrPhoto ?? "";
+
+                // =====================================================
+                // Get URL
+                // =====================================================
+
+                final String qrPhotoUrl =
+                GetPhotoUrl(qrPhotoPath);
+
+                // =====================================================
+                // Empty URL
+                // =====================================================
+
+                if (qrPhotoUrl.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      "No advance payment QR available.",
+                    ),
+                  );
+                }
+
+                // =====================================================
+                // Show QR image
+                // =====================================================
+
+                return ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    qrPhotoUrl,
+                    width: double.infinity,
+                    height: 220,
+                    fit: BoxFit.contain,
+
+                    loadingBuilder:
+                        (
+                        context,
+                        child,
+                        loadingProgress,
+                        ) {
+                      if (loadingProgress == null) {
+                        return child;
+                      }
+
+                      return const SizedBox(
+                        height: 220,
+                        child: Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
+                    },
+
+                    errorBuilder:
+                        (
+                        context,
+                        error,
+                        stackTrace,
+                        ) {
+                      print(
+                        "Advance payment QR photo loading failed: "
+                            "$error",
+                      );
+
+                      return const SizedBox(
+                        height: 220,
+                        child: Center(
+                          child: Text(
+                            "Unable to load advance payment QR.",
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+
+            SizedBox(height: 10,),
+
+            ElevatedButton(onPressed: ()async{
+
+              Navigator.push(context,MaterialPageRoute(builder: (context) {
+                return ProTaskCompleteStatus(
+                  Current_User_Email: widget.Current_User_Email,
+                  Current_User_JwtToken: widget.Current_User_JwtToken,
+                  Current_User_Role: widget.Current_User_Role,
+                  Current_User_Number: widget.Current_User_Number,
+                  BookingInfoListInfo: widget.BookingInfoListInfo,);
+              },));
+
+            }, child: Text("Update Provider task complete status.")),
+
+            SizedBox(height: 10,),
+
+
+
+
+
+
 
           ],
         ),

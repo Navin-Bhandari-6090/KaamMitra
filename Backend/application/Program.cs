@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -65,15 +66,25 @@ builder.Services.AddAuthentication(options =>
 // Authorization Policies
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("RequireAdminRole", policy => policy.RequireRole("Admin"));
-    options.AddPolicy("RequireProviderRole", policy => policy.RequireRole("Provider"));
-    options.AddPolicy("RequireUserRole", policy => policy.RequireRole("User"));
-    options.AddPolicy("RequireProviderUserRole", policy => policy.RequireRole("User","Provider"));
-    options.AddPolicy("RequireforAllRole", policy => policy.RequireRole("Admin", "User","Provider"));
+    options.AddPolicy("RequireAdminRole", policy => policy.RequireRole("admin"));
+    options.AddPolicy("RequireProviderRole", policy => policy.RequireRole("provider"));
+    options.AddPolicy("RequireUserRole", policy => policy.RequireRole("user"));
+    options.AddPolicy("RequireProviderUserRole", policy => policy.RequireRole("user","provider"));
+    options.AddPolicy("RequireforAllRole", policy => policy.RequireRole("admin", "user","provider"));
+    options.AddPolicy("RequireAdminProRole", policy => policy.RequireRole("admin","provider"));
+
 });
 
 // Register custom services
 builder.Services.AddScoped<TokenServices>();
+
+builder.Services.AddRateLimiter(o =>
+{
+    o.RejectionStatusCode = 429;
+    o.AddPolicy("auth", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1) }));
+});
 
 
 
@@ -88,9 +99,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-
+app.UseRateLimiter();
+app.UseAuthentication();     // add this
 app.UseAuthorization();
-
 app.MapControllers();
-
 app.Run();

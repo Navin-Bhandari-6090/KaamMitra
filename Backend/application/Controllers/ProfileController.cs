@@ -3,8 +3,10 @@ using application.Models;
 using application.Models.DTOModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -26,21 +28,37 @@ namespace application.Controllers
 
         }
 
-
-        //[Authorize(Policy = "RequireProviderUserRole")]
+        [Authorize(Policy = "RequireProviderUserRole")]
         [HttpPost]
         [Route("getuserinfo")]
         public async Task<IActionResult> GetUserInfo([FromBody] UserEmailInfoModel obj)
         {
-
             try
             {
-                var user_data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
+                var user_data = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.Email == obj.Email);
+
                 if (user_data != null)
                 {
                     Console.WriteLine("console emssage");
-                    return Ok(user_data);
 
+                    UserInfoProfileScreenDTO user_info = new UserInfoProfileScreenDTO
+                    {
+                        UserNumber = user_data.UserNumber,
+                        FirstName = user_data.FirstName,
+                        LastName = user_data.LastName,
+                        Email = user_data.Email,
+                        Address = user_data.Address,
+                        PhoneNumber = user_data.PhoneNumber,
+                        WhatsappPhoneNumber = user_data.WhatsappPhoneNumber,
+                        Latitude = user_data.Latitude,
+                        Longitude = user_data.Longitude,
+                        Photo = user_data.Photo,
+                        Role = user_data.Role,
+                        LoginAccess = user_data.LoginAccess
+                    };
+
+                    return Ok(user_info);
                 }
                 else
                 {
@@ -334,6 +352,39 @@ namespace application.Controllers
         {
             try
             {
+
+                var userNumberClaim =
+ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return Forbid();
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(502, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(506, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
+                string? currentUserEmail =
+    User.FindFirst(ClaimTypes.Email)?.Value;
+
+                if (string.IsNullOrWhiteSpace(currentUserEmail))
+                {
+                    return Forbid();
+                }
+
                 // =========================================================
                 // 1. Validate ModelState
                 // =========================================================
@@ -394,7 +445,7 @@ namespace application.Controllers
                 var serviceExists =
                     await Database.ProviderServiceInfo
                         .AnyAsync(x =>
-                            x.Email == obj.Email &&
+                            x.Email == currentUserEmail &&
                             x.ServiceName == obj.ServiceName);
 
                 if (serviceExists)
@@ -527,8 +578,8 @@ namespace application.Controllers
                     $"/{documentFolder}/{fileName}";
 
 
-                //Finding user
-                var User_Data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
+                ////Finding user
+                //var User_Data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
 
 
 
@@ -545,10 +596,8 @@ namespace application.Controllers
                         ServiceDocument =
                             relativeDocumentPath,
 
-                        Email =
-                            obj.Email.Trim(),
+                        UserNumber=currentUserNumber
 
-                        UserNumber=User_Data.UserNumber
                     };
 
 
@@ -656,6 +705,8 @@ namespace application.Controllers
                 return StatusCode(501, ex.Message);
             }
         }
+
+
 
 
 
@@ -1284,50 +1335,126 @@ public async Task<IActionResult> AddServiceResources(
 
 
 
-        private string HashPasswordUpdate(string password)
+        //private string HashPasswordUpdate(string password)
+        //{
+        //    using (var sha256 = SHA256.Create())
+        //    {
+        //        // Compute hash for the password
+        //        var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+        //        // Convert the byte array to a hexadecimal string
+        //        if (hashedBytes != null)
+        //        {
+        //            return BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
+        //        }
+        //        else
+        //        {
+        //            return "";
+        //        }
+
+        //    }
+
+        //}
+
+        //[Authorize(Policy = "RequireProviderUserRole")]
+        //[HttpPut]
+        //[Route("updatepassword")]
+        //public async Task<IActionResult> UpdatePassword([FromBody] LoginModel obj)
+        //{
+
+        //    try
+        //    {
+        //        var user_data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
+        //        if (user_data != null)
+        //        {
+
+        //            user_data.Password = HashPasswordUpdate(obj.Password);
+        //            await Database.SaveChangesAsync();
+        //            return Ok();
+
+        //        }
+        //        return StatusCode(500, "Database error while getting user info for profile screen using username.");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return StatusCode(501, ex.Message);
+        //    }
+        //}
+
+        // Used so a missing user takes as long to reject as a wrong password
+        private static readonly string DummyHash = BCrypt.Net.BCrypt.HashPassword("dummy-password", 12);
+
+        // NEW: hashes all new and changed passwords
+        private static string HashPassword(string password) =>
+            BCrypt.Net.BCrypt.HashPassword(password, 12);
+
+        // NEW: your old hash, kept only so existing users can still log in once
+        private static string LegacySha256(string password)
         {
-            using (var sha256 = SHA256.Create())
-            {
-                // Compute hash for the password
-                var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-                // Convert the byte array to a hexadecimal string
-                if (hashedBytes != null)
-                {
-                    return BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
-                }
-                else
-                {
-                    return "";
-                }
-
-            }
-
+            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(password));
+            return Convert.ToHexString(bytes).ToLower();
         }
 
+        // NEW: verifies the password and upgrades old SHA-256 hashes to BCrypt
+        //private bool VerifyAndUpgrade(UserInfo user, string plain)
+        //{
+        //    var stored = user.Password;
+        //    if (string.IsNullOrEmpty(stored))
+        //        return false;
+
+        //    if (stored.StartsWith("$2"))                               // already BCrypt
+        //    {
+        //        try
+        //        {
+        //            return BCrypt.Net.BCrypt.Verify(plain, stored);
+        //        }
+        //        catch (BCrypt.Net.SaltParseException ex)
+        //        {
+        //            return false;
+        //        }
+        //    }
+
+        //    if (stored == LegacySha256(plain))                         // old SHA-256 hash
+        //    {
+        //        user.Password = HashPassword(plain);                   // saved by SaveChangesAsync
+        //        return true;
+        //    }
+
+        //    return false;
+        //}
+
         [Authorize(Policy = "RequireProviderUserRole")]
+        [EnableRateLimiting("auth")]
         [HttpPut]
         [Route("updatepassword")]
         public async Task<IActionResult> UpdatePassword([FromBody] LoginModel obj)
         {
-
             try
             {
-                var user_data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
-                if (user_data != null)
-                {
+                if (!ModelState.IsValid)
+                    return BadRequest("Password must be between 8 and 72 characters.");
 
-                    user_data.Password = HashPasswordUpdate(obj.Password);
-                    await Database.SaveChangesAsync();
-                    return Ok();
+                // Identity comes from the token, never from the request
+                var email = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
 
-                }
-                return StatusCode(500, "Database error while getting user info for profile screen using username.");
+                if (string.IsNullOrEmpty(email))
+                    return Forbid();
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
+                if (user == null || !user.LoginAccess)
+                    return Forbid();
+
+                user.Password = HashPassword(obj.Password);
+                await Database.SaveChangesAsync();
+                return Ok();
             }
             catch (Exception ex)
             {
-                return StatusCode(501, ex.Message);
+                return StatusCode(500, "Something went wrong. Please try again.");
             }
         }
+
+
 
         [Authorize(Policy = "RequireProviderRole")]
         [HttpPut]
@@ -1337,6 +1464,38 @@ public async Task<IActionResult> AddServiceResources(
         {
             try
             {
+
+                var userNumberClaim =
+ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return Forbid();
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(502, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(506, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
+                string? currentUserEmail =
+    User.FindFirst(ClaimTypes.Email)?.Value;
+
+                if (string.IsNullOrWhiteSpace(currentUserEmail))
+                {
+                    return Forbid();
+                }
                 // =========================================================
                 // 1. Validate ModelState
                 // =========================================================
@@ -1366,17 +1525,17 @@ public async Task<IActionResult> AddServiceResources(
                 // 3. Check user
                 // =========================================================
 
-                var userData = await Database.UserInfos
-                    .FirstOrDefaultAsync(x =>
-                        x.Email == obj.Email);
+                //var userData = await Database.UserInfos
+                //    .FirstOrDefaultAsync(x =>
+                //        x.Email == obj.Email);
 
-                if (userData == null)
-                {
-                    return StatusCode(
-                        404,
-                        "User not found."
-                    );
-                }
+                //if (userData == null)
+                //{
+                //    return StatusCode(
+                //        404,
+                //        "User not found."
+                //    );
+                //}
 
                 // =========================================================
                 // 4. Check service belongs to this user
@@ -1385,7 +1544,7 @@ public async Task<IActionResult> AddServiceResources(
                 var serviceData =
                     await Database.ProviderServiceInfo
                         .FirstOrDefaultAsync(x =>
-                            x.Email == obj.Email &&
+                            x.UserNumber == currentUserNumber &&
                             x.ProviderServiceId ==
                                 obj.ProviderServiceId);
 
@@ -2395,45 +2554,46 @@ public async Task<IActionResult> AddServiceResources(
         }
 
 
-        [Authorize(Policy = "RequireProviderUserRole")]
-           [HttpPost]
-           [Route("getproviderregisterserviceinfo")]
-           public async Task<IActionResult> GetProviderServiceInfo(
-               [FromBody] UserEmailInfoModel obj)
-           {
-               try
-               {
-                   var user_data = await Database.UserInfos
-                       .FirstOrDefaultAsync(x => x.Email == obj.Email);
+        //[Authorize(Policy = "RequireProviderUserRole")]
+        [HttpPost]
+        [Route("getproviderregisterserviceinfo")]
+        public async Task<IActionResult> GetProviderServiceInfo(
+            [FromBody] UserEmailInfoModel obj)
+        {
+            try
+            {
+                var user_data = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.Email == obj.Email);
 
-                   if (user_data == null)
-                   {
-                       return NotFound("No user found.");
-                   }
+                if (user_data == null)
+                {
+                    return NotFound("No user found.");
+                }
 
-                   var Service_Data = await Database.ProviderServiceInfo
-                       .Where(x => x.Email == obj.Email)
-                       .Select(x => new
-                       {
-                           ServiceName = x.ServiceName
-                       })
-                       .OrderBy(x => x.ServiceName)
-                       .ToListAsync();
+                var Service_Data = await Database.ProviderServiceInfo
+                    .Where(x => x.Email == obj.Email)
+                    .Select(x => new
+                    {
+                        ServiceName = x.ServiceName,
+                        ServiceID = x.ProviderServiceId
+                    })
+                    .OrderBy(x => x.ServiceName)
+                    .ToListAsync();
 
-                   if (Service_Data.Count > 0)
-                   {
-                       return Ok(Service_Data);
-                   }
-                   else
-                   {
-                       return NotFound("No service registered for current user.");
-                   }
-               }
-               catch (Exception ex)
-               {
-                   return StatusCode(500, ex.Message);
-               }
-           }
+                if (Service_Data.Count > 0)
+                {
+                    return Ok(Service_Data);
+                }
+                else
+                {
+                    return NotFound("No service registered for current user.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
 
 
         [Authorize(Policy = "RequireProviderUserRole")]
@@ -2822,12 +2982,52 @@ public async Task<IActionResult> AddServiceResources(
         [Route("addfonepayqr")]
         public async Task<IActionResult> AddFonepayQr(
        [FromForm] AdvancePaymentQRInfoModelDTO obj)
+
         {
+
+
+
             string? physicalQrPhotoPath = null;
             string? newRelativeQrPhotoPath = null;
 
             try
             {
+
+
+                var userNumberClaim =
+       User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (string.IsNullOrEmpty(userNumberClaim))
+                {
+                    return Forbid();
+                }
+
+                int CurrentUserNumber;
+
+                if (!int.TryParse(userNumberClaim, out CurrentUserNumber))
+                {
+                    return Forbid();
+                }
+
+                Console.WriteLine($"UserNumber: {CurrentUserNumber}");
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == CurrentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(404, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(506, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
+                string CurrentUserEmail = user.Email;
+
                 // =========================================================
                 // 1. Validate ModelState
                 // =========================================================
@@ -2839,22 +3039,6 @@ public async Task<IActionResult> AddServiceResources(
                         "Data are not in correct format."
                     );
                 }
-
-
-                // =========================================================
-                // 2. Validate Provider Email
-                // =========================================================
-
-                if (string.IsNullOrWhiteSpace(obj.ProviderEmail))
-                {
-                    return StatusCode(
-                        400,
-                        "Provider email is required."
-                    );
-                }
-
-                obj.ProviderEmail = obj.ProviderEmail.Trim();
-
 
                 // =========================================================
                 // 3. Validate QR Photo
@@ -2870,36 +3054,6 @@ public async Task<IActionResult> AddServiceResources(
                 }
 
 
-                // =========================================================
-                // 4. Get User Information Using Email
-                // =========================================================
-
-                var userData =
-                    await Database.UserInfos
-                        .FirstOrDefaultAsync(
-                            x => x.Email == obj.ProviderEmail
-                        );
-
-
-                // =========================================================
-                // 5. Check Provider User Exists
-                // =========================================================
-
-                if (userData == null)
-                {
-                    return StatusCode(
-                        404,
-                        "Provider user not found."
-                    );
-                }
-
-
-                // =========================================================
-                // 6. Get UserNumber From UserInfos
-                // =========================================================
-
-                int providerNumber = userData.UserNumber;
-
 
                 // =========================================================
                 // 7. Get Existing Fonepay QR
@@ -2908,8 +3062,9 @@ public async Task<IActionResult> AddServiceResources(
                 var existingQr =
                     await Database.AdvancePaymentQrInfos
                         .FirstOrDefaultAsync(
-                            x => x.ProviderEmail == obj.ProviderEmail
+                            x => x.ProviderNumber == CurrentUserNumber
                         );
+
 
 
                 // =========================================================
@@ -3059,11 +3214,8 @@ public async Task<IActionResult> AddServiceResources(
                     // Update existing database row
                     // -----------------------------------------------------
 
-                    existingQr.ProviderEmail =
-                        obj.ProviderEmail;
-
                     existingQr.ProviderNumber =
-                        providerNumber;
+                        CurrentUserNumber;
 
                     existingQr.QRPhoto =
                         newRelativeQrPhotoPath;
@@ -3142,24 +3294,7 @@ public async Task<IActionResult> AddServiceResources(
                     // =====================================================
 
                     return StatusCode(
-                        200,
-                        new
-                        {
-                            Message =
-                                "Fonepay QR photo updated successfully.",
-
-                            QRId =
-                                existingQr.QRId,
-
-                            ProviderEmail =
-                                existingQr.ProviderEmail,
-
-                            ProviderNumber =
-                                existingQr.ProviderNumber,
-
-                            QRPhoto =
-                                existingQr.QRPhoto
-                        }
+                        200
                     );
                 }
 
@@ -3171,11 +3306,10 @@ public async Task<IActionResult> AddServiceResources(
                 var newQr =
                     new AdvancePaymentQrInfoModel
                     {
-                        ProviderEmail =
-                            obj.ProviderEmail,
+                        
 
                         ProviderNumber =
-                            providerNumber,
+                            CurrentUserNumber,
 
                         QRPhoto =
                             newRelativeQrPhotoPath
@@ -3228,24 +3362,8 @@ public async Task<IActionResult> AddServiceResources(
                 // =========================================================
 
                 return StatusCode(
-                    200,
-                    new
-                    {
-                        Message =
-                            "Fonepay QR photo added successfully.",
+                    200
 
-                        QRId =
-                            newQr.QRId,
-
-                        ProviderEmail =
-                            newQr.ProviderEmail,
-
-                        ProviderNumber =
-                            newQr.ProviderNumber,
-
-                        QRPhoto =
-                            newQr.QRPhoto
-                    }
                 );
             }
             catch (Exception ex)

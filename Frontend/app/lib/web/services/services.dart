@@ -304,28 +304,19 @@ class _ServicesScreenState extends State<ServicesScreen>
     }
   }
 
-  // ============================================================
-  // NEW — orchestrates the three (unchanged) calls above, then hands
-  // the raw lists to the GetX controller to join/search/sort.
-  //
-  // NOTE ON CURRENT-USER LOCATION: none of the three endpoints above
-  // return the *current* user's own lat/long — only providers'. Until
-  // that's wired up (e.g. a dedicated "my profile" call or device
-  // geolocation), this looks for a ProviderInfoList entry matching
-  // widget.User_Email and falls back to distance = 0 / "location
-  // unavailable" if none is found. Swap in the real source once you
-  // have it.
-  // ============================================================
 
-  Future<void> _loadEverything() async {
+  Future<void> _loadEverything() async
+  {
     serviceCont.setLoading(true);
     serviceCont.setLoadError(false);
 
-    final results = await Future.wait([
+    final results = await Future.wait(
+        [
       GetServiceInfo(email: widget.User_Email),
       GetProviderInfo(email: widget.User_Email),
       GetRatingInfo(email: widget.User_Email),
-    ]);
+    ]
+    );
 
     final bool anyFailed = results.any((r) => r != 1);
 
@@ -359,7 +350,7 @@ class _ServicesScreenState extends State<ServicesScreen>
     serviceCont.setLoading(false);
   }
 
-  void _onCardTap(CombinedServiceCard card,{required String ServiceName,required num ProviderNumber })
+  void _onCardTap(CombinedServiceCard card,{required String ServiceName,required num ProviderNumber,required num ServiceId })
   {
 
     // print("infos user");
@@ -381,6 +372,8 @@ class _ServicesScreenState extends State<ServicesScreen>
           Provider_info_List: ProviderInfoList,
           Provider_Service_Name: ServiceName,
           Providernumber: ProviderNumber,
+          ServiceId:ServiceId,
+          ServiceName:ServiceName,
         ),
       ),
     );
@@ -945,8 +938,9 @@ class _ServicesScreenState extends State<ServicesScreen>
         ? "${card.provider!.firstName ?? ''} ${card.provider!.lastName ?? ''}"
         .trim()
         : "";
-    final String serviceName = card.service.serviceName ?? "Service";
-    final num? userNumber = card.service.userNumber ?? card.provider?.userNumber;
+    final String serviceName = card.service.serviceName!;
+    final num serviceId = card.service.providerServiceId!;                     //serviceId = providerserviceid
+    final num? userNumber = card.service.userNumber!;  //userNumber=provider number
     final String userNumberLabel = userNumber != null ? "#$userNumber" : "#--";
 
     return Obx(() {
@@ -964,7 +958,8 @@ class _ServicesScreenState extends State<ServicesScreen>
           onTap: () => _onCardTap(
               card,
               ServiceName:serviceName,
-              ProviderNumber: userNumber!
+              ProviderNumber: userNumber!,
+              ServiceId: serviceId
           ),
           child: AnimatedScale(
             scale: pressed ? 0.97 : 1.0,
@@ -1022,7 +1017,7 @@ class _ServicesScreenState extends State<ServicesScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              serviceName,
+                              "Service name = $serviceName",
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -1034,7 +1029,7 @@ class _ServicesScreenState extends State<ServicesScreen>
                             if (providerName.isNotEmpty) ...[
                               const SizedBox(height: 2),
                               Text(
-                                "$providerName · $userNumberLabel",
+                                "provider name = $providerName · Provider Number = $userNumberLabel",
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(

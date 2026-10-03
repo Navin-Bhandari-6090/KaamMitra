@@ -31,6 +31,11 @@ namespace application.Data
 
         public DbSet<AdvancePaymentQrInfoModel> AdvancePaymentQrInfos { get; set; }
 
+        public DbSet<AdvertisementInfoModel> AdvertisementInfos { get; set; }
 
+        public DbSet<ProTaskCompletePaymentInfos> ProTaskCompletePaymentInfos { get; set; }
+
+        public DbSet<AdminQRPhotoModel> AdminQRPhotoInfos { get; set; }
+        public object AdminQRPhotoModels { get; internal set; }
     }
 }

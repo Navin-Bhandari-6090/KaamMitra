@@ -1,0 +1,860 @@
+﻿using application.Data;
+using application.Models;
+using application.Models.DTOModels;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+
+namespace application.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class AdminController : ControllerBase
+    {
+
+        public DatabaseController Database { get; set; }
+        private readonly IWebHostEnvironment _environment;
+
+
+        public AdminController(DatabaseController Database, IWebHostEnvironment Environment)
+        {
+            this.Database = Database;
+            this._environment = Environment;
+
+        }
+
+
+        [Authorize(Policy = "RequireAdminRole")]
+        [HttpGet]
+        [Route("getservicenormal")]
+        public async Task<IActionResult> GetServiceInfo()
+        {
+
+            try
+            {
+                var Service_Data = await Database.ServiceInfos.ToListAsync();
+                if (Service_Data.Count > 0)
+                {
+                    return Ok(Service_Data);
+                }
+                else
+                {
+                    return StatusCode(500, "No service data available.");
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(501, ex.Message);
+            }
+        }
+
+
+        [Authorize(Policy = "RequireAdminRole")]
+        [HttpPost]
+        [Route("registerservice")]
+        public async Task<IActionResult> AddService([FromBody] ServiceInfoModel obj)
+        {
+
+            try
+            {
+                if (ModelState.IsValid)
+                {
+                    var Service_Data = await Database.ServiceInfos.AnyAsync(x => x.ServiceName == obj.ServiceName);
+                    if (Service_Data == false)
+                    {
+                        var user_data = await Database.ServiceInfos.AddAsync(obj);
+                        await Database.SaveChangesAsync();
+                        return Ok();
+                    }
+                    else
+                    {
+                        return StatusCode(502, "Service alread register in that name.");
+                    }
+                }
+                else
+                {
+                    return StatusCode(500, "Data are not in correct format.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(501, ex.Message);
+            }
+        }
+
+        [Authorize(Policy = "RequireAdminRole")]
+        [HttpDelete]
+        [Route("deleteservice")]
+        public async Task<IActionResult> DeleteService([FromBody] ServiceIdDTO obj)
+        {
+
+            try
+            {
+                if (ModelState.IsValid)
+                {
+                    var Service_Data = await Database.ServiceInfos.FirstOrDefaultAsync(x => x.ServiceId == obj.ServiceId);
+                    if (Service_Data != null)
+                    {
+                        Database.ServiceInfos.Remove(Service_Data);
+                        await Database.SaveChangesAsync();
+                        return Ok();
+                  
+                    }
+                    else
+                    {
+
+                        return StatusCode(502, "Service not present with that id.");
+                    }
+                }
+                else
+                {
+                    return StatusCode(500, "Data are not in correct format.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(501, ex.Message);
+            }
+        }
+
+
+
+
+        [HttpPost]
+        [Route("addadvertisement")]
+        [RequestSizeLimit(2_147_483_648)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 2_147_483_648)]
+        public async Task<IActionResult> AddAdvertisement(
+    [FromForm] AdvertisementInfoModelDTO obj)
+        {
+            string? SavedPhotoPath = null;
+            string? SavedVideoPath = null;
+
+            try
+            {
+                Console.WriteLine("========== ADD ADVERTISEMENT ==========");
+
+                // ---------------------------------------------------------
+                // 1. Check ModelState
+                // ---------------------------------------------------------
+                if (!ModelState.IsValid)
+                {
+                    Console.WriteLine("ModelState is invalid.");
+
+                    foreach (var item in ModelState)
+                    {
+                        foreach (var error in item.Value.Errors)
+                        {
+                            Console.WriteLine(
+                                $"ModelState Error - {item.Key}: {error.ErrorMessage}");
+                        }
+                    }
+
+                    return StatusCode(400, "Invalid advertisement data.");
+                }
+                else
+                {
+                    Console.WriteLine("ModelState is valid.");
+                }
+
+                // ---------------------------------------------------------
+                // 2. Check Advertisement Title
+                // Only Tittle is required
+                // ---------------------------------------------------------
+                if (string.IsNullOrWhiteSpace(obj.Tittle))
+                {
+                    Console.WriteLine("Advertisement title is empty.");
+
+                    return StatusCode(400, "Advertisement title is required.");
+                }
+                else
+                {
+                    Console.WriteLine(
+                        $"Advertisement title: {obj.Tittle.Trim()}");
+                }
+
+                // ---------------------------------------------------------
+                // 3. WebRootPath
+                // ---------------------------------------------------------
+                if (string.IsNullOrWhiteSpace(_environment.WebRootPath))
+                {
+                    Console.WriteLine("WebRootPath is not configured.");
+
+                    return StatusCode(500, "Server wwwroot folder is not configured.");
+                }
+                else
+                {
+                    Console.WriteLine(
+                        $"WebRootPath: {_environment.WebRootPath}");
+                }
+
+                // ---------------------------------------------------------
+                // 4. Advertisement folders
+                // ---------------------------------------------------------
+                string AdvertisementFolder =
+                    Path.Combine(
+                        _environment.WebRootPath,
+                        "uploads",
+                        "advertisements");
+
+                string PhotoFolder =
+                    Path.Combine(
+                        AdvertisementFolder,
+                        "photos");
+
+                string VideoFolder =
+                    Path.Combine(
+                        AdvertisementFolder,
+                        "videos");
+
+                Console.WriteLine(
+                    $"Advertisement folder: {AdvertisementFolder}");
+
+                // ---------------------------------------------------------
+                // 5. Create advertisement main folder
+                // ---------------------------------------------------------
+                if (!Directory.Exists(AdvertisementFolder))
+                {
+                    Directory.CreateDirectory(AdvertisementFolder);
+
+                    Console.WriteLine(
+                        "Advertisement folder created.");
+                }
+                else
+                {
+                    Console.WriteLine(
+                        "Advertisement folder already exists.");
+                }
+
+                // =========================================================
+                // 6. OPTIONAL PHOTO
+                // =========================================================
+                if (obj.Photo != null && obj.Photo.Length > 0)
+                {
+                    Console.WriteLine("Advertisement photo is provided.");
+
+                    string PhotoExtension =
+                        Path.GetExtension(obj.Photo.FileName)
+                            .TrimStart('.')
+                            .ToLower();
+
+                    Console.WriteLine(
+                        $"Photo extension: {PhotoExtension}");
+
+                    if (PhotoExtension != "jpg" &&
+                        PhotoExtension != "jpeg" &&
+                        PhotoExtension != "png")
+                    {
+                        Console.WriteLine(
+                            "Invalid advertisement photo extension.");
+
+                        return StatusCode(
+                            400,
+                            "Only jpg, jpeg and png photo files are allowed.");
+                    }
+                    else
+                    {
+                        Console.WriteLine(
+                            "Advertisement photo extension is valid.");
+                    }
+
+                    // Create photo folder
+                    if (!Directory.Exists(PhotoFolder))
+                    {
+                        Directory.CreateDirectory(PhotoFolder);
+
+                        Console.WriteLine(
+                            "Advertisement photo folder created.");
+                    }
+                    else
+                    {
+                        Console.WriteLine(
+                            "Advertisement photo folder already exists.");
+                    }
+
+                    // Generate unique filename
+                    string PhotoFileName =
+                        $"{Guid.NewGuid()}.{PhotoExtension}";
+
+                    string PhysicalPhotoPath =
+                        Path.Combine(
+                            PhotoFolder,
+                            PhotoFileName);
+
+                    Console.WriteLine(
+                        $"Photo physical path: {PhysicalPhotoPath}");
+
+                    // Save photo
+                    using (FileStream PhotoStream =
+                           new FileStream(
+                               PhysicalPhotoPath,
+                               FileMode.Create))
+                    {
+                        await obj.Photo.CopyToAsync(PhotoStream);
+                    }
+
+                    Console.WriteLine(
+                        "Advertisement photo saved successfully.");
+
+                    // Save relative path in database
+                    SavedPhotoPath =
+                        $"/uploads/advertisements/photos/{PhotoFileName}";
+
+                    Console.WriteLine(
+                        $"Photo database path: {SavedPhotoPath}");
+                }
+                else
+                {
+                    Console.WriteLine(
+                        "Advertisement photo is not provided.");
+                }
+
+                // =========================================================
+                // 7. OPTIONAL VIDEO
+                // =========================================================
+                if (obj.Video != null && obj.Video.Length > 0)
+                {
+                    Console.WriteLine("Advertisement video is provided.");
+
+                    string VideoExtension =
+                        Path.GetExtension(obj.Video.FileName)
+                            .TrimStart('.')
+                            .ToLower();
+
+                    Console.WriteLine(
+                        $"Video extension: {VideoExtension}");
+
+                    if (VideoExtension != "mp4")
+                    {
+                        Console.WriteLine(
+                            "Invalid advertisement video extension.");
+
+                        // Delete already saved photo if video validation fails
+                        if (!string.IsNullOrWhiteSpace(SavedPhotoPath))
+                        {
+                            string SavedPhotoPhysicalPath =
+                                Path.Combine(
+                                    _environment.WebRootPath,
+                                    SavedPhotoPath.TrimStart('/').Replace(
+                                        "/",
+                                        Path.DirectorySeparatorChar.ToString()));
+
+                            if (System.IO.File.Exists(
+                                SavedPhotoPhysicalPath))
+                            {
+                                System.IO.File.Delete(
+                                    SavedPhotoPhysicalPath);
+
+                                Console.WriteLine(
+                                    "Previously saved photo deleted.");
+                            }
+                        }
+
+                        return StatusCode(
+                            400,
+                            "Only mp4 video files are allowed.");
+                    }
+                    else
+                    {
+                        Console.WriteLine(
+                            "Advertisement video extension is valid.");
+                    }
+
+                    // Create video folder
+                    if (!Directory.Exists(VideoFolder))
+                    {
+                        Directory.CreateDirectory(VideoFolder);
+
+                        Console.WriteLine(
+                            "Advertisement video folder created.");
+                    }
+                    else
+                    {
+                        Console.WriteLine(
+                            "Advertisement video folder already exists.");
+                    }
+
+                    // Generate unique filename
+                    string VideoFileName =
+                        $"{Guid.NewGuid()}.{VideoExtension}";
+
+                    string PhysicalVideoPath =
+                        Path.Combine(
+                            VideoFolder,
+                            VideoFileName);
+
+                    Console.WriteLine(
+                        $"Video physical path: {PhysicalVideoPath}");
+
+                    // Save video
+                    using (FileStream VideoStream =
+                           new FileStream(
+                               PhysicalVideoPath,
+                               FileMode.Create))
+                    {
+                        await obj.Video.CopyToAsync(VideoStream);
+                    }
+
+                    Console.WriteLine(
+                        "Advertisement video saved successfully.");
+
+                    // Save relative path in database
+                    SavedVideoPath =
+                        $"/uploads/advertisements/videos/{VideoFileName}";
+
+                    Console.WriteLine(
+                        $"Video database path: {SavedVideoPath}");
+                }
+                else
+                {
+                    Console.WriteLine(
+                        "Advertisement video is not provided.");
+                }
+
+                // =========================================================
+                // 8. OPTIONAL URL
+                // =========================================================
+                string? AdvertisementUrl = null;
+
+                if (!string.IsNullOrWhiteSpace(obj.UrlLink))
+                {
+                    AdvertisementUrl = obj.UrlLink.Trim();
+
+                    Console.WriteLine(
+                        $"Advertisement URL: {AdvertisementUrl}");
+                }
+                else
+                {
+                    Console.WriteLine(
+                        "Advertisement URL is not provided.");
+                }
+
+                // =========================================================
+                // 9. Create Advertisement database object
+                // =========================================================
+                AdvertisementInfoModel Advertisement =
+                    new AdvertisementInfoModel
+                    {
+                        Tittle = obj.Tittle.Trim(),
+
+                        Photo = SavedPhotoPath,
+
+                        Video = SavedVideoPath,
+
+                        UrlLink = AdvertisementUrl
+                    };
+
+                Console.WriteLine(
+                    "Advertisement database object created.");
+
+                // =========================================================
+                // 10. Add to database
+                // =========================================================
+                Database.AdvertisementInfos.Add(Advertisement);
+
+                Console.WriteLine(
+                    "Advertisement added to DbContext.");
+
+                await Database.SaveChangesAsync();
+
+                Console.WriteLine(
+                    "Advertisement saved to database successfully.");
+
+                // =========================================================
+                // 11. SUCCESS
+                // =========================================================
+                Console.WriteLine(
+                    "Advertisement added successfully.");
+
+                return StatusCode(
+                    200,
+                    "Advertisement added successfully.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    "========== ADD ADVERTISEMENT ERROR ==========");
+
+                Console.WriteLine(
+                    $"Exception: {ex.Message}");
+
+                Console.WriteLine(
+                    $"StackTrace: {ex.StackTrace}");
+
+                // ---------------------------------------------------------
+                // Delete saved photo if exception occurs
+                // ---------------------------------------------------------
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(SavedPhotoPath))
+                    {
+                        string SavedPhotoPhysicalPath =
+                            Path.Combine(
+                                _environment.WebRootPath,
+                                SavedPhotoPath.TrimStart('/')
+                                    .Replace(
+                                        "/",
+                                        Path.DirectorySeparatorChar.ToString()));
+
+                        if (System.IO.File.Exists(
+                            SavedPhotoPhysicalPath))
+                        {
+                            System.IO.File.Delete(
+                                SavedPhotoPhysicalPath);
+
+                            Console.WriteLine(
+                                "Saved advertisement photo deleted after exception.");
+                        }
+                    }
+                }
+                catch (Exception CleanupPhotoException)
+                {
+                    Console.WriteLine(
+                        $"Photo cleanup error: {CleanupPhotoException.Message}");
+                }
+
+                // ---------------------------------------------------------
+                // Delete saved video if exception occurs
+                // ---------------------------------------------------------
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(SavedVideoPath))
+                    {
+                        string SavedVideoPhysicalPath =
+                            Path.Combine(
+                                _environment.WebRootPath,
+                                SavedVideoPath.TrimStart('/')
+                                    .Replace(
+                                        "/",
+                                        Path.DirectorySeparatorChar.ToString()));
+
+                        if (System.IO.File.Exists(
+                            SavedVideoPhysicalPath))
+                        {
+                            System.IO.File.Delete(
+                                SavedVideoPhysicalPath);
+
+                            Console.WriteLine(
+                                "Saved advertisement video deleted after exception.");
+                        }
+                    }
+                }
+                catch (Exception CleanupVideoException)
+                {
+                    Console.WriteLine(
+                        $"Video cleanup error: {CleanupVideoException.Message}");
+                }
+
+                return StatusCode(
+                    500,
+                    $"An error occurred while adding advertisement: {ex.Message}");
+            }
+        }
+
+
+        [Authorize(Policy = "RequireAdminRole")]
+        [HttpDelete]
+        [Route("deleteadvertisement")]
+
+        public async Task<IActionResult> DeleteAdvertisement(
+    [FromBody] ADidDTO obj)
+        {
+            try
+            {
+                Console.WriteLine("========== DELETE ADVERTISEMENT ==========");
+
+                // =========================================================
+                // 1. Check ModelState
+                // =========================================================
+
+                if (!ModelState.IsValid)
+                {
+                    Console.WriteLine("ModelState is invalid.");
+
+                    foreach (var item in ModelState)
+                    {
+                        foreach (var error in item.Value.Errors)
+                        {
+                            Console.WriteLine(
+                                $"ModelState Error - {item.Key}: {error.ErrorMessage}");
+                        }
+                    }
+
+                    return StatusCode(
+                        400,
+                        "Invalid advertisement data."
+                    );
+                }
+
+                Console.WriteLine(
+                    $"AdvertisementId received: {obj.AdvertisementId}"
+                );
+
+                // =========================================================
+                // 2. Validate AdvertisementId
+                // =========================================================
+
+                if (obj.AdvertisementId <= 0)
+                {
+                    Console.WriteLine("Invalid AdvertisementId.");
+
+                    return StatusCode(
+                        400,
+                        "Invalid AdvertisementId."
+                    );
+                }
+
+                // =========================================================
+                // 3. Find Advertisement
+                // =========================================================
+
+                var advertisement =
+                    await Database.AdvertisementInfos
+                        .FirstOrDefaultAsync(
+                            x => x.AdvertisementId == obj.AdvertisementId
+                        );
+
+                if (advertisement == null)
+                {
+                    Console.WriteLine(
+                        $"Advertisement not found. AdvertisementId: {obj.AdvertisementId}"
+                    );
+
+                    return StatusCode(
+                        404,
+                        "Advertisement not found."
+                    );
+                }
+
+                Console.WriteLine(
+                    $"Advertisement found. AdvertisementId: {advertisement.AdvertisementId}"
+                );
+
+                Console.WriteLine(
+                    $"Advertisement Title: {advertisement.Tittle}"
+                );
+
+                Console.WriteLine(
+                    $"Photo path: {advertisement.Photo ?? "NULL"}"
+                );
+
+                Console.WriteLine(
+                    $"Video path: {advertisement.Video ?? "NULL"}"
+                );
+
+                // =========================================================
+                // 4. Check WebRootPath
+                // =========================================================
+
+                if (string.IsNullOrWhiteSpace(_environment.WebRootPath))
+                {
+                    Console.WriteLine(
+                        "WebRootPath is not configured."
+                    );
+
+                    return StatusCode(
+                        500,
+                        "Server wwwroot folder is not configured."
+                    );
+                }
+
+                Console.WriteLine(
+                    $"WebRootPath: {_environment.WebRootPath}"
+                );
+
+                // =========================================================
+                // 5. Delete Photo File
+                // =========================================================
+
+                if (!string.IsNullOrWhiteSpace(advertisement.Photo))
+                {
+                    try
+                    {
+                        string PhotoRelativePath =
+                            advertisement.Photo.TrimStart(
+                                '/',
+                                '\\'
+                            );
+
+                        string PhotoPhysicalPath =
+                            Path.Combine(
+                                _environment.WebRootPath,
+                                PhotoRelativePath
+                                    .Replace(
+                                        '/',
+                                        Path.DirectorySeparatorChar
+                                    )
+                                    .Replace(
+                                        '\\',
+                                        Path.DirectorySeparatorChar
+                                    )
+                            );
+
+                        Console.WriteLine(
+                            $"Photo physical path: {PhotoPhysicalPath}"
+                        );
+
+                        if (System.IO.File.Exists(PhotoPhysicalPath))
+                        {
+                            System.IO.File.Delete(PhotoPhysicalPath);
+
+                            Console.WriteLine(
+                                "Advertisement photo deleted successfully."
+                            );
+                        }
+                        else
+                        {
+                            Console.WriteLine(
+                                "Advertisement photo file does not exist. Skipping."
+                            );
+                        }
+                    }
+                    catch (Exception PhotoException)
+                    {
+                        Console.WriteLine(
+                            "Exception while deleting advertisement photo."
+                        );
+
+                        Console.WriteLine(
+                            $"Photo delete exception: {PhotoException.Message}"
+                        );
+
+                        // Do not crash because of a missing/unavailable file.
+                        // Continue with video and database deletion.
+                    }
+                }
+                else
+                {
+                    Console.WriteLine(
+                        "Advertisement does not have a photo."
+                    );
+                }
+
+                // =========================================================
+                // 6. Delete Video File
+                // =========================================================
+
+                if (!string.IsNullOrWhiteSpace(advertisement.Video))
+                {
+                    try
+                    {
+                        string VideoRelativePath =
+                            advertisement.Video.TrimStart(
+                                '/',
+                                '\\'
+                            );
+
+                        string VideoPhysicalPath =
+                            Path.Combine(
+                                _environment.WebRootPath,
+                                VideoRelativePath
+                                    .Replace(
+                                        '/',
+                                        Path.DirectorySeparatorChar
+                                    )
+                                    .Replace(
+                                        '\\',
+                                        Path.DirectorySeparatorChar
+                                    )
+                            );
+
+                        Console.WriteLine(
+                            $"Video physical path: {VideoPhysicalPath}"
+                        );
+
+                        if (System.IO.File.Exists(VideoPhysicalPath))
+                        {
+                            System.IO.File.Delete(VideoPhysicalPath);
+
+                            Console.WriteLine(
+                                "Advertisement video deleted successfully."
+                            );
+                        }
+                        else
+                        {
+                            Console.WriteLine(
+                                "Advertisement video file does not exist. Skipping."
+                            );
+                        }
+                    }
+                    catch (Exception VideoException)
+                    {
+                        Console.WriteLine(
+                            "Exception while deleting advertisement video."
+                        );
+
+                        Console.WriteLine(
+                            $"Video delete exception: {VideoException.Message}"
+                        );
+
+                        // Do not crash because of a missing/unavailable file.
+                        // Continue with database deletion.
+                    }
+                }
+                else
+                {
+                    Console.WriteLine(
+                        "Advertisement does not have a video."
+                    );
+                }
+
+                // =========================================================
+                // 7. Delete Advertisement Database Row
+                // =========================================================
+
+                Database.AdvertisementInfos.Remove(advertisement);
+
+                Console.WriteLine(
+                    "Advertisement marked for database deletion."
+                );
+
+                await Database.SaveChangesAsync();
+
+                Console.WriteLine(
+                    "Advertisement database row deleted successfully."
+                );
+
+                // =========================================================
+                // 8. Success
+                // =========================================================
+
+                Console.WriteLine(
+                    "Advertisement deleted successfully."
+                );
+
+                return StatusCode(
+                    200,
+                    "Advertisement deleted successfully."
+                );
+            }
+            catch (Exception ex)
+            {
+                // =========================================================
+                // 9. Main Exception
+                // =========================================================
+
+                Console.WriteLine(
+                    "========== DELETE ADVERTISEMENT ERROR =========="
+                );
+
+                Console.WriteLine(
+                    $"Exception: {ex.Message}"
+                );
+
+                Console.WriteLine(
+                    $"StackTrace: {ex.StackTrace}"
+                );
+
+                return StatusCode(
+                    500,
+                    "An error occurred while deleting advertisement."
+                );
+            }
+        }
+
+
+
+
+    }
+}

@@ -447,6 +447,10 @@ class Header extends StatelessWidget {
               String? User_Role =
               box.get('user_role');
 
+
+              int? User_Number =
+              box.get('user_number');
+
               Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(
@@ -491,17 +495,23 @@ class Header extends StatelessWidget {
               String? User_Role =
               box.get('user_role');
 
-              if (User_Role == "Provider")
+              int? User_Number =
+              box.get('user_number');
+
+              if (User_Role == "provider")
               {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(
+
+
                     builder: (context) {
                       return ProviderBookingsScreen(
                      Current_User_Email: User_Email!,
                         Current_User_JwtToken: Jwt_Token!,
                         Current_User_Role: User_Role!, 
                         UserLogin: UserLogin,
+                        Current_User_Number:User_Number!,
                       );
                     },
                   ),
@@ -559,7 +569,10 @@ class Header extends StatelessWidget {
               print("header token");
               print(Jwt_Token);
 
-              if (User_Role == "Provider") {
+              int? User_Number =
+              box.get('user_number');
+
+              if (User_Role == "provider") {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(
@@ -925,8 +938,11 @@ class Header extends StatelessWidget {
                                     String? User_Role =
                                     box.get('user_role');
 
+                                    int? User_Number =
+                                    box.get('user_number');
+
                                     if (User_Role ==
-                                        "Provider") {
+                                        "provider") {
                                       Navigator
                                           .pushAndRemoveUntil(
                                         context,
@@ -939,6 +955,7 @@ class Header extends StatelessWidget {
                                               Jwt_Token!,
                                               Current_User_Role:
                                               User_Role!, UserLogin: UserLogin,
+                                              Current_User_Number: User_Number!,
                                             );
                                           },
                                         ),
@@ -1007,7 +1024,7 @@ class Header extends StatelessWidget {
                                     print(Jwt_Token);
 
                                     if (User_Role ==
-                                        "Provider") {
+                                        "provider") {
                                       Navigator
                                           .pushAndRemoveUntil(
                                         context,

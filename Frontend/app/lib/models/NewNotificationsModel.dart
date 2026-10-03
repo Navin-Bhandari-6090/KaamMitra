@@ -1,40 +1,40 @@
-/// newNotId : 2
-/// receiverEmail : "sd@.com"
+/// newNotId : 1
+/// receiverNumber : 5
 /// status : true
 
 class NewNotificationsModel {
   NewNotificationsModel({
       num? newNotId, 
-      String? receiverEmail, 
+      num? receiverNumber, 
       bool? status,}){
     _newNotId = newNotId;
-    _receiverEmail = receiverEmail;
+    _receiverNumber = receiverNumber;
     _status = status;
 }
 
   NewNotificationsModel.fromJson(dynamic json) {
     _newNotId = json['newNotId'];
-    _receiverEmail = json['receiverEmail'];
+    _receiverNumber = json['receiverNumber'];
     _status = json['status'];
   }
   num? _newNotId;
-  String? _receiverEmail;
+  num? _receiverNumber;
   bool? _status;
 NewNotificationsModel copyWith({  num? newNotId,
-  String? receiverEmail,
+  num? receiverNumber,
   bool? status,
 }) => NewNotificationsModel(  newNotId: newNotId ?? _newNotId,
-  receiverEmail: receiverEmail ?? _receiverEmail,
+  receiverNumber: receiverNumber ?? _receiverNumber,
   status: status ?? _status,
 );
   num? get newNotId => _newNotId;
-  String? get receiverEmail => _receiverEmail;
+  num? get receiverNumber => _receiverNumber;
   bool? get status => _status;
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
     map['newNotId'] = _newNotId;
-    map['receiverEmail'] = _receiverEmail;
+    map['receiverNumber'] = _receiverNumber;
     map['status'] = _status;
     return map;
   }

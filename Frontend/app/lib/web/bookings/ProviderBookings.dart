@@ -14,8 +14,9 @@ import '../../state management/getx/booking/ProviderBookingScreenGetX.dart';
 import '../authentication/Error_page.dart';
 import '../common method/Commmon_Method.dart';
 // TODO: point these two imports at the real locations of the details screens.
+import 'ProviderBookingInfoDetailsScreen.dart';
 import 'userbookinginfodetailsscreen.dart';
-import 'providerbookinginfodetailsscreen.dart';
+
 
 // Adjust the provider_bookings_getx.dart import path above to match wherever
 // you place that file relative to this one.
@@ -51,8 +52,9 @@ class ProviderBookingsScreen extends StatefulWidget
   final String Current_User_Email;
   final String Current_User_JwtToken;
   final String Current_User_Role;
+  final int Current_User_Number;
   final bool UserLogin;
-  const ProviderBookingsScreen({super.key, required this.Current_User_Email, required this.Current_User_JwtToken, required this.Current_User_Role, required this.UserLogin});
+  const ProviderBookingsScreen({super.key, required this.Current_User_Email, required this.Current_User_JwtToken, required this.Current_User_Role, required this.UserLogin, required this.Current_User_Number});
 
   @override
   State<ProviderBookingsScreen> createState() => _ProviderBookingsScreenState();
@@ -520,12 +522,14 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
             bookingCont.bookingInfoList
                 .where((element) => element.bookId == BookingId)
                 .toList();
-            if (isProvider) {
+            if (isProvider)
+            {
               return Providerbookinginfodetailsscreen(
                 Current_User_Email: widget.Current_User_Email,
                 Current_User_JwtToken: widget.Current_User_JwtToken,
                 Current_User_Role: widget.Current_User_Role,
                 BookingInfoListInfo: filteredBookingList,
+                Current_User_Number: widget.Current_User_Number,
               );
             } else {
               return Userbookinginfodetailsscreen(

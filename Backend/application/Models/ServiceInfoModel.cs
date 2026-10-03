@@ -18,16 +18,16 @@ namespace application.Models
         public string ServiceDescription { get; set; } = string.Empty;
 
         [Required]
-        public int DomesticPrice { get; set; }
+        public double DomesticPrice { get; set; }
 
         [Required]
-        public int DomesticPriceDiscount { get; set; }
+        public double DomesticPriceDiscount { get; set; }
 
         [Required]
-        public int InternationalPrice { get; set; }
+        public double InternationalPrice { get; set; }
 
         [Required]
-        public int InternationalPriceDiscount { get; set; }
+        public double InternationalPriceDiscount { get; set; }
 
 
     }

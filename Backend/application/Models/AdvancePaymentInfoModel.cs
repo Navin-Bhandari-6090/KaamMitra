@@ -17,27 +17,9 @@ namespace application.Models
         [Required]
         public int BookId { get; set; }
 
-        [Required]
-        [EmailAddress]
-        [StringLength(200)]
-        public string UserEmail { get; set; }
-
-        [Required]
-        [EmailAddress]
-        [StringLength(200)]
-        public string ProviderEmail { get; set; }
-
-        [Required]
-        public int ProviderNumber { get; set; }
-
-        [Required]
-        public int UserNumber { get; set; }
 
         [ForeignKey("BookId")]
         public BookinInfoModel? BookingInfos { get; set; }
-
-
-
 
     }
 }

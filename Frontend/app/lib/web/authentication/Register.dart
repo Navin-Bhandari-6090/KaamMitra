@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -172,6 +171,7 @@ class _RegisterScreenState extends State<RegisterScreen>
     }
   }
 
+
   Future<int> _handleCreateAccount(BuildContext context) async {
     try {
       // ---------------------------------------------------------
@@ -329,13 +329,6 @@ class _RegisterScreenState extends State<RegisterScreen>
       // ---------------------------------------------------------
       // Create Multipart Request
       // ---------------------------------------------------------
-      //
-      // We use multipart/form-data because your backend is now
-      // using [FromForm].
-      //
-      // There is NO photo/file because signup does not have
-      // a photo selection option.
-      // ---------------------------------------------------------
 
       final request = http.MultipartRequest(
         'POST',
@@ -343,7 +336,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       );
 
       // ---------------------------------------------------------
-      // Add Authorization header
+      // Authorization
       // ---------------------------------------------------------
 
       request.headers['Authorization'] =
@@ -380,11 +373,13 @@ class _RegisterScreenState extends State<RegisterScreen>
       print('Signup response body: $responseBody');
 
       // ---------------------------------------------------------
-      // Handle response status codes
+      // 200 - Account created successfully
       // ---------------------------------------------------------
 
       if (response.statusCode == 200) {
-        _toast.Toastmsg('Account created successfully');
+        _toast.Toastmsg(
+          'Account created successfully',
+        );
 
         print('Account created successfully');
         print('Data insert in userinfo table success.');
@@ -393,50 +388,78 @@ class _RegisterScreenState extends State<RegisterScreen>
       }
 
       // ---------------------------------------------------------
-      // Email already exists
-      // Backend: 502
+      // 400 - Invalid role
+      // Backend:
+      // return BadRequest("Invalid role.");
       // ---------------------------------------------------------
 
-      else if (response.statusCode == 502) {
+      else if (response.statusCode == 400) {
         _toast.Toastmsg(
-          'Account created fail.Email already exists.',
+          responseBody.isNotEmpty
+              ? responseBody
+              : 'Invalid role.',
         );
 
-        print('Account created fail.Email already exists.');
-        print('Email already exists.');
+        print(
+          'Account created fail. Invalid role.',
+        );
 
-        return 3;
+        return 2;
       }
 
       // ---------------------------------------------------------
-      // Invalid data
-      // Backend: 501
+      // 501 - Invalid data
+      // Backend:
+      // ModelState invalid
+      // Password invalid
+      // Email invalid
       // ---------------------------------------------------------
 
       else if (response.statusCode == 501) {
         _toast.Toastmsg(
-          'Account created fail.Provided data are not in correct format.',
+          responseBody.isNotEmpty
+              ? responseBody
+              : 'Provided data are not in correct format.',
         );
 
         print(
-          'Account created fail.Provided data are not in correct format.',
+          'Account created fail. Provided data are not in correct format.',
         );
 
         return 4;
       }
 
       // ---------------------------------------------------------
-      // Backend exception
-      // Backend: 500
+      // 502 - Email already exists
+      // ---------------------------------------------------------
+
+      else if (response.statusCode == 502) {
+        _toast.Toastmsg(
+          responseBody.isNotEmpty
+              ? responseBody
+              : 'Email already exists.',
+        );
+
+        print(
+          'Account created fail. Email already exists.',
+        );
+
+        return 3;
+      }
+
+      // ---------------------------------------------------------
+      // 500 - Backend exception
       // ---------------------------------------------------------
 
       else if (response.statusCode == 500) {
         _toast.Toastmsg(
-          'Account created fail.Exception caught in backend.',
+          responseBody.isNotEmpty
+              ? responseBody
+              : 'Something went wrong. Please try again.',
         );
 
         print(
-          'Account created fail.Exception caught in backend.',
+          'Account created fail. Exception caught in backend.',
         );
 
         return 5;
@@ -452,11 +475,7 @@ class _RegisterScreenState extends State<RegisterScreen>
         );
 
         _toast.Toastmsg(
-          'Account created fail.Data insert in userinfo table fail.',
-        );
-
-        print(
-          'Account created fail.Data insert in userinfo table fail.',
+          'Account created fail. Status code: ${response.statusCode}',
         );
 
         return 2;
@@ -469,16 +488,18 @@ class _RegisterScreenState extends State<RegisterScreen>
       print('Signup exception: $E');
 
       _toast.Toastmsg(
-        'Account created fail.Please try again.Server error.',
+        'Account created fail. Please try again. Server error.',
       );
 
       print(
-        'Account created fail.Please try again.Server error.',
+        'Account created fail. Please try again. Server error.',
       );
 
       return 0;
     }
   }
+
+
 
 
 

@@ -56,7 +56,11 @@ class SelectServiceProviderInfoScreen extends StatefulWidget {
   final double Rating;
   final String Provider_User_Email;
   final String Provider_Service_Name;
+  final num ServiceId;
   final num Providernumber;
+  final String ServiceName;
+
+
   final List<ServiceScreenServiceModel> Service_info_List;
   final List<ServiceScreenUserInfoModel> Provider_info_List;
 
@@ -71,7 +75,8 @@ class SelectServiceProviderInfoScreen extends StatefulWidget {
         required this.Service_info_List,
         required this.Provider_info_List,
         required this.Provider_Service_Name,
-        required this.Providernumber
+        required this.Providernumber,
+        required this.ServiceId, required this.ServiceName
       });
 
   @override
@@ -183,28 +188,29 @@ class _SelectServiceProviderInfoScreenState
 
 
   Future<int> AddBookingInfo({
-    required String UserEmail,
     required String Current_User_JwtToken,
     required double Distance,
-    required String ProviderEmail,
+    required num ProviderNumber,
     required String ServiceName,
     required bool ProviderApprovalStatus,
     required bool  ProviderTaskCompleteStatus,
     required bool  UserTaskCompleteStatus,
     required bool UserApprovalStatus,
-    required String UserBookingDescription
+    required String UserBookingDescription,
+    required num ServiceId,
+
   }) async {
     try {
       final Map<String, dynamic> userData = {
-        "UserEmail": UserEmail,
         "UserBookingDescription": UserBookingDescription,
         "Distance": Distance,
-        "ProviderEmail": ProviderEmail,
         "ServiceName": ServiceName,
         "ProviderApprovalStatus": ProviderApprovalStatus,
         "ProviderTaskCompleteStatus": ProviderTaskCompleteStatus,
         "UserTaskCompleteStatus":UserTaskCompleteStatus,
         "UserApprovalStatus":UserApprovalStatus,
+        "ServiceId":ServiceId,
+        "ProviderNumber":ProviderNumber
       };
       const String url = Backend_Server_Url + "api/Service/addbookinginfo";
       final response = await http.post(
@@ -218,6 +224,7 @@ class _SelectServiceProviderInfoScreenState
       if (response.statusCode == 200)
       {
         print("Add booking info success");
+        Toast.Toastmsg("Booking success.");
         return 1;
       }
       else if (response.statusCode == 500)
@@ -1084,59 +1091,35 @@ class _SelectServiceProviderInfoScreenState
         }
 
         final AddBookingResult=await AddBookingInfo(
-            UserEmail: widget.Current_User_Email,
             Current_User_JwtToken: widget.Current_User_JwtToken,
             Distance: widget.Distance,
-            ProviderEmail: widget.Provider_User_Email,
             ServiceName: widget.Provider_Service_Name,
             ProviderApprovalStatus: false,
             UserApprovalStatus: true,
           ProviderTaskCompleteStatus: false,
           UserTaskCompleteStatus: false,
           UserBookingDescription: UserBookingDescriptionTextCont.text.trim(),
+          ServiceId:widget.ServiceId,
+          ProviderNumber: widget.Providernumber,
         );
-        if(AddBookingResult==1)
-        {
+
+
+
+
+
           final AddNotificationsResult=await AddNotifications(
-              CurrentUserEmail: widget.Current_User_Email,
-              ReceiverEmail: widget.Provider_User_Email,
+              ReceiverNumber: widget.Providernumber,
               Message: "You have been booked by ${widget.Current_User_Email} for ${widget.Provider_Service_Name}.",
               Current_User_JwtToken: widget.Current_User_JwtToken,
               context: context
           );
-          if(AddNotificationsResult==1)
-          {
+
               final AddNewNotificationsResult= await AddNewNotifications(
-                  CurrentUserEmail: widget.Current_User_Email,
-                  ReceiverEmail: widget.Provider_User_Email,
+                  ReceiverNumber: widget.Providernumber,
                   Status: true,
                   Current_User_JwtToken: widget.Current_User_JwtToken,
                   context: context
               );
-              if(AddNewNotificationsResult==1)
-              {
-                await Toast.Toastmsg("Booking success.");
-                print("Booking success");
-              }
-              else
-              {
-                print("Add new notification failed");
-                return;
-              }
-          }
-          else
-          {
-            print("Add notification failed");
-              return;
-          }
-
-
-        }
-        else
-        {
-          print("Booking failed");
-        return;
-        }
 
       },
     );

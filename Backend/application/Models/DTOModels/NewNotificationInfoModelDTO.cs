@@ -6,17 +6,10 @@ namespace application.Models.DTOModels
     {
 
         [Required]
-        [StringLength(200)]
-        public string ReceiverEmail { get; set; }
+        public int ReceiverNumber { get; set; }
 
         [Required]
         public bool Status { get; set; }
-
-
-        [Required]
-        [StringLength(200)]
-        public string CurrentUserEmail { get; set; }
-
 
     }
 }

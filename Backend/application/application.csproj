@@ -25,6 +25,11 @@
   <ItemGroup>
     <Folder Include="Data\" />
     <Folder Include="wwwroot\" />
+    <Folder Include="wwwroot\uploads\advance-payment-qr\" />
+    <Folder Include="wwwroot\uploads\advance-payment\" />
+    <Folder Include="wwwroot\uploads\advertisements\photos\" />
+    <Folder Include="wwwroot\uploads\advertisements\videos\" />
+    <Folder Include="wwwroot\uploads\service-resources\photos\" />
   </ItemGroup>
 
 </Project>

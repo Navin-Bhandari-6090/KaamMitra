@@ -391,6 +391,13 @@ class _ProviderAddSeviceResourcesState
           'Add service resources success.',
         );
 
+        change_video_cont_getx.videoExtension.value="";
+        change_video_cont_getx.videoBytes.value=null;
+        change_video_cont_getx.videoPath.value="";
+        change_photo_cont_getx.imageExtension.value="";
+        change_photo_cont_getx.imageBytes.value=null;
+        change_photo_cont_getx.imagePath.value="";
+
         return 1;
       }
 

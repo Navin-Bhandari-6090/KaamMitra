@@ -4,7 +4,8 @@
 /// email : "sd@.com"
 /// userNumber : 1
 
-class ServiceScreenServiceModel {
+class ServiceScreenServiceModel
+{
   ServiceScreenServiceModel({
       num? providerServiceId, 
       String? serviceName, 

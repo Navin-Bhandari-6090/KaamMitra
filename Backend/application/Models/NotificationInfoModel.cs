@@ -11,13 +11,12 @@ namespace application.Models
         public int NotId { get; set; }
 
         [Required]
-        [StringLength(200)]
-        public string ReceiverEmail { get; set; }
+        public int ReceiverNumber { get; set; }
 
         [Required]
         public string Message { get; set; }
 
-        [Required]
+       
         public DateTime Date { get; set; }
 
 

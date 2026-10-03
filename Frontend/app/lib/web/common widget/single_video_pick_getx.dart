@@ -2,6 +2,8 @@ import 'dart:typed_data';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../constant/variable.dart';
+
 class PickSingleVideoController extends GetxController {
   RxString videoPath = "".obs;
   RxString videoExtension = "".obs;
@@ -48,7 +50,7 @@ class PickSingleVideoController extends GetxController {
       const int maxSize = 1 * 1024 * 1024 * 1024;
 
       if (fileSize > maxSize) {
-        print("Video file size exceeds 1 GB.");
+        print("Video file larger then ${PhotoSize}..");
         return 2;
       }
 

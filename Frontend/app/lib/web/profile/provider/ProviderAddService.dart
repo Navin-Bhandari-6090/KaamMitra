@@ -382,6 +382,7 @@ class _ProviderAddServiceState extends State<ProviderAddService>
     }
   }
 
+
   List<RegisterServiceInfo> RegisterSearchlList = [];
 
   Future<void> GetRegisterServiceInfo({

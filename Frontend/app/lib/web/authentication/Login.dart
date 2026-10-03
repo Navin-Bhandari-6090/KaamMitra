@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:app/state%20management/bloc/common%20state/common_variable_bloc.dart';
 import 'package:app/web/authentication/Error_page.dart';
 import 'package:app/web/common%20widget/toast.dart';
-import 'package:app/web/home/Admin_Home_Screenn.dart';
+import 'package:app/web/admin/Admin_Home_Screenn.dart';
 import 'package:app/web/home/Home_Screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -135,10 +135,11 @@ class _LoginScreenState extends State<LoginScreen>
         String token = responseData['token']!;
         String email = responseData['email']!;
         String User_Type = responseData['usertype']!;
-        if(User_Type=="Admin")
+        int User_Number = responseData['usernumber']!;
+        if(User_Type=="admin")
         {
           Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context){
-            return AdminHomeScreen(User_Role: User_Type, User_JwtToken: token, User_Email: email,);
+            return AdminHomeScreen(User_Role: User_Type, User_JwtToken: token, User_Email: email, User_Number: User_Number,);
           },),
             (route) => false,
           );

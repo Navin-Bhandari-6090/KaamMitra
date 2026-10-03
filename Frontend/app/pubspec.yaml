@@ -49,6 +49,7 @@ flutter:
     - assets/images/logo/
     - assets/images/error/
     - assets/data/
+    - assets/images/payment/
 
 
   fonts:

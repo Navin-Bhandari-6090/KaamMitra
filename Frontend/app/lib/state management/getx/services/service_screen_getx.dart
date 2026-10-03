@@ -153,7 +153,7 @@ class ServiceScreenGetx extends GetxController {
       // ----------------------------------------------------------
       double rating = 0.0;
       for (final r in ratings) {
-        if (r.userEmail == service.email &&
+        if (r.ratingReceiverNumber == service.userNumber &&
             r.serviceName == service.serviceName) {
           rating = asDouble(r.averageRating);
           break;

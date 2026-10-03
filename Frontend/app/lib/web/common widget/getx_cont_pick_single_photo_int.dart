@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../constant/variable.dart';
+
 class pick_single_photo_getx_int extends GetxController {
   RxString imagePath = "".obs;
   RxString imageExtension = "".obs;
@@ -43,7 +45,7 @@ class pick_single_photo_getx_int extends GetxController {
         // Validate file size
         if (bytes.length > maxSize)
         {
-          print("Photo is larger than 100 MB.");
+          print("Photo is larger then ${PhotoSize}.");
           // Clear previous image if necessary
           imagePath.value = "";
           imageExtension.value = "";

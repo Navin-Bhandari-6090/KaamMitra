@@ -1,39 +1,39 @@
-/// userEmail : "sd@.com"
-/// serviceName : "painter"
-/// averageRating : 2
+/// ratingReceiverNumber : 5
+/// serviceName : "plumber"
+/// averageRating : 5
 
 class RatingInfoModel {
   RatingInfoModel({
-      String? userEmail, 
+      num? ratingReceiverNumber, 
       String? serviceName, 
       num? averageRating,}){
-    _userEmail = userEmail;
+    _ratingReceiverNumber = ratingReceiverNumber;
     _serviceName = serviceName;
     _averageRating = averageRating;
 }
 
   RatingInfoModel.fromJson(dynamic json) {
-    _userEmail = json['userEmail'];
+    _ratingReceiverNumber = json['ratingReceiverNumber'];
     _serviceName = json['serviceName'];
     _averageRating = json['averageRating'];
   }
-  String? _userEmail;
+  num? _ratingReceiverNumber;
   String? _serviceName;
   num? _averageRating;
-RatingInfoModel copyWith({  String? userEmail,
+RatingInfoModel copyWith({  num? ratingReceiverNumber,
   String? serviceName,
   num? averageRating,
-}) => RatingInfoModel(  userEmail: userEmail ?? _userEmail,
+}) => RatingInfoModel(  ratingReceiverNumber: ratingReceiverNumber ?? _ratingReceiverNumber,
   serviceName: serviceName ?? _serviceName,
   averageRating: averageRating ?? _averageRating,
 );
-  String? get userEmail => _userEmail;
+  num? get ratingReceiverNumber => _ratingReceiverNumber;
   String? get serviceName => _serviceName;
   num? get averageRating => _averageRating;
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
-    map['userEmail'] = _userEmail;
+    map['ratingReceiverNumber'] = _ratingReceiverNumber;
     map['serviceName'] = _serviceName;
     map['averageRating'] = _averageRating;
     return map;

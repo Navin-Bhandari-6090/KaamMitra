@@ -23,22 +23,15 @@ namespace application.Models
 
 
         [Required]
-        [StringLength(200)]
-        public string ServiceName { get; set; }
+        public int ServiceId { get; set; }
+
+        [Required]
+        public string ServiceName { get; set; } = string.Empty;
 
 
         [Required]
         public double Distance { get; set; }
 
-        [Required]
-        [EmailAddress]
-        [StringLength(200)]
-        public string UserEmail { get; set; }
-
-        [Required]
-        [EmailAddress]
-        [StringLength(200)]
-        public string ProviderEmail { get; set; }
 
         [Required]
         public bool ProviderApprovalStatus { get; set; }
@@ -62,7 +55,13 @@ namespace application.Models
         public int UserNumber { get; set; }
 
         [Required]
+        public int ProviderNumber { get; set; }
+
+        [Required]
         public bool RequiredAdvancePayment { get; set; }
+
+       
+        public double RatingValueUser { get; set; }
 
 
         [ForeignKey("UserNumber")]
@@ -71,6 +70,10 @@ namespace application.Models
 
         public ICollection<AdvancePaymentInfoModel> AdvancePaymentInfos { get; set; } = [];
 
+
+        public ICollection<RatingInfoModel> RatingInfos { get; set; } = [];
+
+        public ICollection<ProTaskCompletePaymentInfos> TaskCompletePayments { get; set; } = [];
 
     }
 }

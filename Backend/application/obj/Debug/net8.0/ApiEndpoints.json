@@ -1,12 +1,272 @@
 [
   {
     "ContainingType": "application.Controllers.AdminController",
-    "Method": "GetServiceInfo1",
+    "Method": "AddAdminQr",
+    "RelativePath": "api/Admin/addadminqr",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "DomesticQRPhoto",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "InternationalQRPhoto",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "AddAdvertisement",
+    "RelativePath": "api/Admin/addadvertisement",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "Photo",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "Video",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "Tittle",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "UrlLink",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "DeleteAdvancePaymentInfo",
+    "RelativePath": "api/Admin/deleteadvancepaymentinfo",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.AdvancePayPhotoIdDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "DeleteAdvancePaymentQrInfo",
+    "RelativePath": "api/Admin/deleteadvancepaymentqrinfo",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.AdvPayQRIDDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "DeleteAdvertisement",
+    "RelativePath": "api/Admin/deleteadvertisement",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.ADidDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "DeleteBooking",
+    "RelativePath": "api/Admin/deletebooking",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "application.Models.DTOModels.OnlyBookingIDDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "DeleteService",
+    "RelativePath": "api/Admin/deleteservice",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.ServiceIdDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "DeleteService",
+    "RelativePath": "api/Admin/deleteservice",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.ProviderServiceIdDTO",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "DeleteTaskCompletePayment",
+    "RelativePath": "api/Admin/deletetaskcompletepayment",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "application.Models.DTOModels.ProTaskComPayIDDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "GetAdminQr",
+    "RelativePath": "api/Admin/getadminqr",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "GetAllAdvancePaymentInfos",
+    "RelativePath": "api/Admin/getalladvancepaymentinfos",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "GetAllAdvancePaymentQrInfos",
+    "RelativePath": "api/Admin/getalladvancepaymentqrinfos",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "GetAllAdvertisementInfos",
+    "RelativePath": "api/Admin/getalladvertisementinfos",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "GetAllProviderServiceResources",
+    "RelativePath": "api/Admin/getallproviderserviceresources",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "GetAllProviderServices",
+    "RelativePath": "api/Admin/getallproviderservices",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "GetAllTaskCompletePayments",
+    "RelativePath": "api/Admin/getalltaskcompletepayments",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "GetServiceInfo",
     "RelativePath": "api/Admin/getservicenormal",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
     "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "GetUserInfo",
+    "RelativePath": "api/Admin/getuserinfo",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "UpdateTaskCompleteStatus",
+    "RelativePath": "api/Admin/proupdatetaskcompletestatus",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UpdateProviderApprovalStatusDTO",
+        "IsRequired": true
+      }
+    ],
     "ReturnTypes": []
   },
   {
@@ -20,6 +280,38 @@
       {
         "Name": "obj",
         "Type": "application.Models.ServiceInfoModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "UpdateLoginAccess",
+    "RelativePath": "api/Admin/updateloginaccess",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UserNumberDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "UpdateServicePrice",
+    "RelativePath": "api/Admin/updateservice",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.RegServicePriceUpdateDTO",
         "IsRequired": true
       }
     ],
@@ -184,18 +476,96 @@
   },
   {
     "ContainingType": "application.Controllers.BookingController",
-    "Method": "UpdateTaskCompleteStatus",
-    "RelativePath": "api/Booking/proupdatetaskcompletestatus",
-    "HttpMethod": "PUT",
+    "Method": "AddTaskCompletePayment",
+    "RelativePath": "api/Booking/addtaskcompletepayment",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "PaymentAmount",
+        "Type": "System.Double",
+        "IsRequired": false
+      },
+      {
+        "Name": "PaymentDate",
+        "Type": "System.DateTime",
+        "IsRequired": false
+      },
+      {
+        "Name": "BookId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "PaymentMethod",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "PaymentPhoto",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "AdminAddNotification",
+    "RelativePath": "api/Booking/adminaddnot",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "application.Models.DTOModels.MessageDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "GetAdvancePaymentPhoto",
+    "RelativePath": "api/Booking/getadvancepaymentphoto",
+    "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
     "Parameters": [
       {
         "Name": "obj",
-        "Type": "application.Models.DTOModels.UpdateProviderApprovalStatusDTO",
+        "Type": "application.Models.DTOModels.BookIngIdDTO",
         "IsRequired": true
       }
     ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "GetAdvanceQRPhoto",
+    "RelativePath": "api/Booking/getadvanceqrphoto",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UserNumberDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "GetProviderTaskCompletePayments",
+    "RelativePath": "api/Booking/getprovidertaskcompletepayments",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
     "ReturnTypes": []
   },
   {
@@ -337,6 +707,75 @@
       {
         "Name": "obj",
         "Type": "application.Models.DTOModels.DescriptionBookingDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "UpdateUserApprovalStatus",
+    "RelativePath": "api/Booking/updateuserapprovalstatus",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UpdateProviderApprovalStatusDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "UpdateUserRating",
+    "RelativePath": "api/Booking/updateuserrating",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.RatingInfoModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "UploadAdvancePaymentPhoto",
+    "RelativePath": "api/Booking/uploadadvancepaymentphoto",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "PaymentPhoto",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "BookId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "UserUpdateTaskCompleteStatus",
+    "RelativePath": "api/Booking/userupdatetaskcompletestatus",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UpdateProviderApprovalStatusDTO",
         "IsRequired": true
       }
     ],
@@ -748,7 +1187,7 @@
   },
   {
     "ContainingType": "application.Controllers.ServiceController",
-    "Method": "AddNotification",
+    "Method": "AddNewNotification",
     "RelativePath": "api/Service/addnewnotification",
     "HttpMethod": "POST",
     "IsController": true,

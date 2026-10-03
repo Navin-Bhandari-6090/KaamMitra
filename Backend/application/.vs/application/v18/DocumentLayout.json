@@ -3,16 +3,12 @@
   "WorkspaceRootPath": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\controllers\\profilecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:controllers\\profilecontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\controllers\\bookingcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:controllers\\bookingcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\models\\dtomodels\\updateaddressdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:models\\dtomodels\\updateaddressdto.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\controllers\\admincontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:controllers\\admincontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -27,40 +23,27 @@
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "UpdateAddressDTO.cs",
-              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Models\\DTOModels\\UpdateAddressDTO.cs",
-              "RelativeDocumentMoniker": "Models\\DTOModels\\UpdateAddressDTO.cs",
-              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Models\\DTOModels\\UpdateAddressDTO.cs",
-              "RelativeToolTip": "Models\\DTOModels\\UpdateAddressDTO.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAuwA8AAAAdAAAAAAAAAA==",
+              "Title": "AdminController.cs",
+              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Controllers\\AdminController.cs",
+              "RelativeDocumentMoniker": "Controllers\\AdminController.cs",
+              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Controllers\\AdminController.cs",
+              "RelativeToolTip": "Controllers\\AdminController.cs",
+              "ViewState": "AgIAAFwPAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-21T15:04:57.703Z",
+              "WhenOpened": "2026-10-03T16:47:04.249Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 0,
-              "Title": "ProfileController.cs",
-              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Controllers\\ProfileController.cs",
-              "RelativeDocumentMoniker": "Controllers\\ProfileController.cs",
-              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Controllers\\ProfileController.cs",
-              "RelativeToolTip": "Controllers\\ProfileController.cs",
-              "ViewState": "AgIAABcAAAAAAAAAAAAgwCAAAABSAAAAAAAAAA==",
+              "Title": "BookingController.cs",
+              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Controllers\\BookingController.cs",
+              "RelativeDocumentMoniker": "Controllers\\BookingController.cs",
+              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Controllers\\BookingController.cs",
+              "RelativeToolTip": "Controllers\\BookingController.cs",
+              "ViewState": "AgIAAOcHAAAAAAAAAAAwwPYHAAAzAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-21T15:03:35.471Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 2,
-              "Title": "Program.cs",
-              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Program.cs",
-              "RelativeDocumentMoniker": "Program.cs",
-              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Program.cs",
-              "RelativeToolTip": "Program.cs",
-              "ViewState": "AgIAAC0AAAAAAAAAAAAAADcAAAAsAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-09-21T14:51:12.225Z",
+              "WhenOpened": "2026-10-03T15:48:58.645Z",
               "EditorCaption": ""
             }
           ]

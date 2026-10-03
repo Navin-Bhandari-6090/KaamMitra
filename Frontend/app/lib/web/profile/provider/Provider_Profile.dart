@@ -629,12 +629,16 @@ class _ProviderProfileState extends State<ProviderProfile>
                           horizontal: widthval * (isLandscape ? 0.06 : 0.05),
                           vertical: heightval * 0.02,
                         ),
-                        child: Column(
+                        child:
+                        Column(
                           children: [
 
-                            Obx(
+                            Obx
+                              (
                                   ()=>
-                              FutureBuilder(
+
+                              FutureBuilder
+                                (
                                 future: GetUserInfo(
                                   Email: widget.User_Email,
                                   jwttoken: widget.User_JwtToken,
@@ -915,6 +919,9 @@ class _ProviderProfileState extends State<ProviderProfile>
                                   );
                                 },
                               ),
+
+
+
                             ),
 
                             SizedBox(height: heightval * 0.035),

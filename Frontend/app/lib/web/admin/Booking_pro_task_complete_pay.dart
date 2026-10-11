@@ -73,7 +73,9 @@ class _BookingProTaskCompletePayState extends State<BookingProTaskCompletePay> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context)
+  {
+
     return Scaffold(
       backgroundColor: _C.bg,
       appBar: AppBar(
@@ -175,6 +177,7 @@ class _BookingProTaskCompletePayState extends State<BookingProTaskCompletePay> {
         ],
       ),
     );
+
   }
 }
 
@@ -292,6 +295,7 @@ class _Chip extends StatelessWidget {
   final IconData icon;
   final String text;
   final Color color;
+
   const _Chip({required this.icon, required this.text, this.color = _C.mint});
 
   @override
@@ -662,10 +666,13 @@ class _Header extends StatelessWidget {
         const SizedBox(height: 12),
         Obx(() {
           if (c.isLoading.value) {
-            return const _Chip(
+            return const
+
+            _Chip(
                 icon: Icons.sync_rounded, text: "Loading…", color: _C.muted);
           }
-          final int total = c.adminTaskCompletePaymentList.length;
+          // Distinct bookings (a booking with many payments counts once).
+          final int total = c.bookingCount;
           final int paid = c.paymentCount;
           return Wrap(
             alignment: WrapAlignment.center,
@@ -872,7 +879,9 @@ class _Content extends StatelessWidget {
               SizedBox(
                 width: cardW,
                 child: _Entrance(
-                  key: ValueKey('${tab}_${i}_${items[i].hashCode}'),
+                  key: ValueKey(tab == 0
+                      ? 'b_${items[i].bookingInfo?.bookId}_$i'
+                      : 'p_${items[i].paymentInfo?.taskCompletePaymentId}_$i'),
                   index: i,
                   child: tab == 0
                       ? _BookingCard(c: c, m: items[i])
@@ -927,7 +936,9 @@ class _BookingCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context)
+  {
+
     final b = m.bookingInfo;
     final p = m.paymentInfo;
     final num? bookId = b?.bookId;
@@ -1089,6 +1100,7 @@ class _BookingCard extends StatelessWidget {
                     ? null
                     : () async {
                   try {
+
                     final bool ok = await _confirm(
                       title: "Change task complete?",
                       message:
@@ -1097,11 +1109,13 @@ class _BookingCard extends StatelessWidget {
                       icon: Icons.published_with_changes_rounded,
                     );
                     if (!ok) return;
+
                     await c.changeProTaskComplete(
                       context: context,
                       providerNumber: providerNumber,
                       bookId: bookId,
                     );
+
                   } catch (obj) {
                     print(obj.toString());
                   }
@@ -1155,11 +1169,14 @@ class _BookingCard extends StatelessWidget {
         ],
       ),
     );
+
+
   }
 }
 
 // =============================================================================
 // PAYMENT CARD — details + photo (normal & full screen) + delete
+// Works for orphan payments too (bookingInfo == null).
 // =============================================================================
 class _PaymentCard extends StatelessWidget {
   final BookProTaskCompGetx c;
@@ -1171,6 +1188,7 @@ class _PaymentCard extends StatelessWidget {
     final p = m.paymentInfo;
     final num? payId = p?.taskCompletePaymentId;
     final num? bookId = p?.bookId ?? m.bookingInfo?.bookId;
+    final bool bookingMissing = m.bookingInfo == null;
     final String method = _txt(p?.paymentMethod);
     final bool domestic = method.toLowerCase() == 'domestic';
     final String url = c.buildUrl(p?.paymentPhoto);
@@ -1229,6 +1247,16 @@ class _PaymentCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (bookingMissing) ...[
+              const SizedBox(height: 10),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: _Chip(
+                    icon: Icons.link_off_rounded,
+                    text: "Booking no longer exists",
+                    color: _C.warn),
+              ),
+            ],
             const SizedBox(height: 16),
 
             // ---------------- amount ----------------

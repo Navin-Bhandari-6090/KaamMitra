@@ -35,12 +35,37 @@ namespace application.Controllers
         {
             try
             {
+
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return StatusCode(500);
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(500, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(500, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
                 var user_data = await Database.UserInfos
-                    .FirstOrDefaultAsync(x => x.Email == obj.Email);
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
 
                 if (user_data != null)
                 {
-                    Console.WriteLine("console emssage");
+   
 
                     UserInfoProfileScreenDTO user_info = new UserInfoProfileScreenDTO
                     {
@@ -62,7 +87,7 @@ namespace application.Controllers
                 }
                 else
                 {
-                    return StatusCode(500, "No user found.");
+                    return StatusCode(500, "No user data found.");
                 }
             }
             catch (Exception ex)
@@ -93,13 +118,37 @@ namespace application.Controllers
                     );
                 }
 
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return StatusCode(404);
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(404, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(404, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
 
                 // =========================================================
                 // 2. Find user
                 // =========================================================
 
                 var userData = await Database.UserInfos
-                    .FirstOrDefaultAsync(x => x.Email == obj.Email);
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
 
                 if (userData == null)
                 {
@@ -318,15 +367,7 @@ namespace application.Controllers
                 // 15. Success
                 // =========================================================
 
-                return StatusCode(
-                    200,
-                    new
-                    {
-                        Message = "Profile photo updated successfully.",
-                        Email = userData.Email,
-                        Photo = userData.Photo
-                    }
-                );
+                return Ok();
             }
             catch (Exception ex)
             {
@@ -445,7 +486,7 @@ namespace application.Controllers
                 var serviceExists =
                     await Database.ProviderServiceInfo
                         .AnyAsync(x =>
-                            x.Email == currentUserEmail &&
+                            x.UserNumber == currentUserNumber &&
                             x.ServiceName == obj.ServiceName);
 
                 if (serviceExists)
@@ -596,7 +637,10 @@ namespace application.Controllers
                         ServiceDocument =
                             relativeDocumentPath,
 
-                        UserNumber=currentUserNumber
+                        UserNumber=currentUserNumber,
+
+                        ProRegServiceDescription=obj.ProRegServiceDescription
+                        
 
                     };
 
@@ -640,32 +684,6 @@ namespace application.Controllers
                     throw;
                 }
 
-
-                // =========================================================
-                // 18. Success
-                // =========================================================
-
-                //return StatusCode(
-                //    200,
-                //    new
-                //    {
-                //        Message =
-                //            "Service added successfully.",
-
-                //        ProviderServiceId =
-                //            service.ProviderServiceId,
-
-                //        ServiceName =
-                //            service.ServiceName,
-
-                //        ServiceDocument =
-                //            service.ServiceDocument,
-
-                //        Email =
-                //            service.Email
-                //    }
-                //);
-
                 return Ok();
 ;
 
@@ -691,14 +709,43 @@ namespace application.Controllers
 
             try
             {
-                var user_data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
-                if (user_data != null)
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
                 {
+                    return Forbid();
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(500, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(506, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
+                string? currentUserEmail =
+    User.FindFirst(ClaimTypes.Email)?.Value;
+
+                if (string.IsNullOrWhiteSpace(currentUserEmail))
+                {
+                    return StatusCode(500, "No user found.");
+                }
+
+
                     var Service_Data = await Database.ServiceInfos.OrderBy(x => x.ServiceName).ToListAsync();
                     return Ok(Service_Data);
 
-                }
-                return StatusCode(500, "No user found.");
+             
             }
             catch (Exception ex)
             {
@@ -718,6 +765,8 @@ namespace application.Controllers
 public async Task<IActionResult> AddServiceResources(
     [FromForm] ProviderServiceResources obj)
         {
+
+
             string? physicalPhotoPath = null;
             string? physicalVideoPath = null;
 
@@ -735,20 +784,54 @@ public async Task<IActionResult> AddServiceResources(
                     );
                 }
 
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return Forbid();
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(502, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(506, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
+                string? currentUserEmail =
+    User.FindFirst(ClaimTypes.Email)?.Value;
+
+                if (string.IsNullOrWhiteSpace(currentUserEmail))
+                {
+                    return Forbid();
+                }
+
 
                 // =========================================================
                 // 2. Validate Email
                 // =========================================================
 
-                if (string.IsNullOrWhiteSpace(obj.Email))
-                {
-                    return StatusCode(
-                        400,
-                        "Email is required."
-                    );
-                }
+                //if (string.IsNullOrWhiteSpace(obj.Email))
+                //{
+                //    return StatusCode(
+                //        400,
+                //        "Email is required."
+                //    );
+                //}
 
-                obj.Email = obj.Email.Trim();
+                //obj.Email = obj.Email.Trim();
+
+                currentUserEmail = currentUserEmail.Trim();
 
 
                 // =========================================================
@@ -926,14 +1009,16 @@ public async Task<IActionResult> AddServiceResources(
                 // 12. Check Service
                 // =========================================================
 
+      
+
                 var serviceData =
-                    await Database.ProviderServiceInfo
-                        .FirstOrDefaultAsync(x =>
-                            x.ProviderServiceId ==
-                                obj.ProviderServiceId
-                            &&
-                            x.Email == obj.Email
-                        );
+                await Database.ProviderServiceInfo
+                    .FirstOrDefaultAsync(x =>
+                        x.ProviderServiceId ==
+                            obj.ProviderServiceId
+                        &&
+                        x.UserNumber== currentUserNumber
+                    );
 
 
                 if (serviceData == null)
@@ -1154,7 +1239,18 @@ public async Task<IActionResult> AddServiceResources(
 
 
                 //Finding user
-                var User_Data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
+                var User_Data = await Database.UserInfos.FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                var Service_Resour_Data=await Database.ProviderServiceResourcesInfo.Where(x => x.ProviderServiceId == obj.ProviderServiceId && x.UserNumber == currentUserNumber).ToListAsync();
+
+                if (Service_Resour_Data.Count>=3)
+                {
+                    return StatusCode(
+                        508,
+                        "You can only add a maximum of 3 resources for this service."
+                    );
+
+                }
 
 
                 // =========================================================
@@ -1175,10 +1271,7 @@ public async Task<IActionResult> AddServiceResources(
                         ProviderServiceId =
                             obj.ProviderServiceId,
 
-                        Email =
-                            obj.Email,
-
-                        UserNumber=User_Data.UserNumber
+                        UserNumber=currentUserNumber
                     };
 
 
@@ -1240,43 +1333,6 @@ public async Task<IActionResult> AddServiceResources(
                 }
 
 
-                // =========================================================
-                // 32. Success
-                // =========================================================
-
-                //return StatusCode(
-                //    200,
-                //    new
-                //    {
-                //        Message =
-                //            "Service resources added successfully.",
-
-                //        ProviderServiceResourcesId =
-                //            serviceResource
-                //                .ProviderServiceResourcesId,
-
-                //        ProviderServiceId =
-                //            serviceResource
-                //                .ProviderServiceId,
-
-                //        ServicePhoto =
-                //            serviceResource
-                //                .ServicePhoto,
-
-                //        ServiceVideo =
-                //            serviceResource
-                //                .ServiceVideo,
-
-                //        PhotoExtension =
-                //            photoExtension,
-
-                //        VideoExtension =
-                //            videoExtension,
-
-                //        Email =
-                //            serviceResource.Email
-                //    }
-                //);
 
                 return Ok();
             }
@@ -1335,92 +1391,14 @@ public async Task<IActionResult> AddServiceResources(
 
 
 
-        //private string HashPasswordUpdate(string password)
-        //{
-        //    using (var sha256 = SHA256.Create())
-        //    {
-        //        // Compute hash for the password
-        //        var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-        //        // Convert the byte array to a hexadecimal string
-        //        if (hashedBytes != null)
-        //        {
-        //            return BitConverter.ToString(hashedBytes).Replace("-", "").ToLower();
-        //        }
-        //        else
-        //        {
-        //            return "";
-        //        }
-
-        //    }
-
-        //}
-
-        //[Authorize(Policy = "RequireProviderUserRole")]
-        //[HttpPut]
-        //[Route("updatepassword")]
-        //public async Task<IActionResult> UpdatePassword([FromBody] LoginModel obj)
-        //{
-
-        //    try
-        //    {
-        //        var user_data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
-        //        if (user_data != null)
-        //        {
-
-        //            user_data.Password = HashPasswordUpdate(obj.Password);
-        //            await Database.SaveChangesAsync();
-        //            return Ok();
-
-        //        }
-        //        return StatusCode(500, "Database error while getting user info for profile screen using username.");
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(501, ex.Message);
-        //    }
-        //}
-
-        // Used so a missing user takes as long to reject as a wrong password
-        private static readonly string DummyHash = BCrypt.Net.BCrypt.HashPassword("dummy-password", 12);
-
+ 
         // NEW: hashes all new and changed passwords
         private static string HashPassword(string password) =>
             BCrypt.Net.BCrypt.HashPassword(password, 12);
 
-        // NEW: your old hash, kept only so existing users can still log in once
-        private static string LegacySha256(string password)
-        {
-            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(password));
-            return Convert.ToHexString(bytes).ToLower();
-        }
 
-        // NEW: verifies the password and upgrades old SHA-256 hashes to BCrypt
-        //private bool VerifyAndUpgrade(UserInfo user, string plain)
-        //{
-        //    var stored = user.Password;
-        //    if (string.IsNullOrEmpty(stored))
-        //        return false;
 
-        //    if (stored.StartsWith("$2"))                               // already BCrypt
-        //    {
-        //        try
-        //        {
-        //            return BCrypt.Net.BCrypt.Verify(plain, stored);
-        //        }
-        //        catch (BCrypt.Net.SaltParseException ex)
-        //        {
-        //            return false;
-        //        }
-        //    }
-
-        //    if (stored == LegacySha256(plain))                         // old SHA-256 hash
-        //    {
-        //        user.Password = HashPassword(plain);                   // saved by SaveChangesAsync
-        //        return true;
-        //    }
-
-        //    return false;
-        //}
+      
 
         [Authorize(Policy = "RequireProviderUserRole")]
         [EnableRateLimiting("auth")]
@@ -1433,18 +1411,47 @@ public async Task<IActionResult> AddServiceResources(
                 if (!ModelState.IsValid)
                     return BadRequest("Password must be between 8 and 72 characters.");
 
-                // Identity comes from the token, never from the request
-                var email = User.FindFirst(ClaimTypes.Email)?.Value?.Trim().ToLower();
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-                if (string.IsNullOrEmpty(email))
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
                     return Forbid();
+                }
+
 
                 var user = await Database.UserInfos
-                    .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
-                if (user == null || !user.LoginAccess)
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(502, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(506, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
+                string? currentUserEmail =
+    User.FindFirst(ClaimTypes.Email)?.Value;
+
+                if (string.IsNullOrWhiteSpace(currentUserEmail))
+                {
+                    return Forbid();
+                }
+
+
+        
+
+                var user_data = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.Email.ToLower() == currentUserEmail);
+                if (user_data == null || !user_data.LoginAccess)
                     return Forbid();
 
-                user.Password = HashPassword(obj.Password);
+                user_data.Password = HashPassword(obj.Password);
                 await Database.SaveChangesAsync();
                 return Ok();
             }
@@ -1763,6 +1770,29 @@ public async Task<IActionResult> AddServiceResources(
 
             try
             {
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return StatusCode(404);
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(404, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(404, "You have been blocked by System.Contact to KaamMitra community.");
+                }
                 // =========================================================
                 // 1. Validate ModelState
                 // =========================================================
@@ -1779,15 +1809,7 @@ public async Task<IActionResult> AddServiceResources(
                 // 2. Validate Email
                 // =========================================================
 
-                if (string.IsNullOrWhiteSpace(obj.Email))
-                {
-                    return StatusCode(
-                        400,
-                        "Email is required."
-                    );
-                }
-
-                obj.Email = obj.Email.Trim();
+         
 
                 // =========================================================
                 // 3. Validate ProviderServiceId
@@ -1832,7 +1854,7 @@ public async Task<IActionResult> AddServiceResources(
 
                 var userData = await Database.UserInfos
                     .FirstOrDefaultAsync(x =>
-                        x.Email == obj.Email);
+                        x.UserNumber == currentUserNumber);
 
                 if (userData == null)
                 {
@@ -1853,7 +1875,7 @@ public async Task<IActionResult> AddServiceResources(
                                 obj.ProviderServiceResourcesId &&
                             x.ProviderServiceId ==
                                 obj.ProviderServiceId &&
-                            x.Email == obj.Email);
+                            x.UserNumber == currentUserNumber);
 
                 if (resourceData == null)
                 {
@@ -2093,6 +2115,30 @@ public async Task<IActionResult> AddServiceResources(
 
             try
             {
+
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return StatusCode(404);
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(404, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(404, "You have been blocked by System.Contact to KaamMitra community.");
+                }
                 // =========================================================
                 // 1. Validate ModelState
                 // =========================================================
@@ -2105,20 +2151,8 @@ public async Task<IActionResult> AddServiceResources(
                     );
                 }
 
-                // =========================================================
-                // 2. Validate Email
-                // =========================================================
-
-                if (string.IsNullOrWhiteSpace(obj.Email))
-                {
-                    return StatusCode(
-                        400,
-                        "Email is required."
-                    );
-                }
-
-                obj.Email = obj.Email.Trim();
-
+            
+       
                 // =========================================================
                 // 3. Validate ProviderServiceId
                 // =========================================================
@@ -2157,22 +2191,6 @@ public async Task<IActionResult> AddServiceResources(
                 }
 
                 // =========================================================
-                // 6. Check user
-                // =========================================================
-
-                var userData = await Database.UserInfos
-                    .FirstOrDefaultAsync(x =>
-                        x.Email == obj.Email);
-
-                if (userData == null)
-                {
-                    return StatusCode(
-                        404,
-                        "User not found."
-                    );
-                }
-
-                // =========================================================
                 // 7. Find existing service resource
                 // =========================================================
 
@@ -2185,7 +2203,7 @@ public async Task<IActionResult> AddServiceResources(
                             x.ProviderServiceId ==
                                 obj.ProviderServiceId
                             &&
-                            x.Email == obj.Email
+                            x.UserNumber == currentUserNumber
                         );
 
                 if (resourceData == null)
@@ -2432,6 +2450,32 @@ public async Task<IActionResult> AddServiceResources(
         {
             try
             {
+
+
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return StatusCode(404);
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(404, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(404, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
                 // =========================================================
                 // 1. Validate ModelState
                 // =========================================================
@@ -2472,52 +2516,37 @@ public async Task<IActionResult> AddServiceResources(
 
                 obj.ServiceName = obj.ServiceName.Trim();
 
-                // =========================================================
-                // 4. Check user
-                // =========================================================
-
-                var userData = await Database.UserInfos
-                    .FirstOrDefaultAsync(
-                        x => x.Email == obj.Email
-                    );
-
-                if (userData == null)
+                var User_Data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
+                if (User_Data == null)
                 {
-                    return StatusCode(
-                        404,
-                        "No user found."
-                    );
+                    return StatusCode(404);
                 }
 
-                // =========================================================
-                // 5. Get service resources
-                // =========================================================
+                var Provider_User_Nuber = User_Data.UserNumber;
+
+
 
                 var servicePhotos =
-                    await Database.ProviderServiceInfo
-                        .Where(x =>
-                            x.Email == obj.Email &&
-                            x.ServiceName == obj.ServiceName
-                        )
-                        .SelectMany(
-                            service => service.ProviderServicesResources,
-                            (service, resource) =>
-                                new SendServicePhoto
-                                {
-                                    ServiceName =
-                                        service.ServiceName,
+    await (
+        from service in Database.ProviderServiceInfo
+        join resource in Database.ProviderServiceResourcesInfo
+            on service.ProviderServiceId equals resource.ProviderServiceId
+        where service.UserNumber == Provider_User_Nuber
+              && service.ServiceName == obj.ServiceName
+        select new SendServicePhoto
+        {
+            ServiceName = service.ServiceName,
 
-                                    ProviderServiceResourcesId =
-                                        resource.ProviderServiceResourcesId,
+            ProviderServiceResourcesId =
+                resource.ProviderServiceResourcesId,
 
-                                    ServicePhoto =
-                                        resource.ServicePhoto,
+            ServicePhoto =
+                resource.ServicePhoto,
 
-                                    ProviderServiceId =
-                                        resource.ProviderServiceId
-                                }
-                        )
-                        .ToListAsync();
+            ProviderServiceId =
+                resource.ProviderServiceId
+        }
+    ).ToListAsync();
 
                 // =========================================================
                 // 6. Check resources
@@ -2554,7 +2583,7 @@ public async Task<IActionResult> AddServiceResources(
         }
 
 
-        //[Authorize(Policy = "RequireProviderUserRole")]
+        [Authorize(Policy = "RequireProviderUserRole")]
         [HttpPost]
         [Route("getproviderregisterserviceinfo")]
         public async Task<IActionResult> GetProviderServiceInfo(
@@ -2562,16 +2591,40 @@ public async Task<IActionResult> AddServiceResources(
         {
             try
             {
-                var user_data = await Database.UserInfos
-                    .FirstOrDefaultAsync(x => x.Email == obj.Email);
 
-                if (user_data == null)
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
                 {
-                    return NotFound("No user found.");
+                    return StatusCode(404);
                 }
 
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(404, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(404, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
+                var User_Data = await Database.UserInfos.FirstOrDefaultAsync(x=>x.Email==obj.Email);
+                if (User_Data==null) {
+                    return StatusCode(404);
+                }
+
+                var Provider_User_Nuber = User_Data.UserNumber;
+
                 var Service_Data = await Database.ProviderServiceInfo
-                    .Where(x => x.Email == obj.Email)
+                    .Where(x => x.UserNumber == Provider_User_Nuber)
                     .Select(x => new
                     {
                         ServiceName = x.ServiceName,
@@ -2604,6 +2657,30 @@ public async Task<IActionResult> AddServiceResources(
         {
             try
             {
+
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return StatusCode(404);
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(404, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(404, "You have been blocked by System.Contact to KaamMitra community.");
+                }
                 // ============================================================
                 // 1. VALIDATE MODEL
                 // ============================================================
@@ -2644,22 +2721,15 @@ public async Task<IActionResult> AddServiceResources(
 
                 obj.ServiceName = obj.ServiceName.Trim();
 
-                // ============================================================
-                // 4. CHECK USER
-                // ============================================================
 
-                var userData = await Database.UserInfos
-                    .FirstOrDefaultAsync(
-                        x => x.Email == obj.Email
-                    );
 
-                if (userData == null)
+                var User_Data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
+                if (User_Data == null)
                 {
-                    return StatusCode(
-                        404,
-                        "No user found."
-                    );
+                    return StatusCode(404);
                 }
+
+                var Provider_User_Nuber = User_Data.UserNumber;
 
                 // ============================================================
                 // 5. GET SERVICE FILE
@@ -2667,7 +2737,7 @@ public async Task<IActionResult> AddServiceResources(
 
                 var serviceFiles = await Database.ProviderServiceInfo
                     .Where(x =>
-                        x.Email == obj.Email &&
+                        x.UserNumber == Provider_User_Nuber &&
                         x.ServiceName == obj.ServiceName
                     )
                     .Select(x => new SendServDocumentDTO
@@ -2738,6 +2808,8 @@ public async Task<IActionResult> AddServiceResources(
         }
 
 
+
+
         [Authorize(Policy = "RequireProviderUserRole")]
         [HttpPost]
         [Route("getservicevideoinfo")]
@@ -2746,6 +2818,31 @@ public async Task<IActionResult> AddServiceResources(
         {
             try
             {
+
+
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return StatusCode(404);
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(404, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(404, "You have been blocked by System.Contact to KaamMitra community.");
+                }
                 // =========================================================
                 // 1. Validate ModelState
                 // =========================================================
@@ -2758,19 +2855,7 @@ public async Task<IActionResult> AddServiceResources(
                     );
                 }
 
-                // =========================================================
-                // 2. Validate Email
-                // =========================================================
-
-                if (string.IsNullOrWhiteSpace(obj.Email))
-                {
-                    return StatusCode(
-                        400,
-                        "Email is required."
-                    );
-                }
-
-                obj.Email = obj.Email.Trim();
+            
 
                 // =========================================================
                 // 3. Validate ServiceName
@@ -2786,52 +2871,37 @@ public async Task<IActionResult> AddServiceResources(
 
                 obj.ServiceName = obj.ServiceName.Trim();
 
-                // =========================================================
-                // 4. Check user
-                // =========================================================
 
-                var userData = await Database.UserInfos
-                    .FirstOrDefaultAsync(
-                        x => x.Email == obj.Email
-                    );
-
-                if (userData == null)
+                var User_Data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
+                if (User_Data == null)
                 {
-                    return StatusCode(
-                        404,
-                        "No user found."
-                    );
+                    return StatusCode(404);
                 }
 
-                // =========================================================
-                // 5. Get service videos
-                // =========================================================
+                var Provider_User_Nuber = User_Data.UserNumber;
 
                 var serviceVideos =
-                    await Database.ProviderServiceInfo
-                        .Where(x =>
-                            x.Email == obj.Email &&
-                            x.ServiceName == obj.ServiceName
-                        )
-                        .SelectMany(
-                            service => service.ProviderServicesResources,
-                            (service, resource) =>
-                                new SendResVideoDTO
-                                {
-                                    ServiceName =
-                                        service.ServiceName,
+    await (
+        from service in Database.ProviderServiceInfo
+        join resource in Database.ProviderServiceResourcesInfo
+            on service.ProviderServiceId equals resource.ProviderServiceId
+        where service.UserNumber == Provider_User_Nuber
+              && service.ServiceName == obj.ServiceName
+        select new SendResVideoDTO
+        {
+            ServiceName =
+                service.ServiceName,
 
-                                    ProviderServiceResourcesId =
-                                        resource.ProviderServiceResourcesId,
+            ProviderServiceResourcesId =
+                resource.ProviderServiceResourcesId,
 
-                                    ServiceVideo =
-                                        resource.ServiceVideo,
+            ServiceVideo =
+                resource.ServiceVideo,
 
-                                    ProviderServiceId =
-                                        resource.ProviderServiceId
-                                }
-                        )
-                        .ToListAsync();
+            ProviderServiceId =
+                resource.ProviderServiceId
+        }
+    ).ToListAsync();
 
                 // =========================================================
                 // 6. Check resources
@@ -2881,16 +2951,36 @@ public async Task<IActionResult> AddServiceResources(
                     return StatusCode(501, "Details are not in correct format.");
                 }
 
-                var User_Data = await Database.UserInfos.FirstOrDefaultAsync(x=>x.Email==obj.OldEmail);
-                if (User_Data != null)
+
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
                 {
-                    User_Data.Email = obj.NewEmail;
+                    return StatusCode(502);
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(502, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(502, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
+             
+                    user.Email = obj.NewEmail;
                     await Database.SaveChangesAsync();
                     return Ok("Update success.");
-                }
-                else {
-                    return StatusCode(502,"User doesn't exist.Old email doesn't match.");
-                }
+            
 
             }
             catch (Exception e) {
@@ -2914,23 +3004,45 @@ public async Task<IActionResult> AddServiceResources(
         {
             try
             {
+
                 if (!ModelState.IsValid)
                 {
                     return StatusCode(501, "Details are not in correct format.");
                 }
 
-                var User_Data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
-                if (User_Data != null)
+
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
                 {
-                    User_Data.Latitude = obj.Latitude;
-                    User_Data.Longitude = obj.Longitude;
+                    return StatusCode(502);
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(502, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(502, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
+
+
+
+                user.Latitude = obj.Latitude;
+                user.Longitude = obj.Longitude;
                     await Database.SaveChangesAsync();
                     return Ok("Location Update success.");
-                }
-                else
-                {
-                    return StatusCode(502, "User doesn't exist.Email doesn't match.");
-                }
+            
 
             }
             catch (Exception e)
@@ -2948,23 +3060,44 @@ public async Task<IActionResult> AddServiceResources(
         {
             try
             {
+
                 if (!ModelState.IsValid)
                 {
                     return StatusCode(501, "Details are not in correct format.");
                 }
 
-                var User_Data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
-                if (User_Data != null)
+
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
                 {
-                    User_Data.FirstName = obj.FirstName;
-                    User_Data.LastName = obj.LastName;
+                    return StatusCode(502);
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(502, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(502, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
+
+
+                    user.FirstName = obj.FirstName;
+                user.LastName = obj.LastName;
                     await Database.SaveChangesAsync();
                     return Ok("Username Update success.");
-                }
-                else
-                {
-                    return StatusCode(502, "User doesn't exist.Email doesn't match.");
-                }
+             
 
             }
             catch (Exception e)
@@ -3409,28 +3542,126 @@ public async Task<IActionResult> AddServiceResources(
         {
             try
             {
+
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return StatusCode(502);
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(502, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(502, "You have been blocked by System.Contact to KaamMitra community.");
+                }
                 if (!ModelState.IsValid)
                 {
                     return StatusCode(501, "Details are not in correct format.");
                 }
 
-                var User_Data = await Database.UserInfos.FirstOrDefaultAsync(x => x.Email == obj.Email);
-                if (User_Data != null)
-                {
-                    User_Data.Address = obj.Address;
+               
+                    user.Address = obj.Address;
                     await Database.SaveChangesAsync();
                     return Ok("Username Update success.");
-                }
-                else
-                {
-                    return StatusCode(502, "User doesn't exist.Email doesn't match.");
-                }
+         
 
             }
             catch (Exception e)
             {
 
                 return StatusCode(500, "Exception caught while updating email.");
+            }
+        }
+
+        [HttpPut("updatedescription")]
+        [Authorize(Policy = "RequireProviderRole")]
+        public async Task<IActionResult> UpdateProviderServiceDescription(
+    [FromBody] ProServDescpDTO model)
+        {
+            try
+            {
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return Forbid();
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(502, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(506, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
+                // =========================
+                // MODEL STATE CHECK
+                // =========================
+                if (!ModelState.IsValid)
+                {
+                    return StatusCode(400, ModelState);
+                }
+
+                
+
+                // =========================
+                // FIND SERVICE BELONGING TO PROVIDER
+                // =========================
+                var providerService = await Database.ProviderServiceInfo
+                    .FirstOrDefaultAsync(x =>
+                        x.ProviderServiceId == model.ProviderServiceId &&
+                        x.UserNumber == currentUserNumber);
+
+                // =========================
+                // SERVICE NOT FOUND
+                // =========================
+                if (providerService == null)
+                {
+                    return StatusCode(404, new
+                    {
+                        message = "Provider service not found."
+                    });
+                }
+
+                // =========================
+                // UPDATE DESCRIPTION
+                // =========================
+                providerService.ProRegServiceDescription =
+                    model.ProRegServiceDescription;
+
+                await Database.SaveChangesAsync();
+
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Something went wrong while updating provider service description.",
+                    error = ex.Message
+                });
             }
         }
 

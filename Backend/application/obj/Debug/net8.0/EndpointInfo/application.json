@@ -545,6 +545,68 @@
         }
       }
     },
+    "/api/Admin/addfooterinfo": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FooterInfoModel"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FooterInfoModel"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/FooterInfoModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/deleteuserinfo": {
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserNumberDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserNumberDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserNumberDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Authentication/signin": {
       "post": {
         "tags": [
@@ -1375,6 +1437,80 @@
         }
       }
     },
+    "/api/Home/getfooterinfo": {
+      "get": {
+        "tags": [
+          "Home"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Home/addchatmessage": {
+      "post": {
+        "tags": [
+          "Home"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatInfoModel"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatInfoModel"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatInfoModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Home/getchatmessage": {
+      "post": {
+        "tags": [
+          "Home"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserNumberDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserNumberDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserNumberDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Profile/getuserinfo": {
       "post": {
         "tags": [
@@ -1469,6 +1605,7 @@
               "schema": {
                 "required": [
                   "Email",
+                  "ProRegServiceDescription",
                   "ServiceDocument",
                   "ServiceName"
                 ],
@@ -1492,6 +1629,9 @@
                     "minLength": 0,
                     "type": "string",
                     "format": "email"
+                  },
+                  "ProRegServiceDescription": {
+                    "type": "string"
                   }
                 }
               },
@@ -1506,6 +1646,9 @@
                   "style": "form"
                 },
                 "Email": {
+                  "style": "form"
+                },
+                "ProRegServiceDescription": {
                   "style": "form"
                 }
               }
@@ -2131,6 +2274,37 @@
         }
       }
     },
+    "/api/Profile/updatedescription": {
+      "put": {
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProServDescpDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProServDescpDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProServDescpDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Service/getratinginfo": {
       "post": {
         "tags": [
@@ -2359,31 +2533,6 @@
         },
         "additionalProperties": false
       },
-      "AdvancePaymentInfoModel": {
-        "required": [
-          "bookId",
-          "paymentPhoto"
-        ],
-        "type": "object",
-        "properties": {
-          "paymentId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "paymentPhoto": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "bookId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "bookingInfos": {
-            "$ref": "#/components/schemas/BookinInfoModel"
-          }
-        },
-        "additionalProperties": false
-      },
       "BookIngIdDTO": {
         "required": [
           "bookId",
@@ -2488,30 +2637,37 @@
           "ratingValueUser": {
             "type": "number",
             "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChatInfoModel": {
+        "required": [
+          "message",
+          "receiverNumber",
+          "senderNumber"
+        ],
+        "type": "object",
+        "properties": {
+          "chatId": {
+            "type": "integer",
+            "format": "int32"
           },
-          "users": {
-            "$ref": "#/components/schemas/UserInfo"
+          "message": {
+            "minLength": 1,
+            "type": "string"
           },
-          "advancePaymentInfos": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/AdvancePaymentInfoModel"
-            },
-            "nullable": true
+          "storeAt": {
+            "type": "string",
+            "format": "date-time"
           },
-          "ratingInfos": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/RatingInfoModel"
-            },
-            "nullable": true
+          "senderNumber": {
+            "type": "integer",
+            "format": "int32"
           },
-          "taskCompletePayments": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProTaskCompletePaymentInfos"
-            },
-            "nullable": true
+          "receiverNumber": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -2537,6 +2693,40 @@
             "minLength": 0,
             "type": "string",
             "format": "email"
+          }
+        },
+        "additionalProperties": false
+      },
+      "FooterInfoModel": {
+        "required": [
+          "address",
+          "contactNumber",
+          "email",
+          "socialMediaInfo"
+        ],
+        "type": "object",
+        "properties": {
+          "footerInfoId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "contactNumber": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "address": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "email": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
+          },
+          "socialMediaInfo": {
+            "minLength": 1,
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -2622,6 +2812,24 @@
         },
         "additionalProperties": false
       },
+      "ProServDescpDTO": {
+        "required": [
+          "proRegServiceDescription",
+          "providerServiceId"
+        ],
+        "type": "object",
+        "properties": {
+          "providerServiceId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "proRegServiceDescription": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ProTaskComPayIDDTO": {
         "required": [
           "taskCompletePaymentId"
@@ -2631,135 +2839,6 @@
           "taskCompletePaymentId": {
             "type": "integer",
             "format": "int32"
-          }
-        },
-        "additionalProperties": false
-      },
-      "ProTaskCompletePaymentInfos": {
-        "required": [
-          "bookId",
-          "paymentAmount",
-          "paymentMethod",
-          "paymentPhoto"
-        ],
-        "type": "object",
-        "properties": {
-          "taskCompletePaymentId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "paymentAmount": {
-            "type": "number",
-            "format": "double"
-          },
-          "paymentDate": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "bookId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "paymentMethod": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "paymentPhoto": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "bookingInfos": {
-            "$ref": "#/components/schemas/BookinInfoModel"
-          }
-        },
-        "additionalProperties": false
-      },
-      "ProviderRegisterServiceResources": {
-        "required": [
-          "email",
-          "providerServiceId",
-          "servicePhoto",
-          "serviceVideo",
-          "userNumber"
-        ],
-        "type": "object",
-        "properties": {
-          "providerServiceResourcesId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "servicePhoto": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "serviceVideo": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "providerServiceId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "email": {
-            "maxLength": 200,
-            "minLength": 0,
-            "type": "string",
-            "format": "email"
-          },
-          "userNumber": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "providerServices": {
-            "$ref": "#/components/schemas/ProviderRegisterServices"
-          },
-          "users": {
-            "$ref": "#/components/schemas/UserInfo"
-          }
-        },
-        "additionalProperties": false
-      },
-      "ProviderRegisterServices": {
-        "required": [
-          "email",
-          "serviceDocument",
-          "serviceName",
-          "userNumber"
-        ],
-        "type": "object",
-        "properties": {
-          "providerServiceId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "serviceName": {
-            "maxLength": 50,
-            "minLength": 0,
-            "type": "string"
-          },
-          "serviceDocument": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "email": {
-            "maxLength": 200,
-            "minLength": 0,
-            "type": "string",
-            "format": "email"
-          },
-          "userNumber": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "users": {
-            "$ref": "#/components/schemas/UserInfo"
-          },
-          "providerServicesResources": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProviderRegisterServiceResources"
-            },
-            "nullable": true
           }
         },
         "additionalProperties": false
@@ -2842,9 +2921,6 @@
           "bookId": {
             "type": "integer",
             "format": "int32"
-          },
-          "bookings": {
-            "$ref": "#/components/schemas/BookinInfoModel"
           }
         },
         "additionalProperties": false
@@ -3109,106 +3185,6 @@
             "minLength": 0,
             "type": "string",
             "format": "email"
-          }
-        },
-        "additionalProperties": false
-      },
-      "UserInfo": {
-        "required": [
-          "address",
-          "email",
-          "firstName",
-          "lastName",
-          "latitude",
-          "longitude",
-          "password",
-          "phoneNumber",
-          "role",
-          "whatsappPhoneNumber"
-        ],
-        "type": "object",
-        "properties": {
-          "userNumber": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "firstName": {
-            "maxLength": 50,
-            "minLength": 0,
-            "type": "string"
-          },
-          "lastName": {
-            "maxLength": 50,
-            "minLength": 0,
-            "type": "string"
-          },
-          "email": {
-            "maxLength": 200,
-            "minLength": 0,
-            "type": "string",
-            "format": "email"
-          },
-          "address": {
-            "maxLength": 1000,
-            "minLength": 0,
-            "type": "string"
-          },
-          "phoneNumber": {
-            "maxLength": 50,
-            "minLength": 0,
-            "pattern": "^\\+\\d+$",
-            "type": "string"
-          },
-          "whatsappPhoneNumber": {
-            "maxLength": 50,
-            "minLength": 0,
-            "pattern": "^\\+\\d+$",
-            "type": "string"
-          },
-          "password": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "latitude": {
-            "type": "number",
-            "format": "double"
-          },
-          "longitude": {
-            "type": "number",
-            "format": "double"
-          },
-          "photo": {
-            "type": "string",
-            "nullable": true
-          },
-          "role": {
-            "maxLength": 50,
-            "minLength": 0,
-            "type": "string"
-          },
-          "loginAccess": {
-            "type": "boolean"
-          },
-          "providerServices": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProviderRegisterServices"
-            },
-            "nullable": true
-          },
-          "providerServicesResources": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProviderRegisterServiceResources"
-            },
-            "nullable": true
-          },
-          "bookings": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/BookinInfoModel"
-            },
-            "nullable": true
           }
         },
         "additionalProperties": false

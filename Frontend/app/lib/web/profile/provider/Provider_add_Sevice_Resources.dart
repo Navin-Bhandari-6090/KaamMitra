@@ -7,6 +7,7 @@ import '../../../constant/Server_Database.dart';
 import '../../../constant/Style.dart';
 // NOTE: adjust this path if your AddServiceResources controller file
 // lives elsewhere — mirrored after the add_service_getx import pattern.
+import '../../../constant/variable.dart';
 import '../../../state management/getx/profile/provider/add_service_resources.dart';
 import '../../authentication/Error_page.dart';
 import '../../common method/Commmon_Method.dart';
@@ -54,7 +55,7 @@ class ProviderAddSeviceResources extends StatefulWidget {
 class _ProviderAddSeviceResourcesState
     extends State<ProviderAddSeviceResources>
     with SingleTickerProviderStateMixin {
-  final Toast = Toastget();
+
   final change_photo_cont_getx = Get.put(pick_single_photo_getx_int());
   final change_video_cont_getx = Get.put(PickSingleVideoController());
   final TextEditingController ProviderServiceIdCont = TextEditingController();
@@ -73,7 +74,7 @@ class _ProviderAddSeviceResourcesState
   @override
   void initState() {
     super.initState();
-    Provider_Jwt_Verify(Jwt_Token: widget.User_JwtToken);
+    Provider_Jwt_Verify(Jwt_Token: widget.User_JwtToken, context: context);
 
     _entranceController = AnimationController(
       vsync: this,
@@ -112,20 +113,7 @@ class _ProviderAddSeviceResourcesState
     super.dispose();
   }
 
-  Future<void> Provider_Jwt_Verify({required String Jwt_Token}) async
-  {
-    int Result = await ProviderJwtVerify(Jwt_Token: Jwt_Token);
-    if (Result == 1) {
-      return;
-    } else {
-      await Clear_User_Data();
-      await Random_token_Clear();
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (context) => ErrorPage()));
-      Toastget().Toastmsg("Session End.Relogin please.");
-      return;
-    }
-  }
+
 
   Future<int> AddServiceResources({
     required List<int> ImageBytes,
@@ -144,9 +132,7 @@ class _ProviderAddSeviceResourcesState
           'Photo data is required',
         );
 
-        print(
-          'Photo data is required',
-        );
+
 
         return 1;
       }
@@ -160,9 +146,7 @@ class _ProviderAddSeviceResourcesState
           'Video data is required',
         );
 
-        print(
-          'Video data is required',
-        );
+
 
         return 2;
       }
@@ -176,9 +160,7 @@ class _ProviderAddSeviceResourcesState
           'ServiceId is required',
         );
 
-        print(
-          'ServiceId is required',
-        );
+
 
         return 3;
       }
@@ -194,9 +176,7 @@ class _ProviderAddSeviceResourcesState
           'Invalid ServiceId',
         );
 
-        print(
-          'Invalid ServiceId: $SeviceId',
-        );
+
 
         return 3;
       }
@@ -213,9 +193,7 @@ class _ProviderAddSeviceResourcesState
           'Photo extension is required',
         );
 
-        print(
-          'Photo extension is required',
-        );
+
 
         return 4;
       }
@@ -243,33 +221,7 @@ class _ProviderAddSeviceResourcesState
       // 7. Print information
       // =========================================================
 
-      print(
-        "========== ADD SERVICE RESOURCES ==========",
-      );
 
-      print(
-        "Email: ${widget.User_Email}",
-      );
-
-      print(
-        "ProviderServiceId: $serviceId",
-      );
-
-      print(
-        "Photo Size: ${ImageBytes.length} bytes",
-      );
-
-      print(
-        "Video Size: ${VideoBytes.length} bytes",
-      );
-
-      print(
-        "Photo Extension: $photoExtension",
-      );
-
-      print(
-        "Video Extension: $videoExtension",
-      );
 
       // =========================================================
       // 8. API URL
@@ -277,11 +229,7 @@ class _ProviderAddSeviceResourcesState
 
       const String url = Backend_Server_Url + "api/Profile/addserviceresources";
 
-      print(
-        "API URL: $url",
-      );
 
-      // =========================================================
       // 9. Create multipart request
       // =========================================================
 
@@ -336,21 +284,7 @@ class _ProviderAddSeviceResourcesState
       // 14. Print multipart information
       // =========================================================
 
-      print(
-        "Multipart request created.",
-      );
 
-      print(
-        "Photo filename: service_photo.$photoExtension",
-      );
-
-      print(
-        "Video filename: service_video.$videoExtension",
-      );
-
-      print(
-        "Uploading service resources...",
-      );
 
       // =========================================================
       // 15. Send request
@@ -370,13 +304,7 @@ class _ProviderAddSeviceResourcesState
       // 17. Print response
       // =========================================================
 
-      print(
-        "Response status: ${response.statusCode}",
-      );
 
-      print(
-        "Response body: ${response.body}",
-      );
 
       // =========================================================
       // 18. Success
@@ -405,7 +333,7 @@ class _ProviderAddSeviceResourcesState
       // 19. Bad request
       // =========================================================
 
-      if (response.statusCode == 400) {
+      else if (response.statusCode == 400) {
         Toast.Toastmsg(
           response.body,
         );
@@ -417,11 +345,21 @@ class _ProviderAddSeviceResourcesState
         return 4;
       }
 
+      else if (response.statusCode == 508)
+      {
+
+
+        Toast.Toastmsg(
+            "You can only add a maximum of 3 resources for this service."
+        );
+        return 9;
+      }
+
       // =========================================================
       // 20. Service not found
       // =========================================================
 
-      if (response.statusCode == 404) {
+      else if (response.statusCode == 404) {
         Toast.Toastmsg(
           response.body,
         );
@@ -437,7 +375,7 @@ class _ProviderAddSeviceResourcesState
       // 21. Unauthorized
       // =========================================================
 
-      if (response.statusCode == 401) {
+      else if (response.statusCode == 401) {
         Toast.Toastmsg(
           "Unauthorized. Please login again.",
         );
@@ -453,15 +391,10 @@ class _ProviderAddSeviceResourcesState
       // 22. Forbidden
       // =========================================================
 
-      if (response.statusCode == 403) {
+      else if (response.statusCode == 403) {
         Toast.Toastmsg(
           "You are not authorized.",
         );
-
-        print(
-          "Forbidden.",
-        );
-
         return 7;
       }
 
@@ -469,43 +402,25 @@ class _ProviderAddSeviceResourcesState
       // 23. Server error
       // =========================================================
 
-      if (response.statusCode == 500) {
+      else if (response.statusCode == 500) {
         Toast.Toastmsg(
           "Server error while adding service resources.",
         );
 
-        print(
-          "Server error: ${response.body}",
-        );
+
 
         return 8;
       }
+      else {
+        Toast.Toastmsg(
+          "Add service resources failed.Tray again.",
+        );
+        return 10;
+      }
 
-      // =========================================================
-      // 24. Other status
-      // =========================================================
 
-      print(
-        "Unexpected status code: ${response.statusCode}",
-      );
-
-      Toast.Toastmsg(
-        'Add service resources failed.',
-      );
-
-      return 9;
     } catch (E) {
-      // =========================================================
-      // 25. Exception
-      // =========================================================
 
-      print(
-        "Exception caught while adding service resources.",
-      );
-
-      print(
-        E.toString(),
-      );
 
       Toast.Toastmsg(
         'Add service resources failed.',

@@ -928,6 +928,7 @@ namespace application.Controllers
                         return StatusCode(507, "Rating value already updated");
                     }
 
+
                     Data.RatingValueUser = obj.RatingValue;
 
                     var InsertRatingData = new RatingInfoModel
@@ -1081,18 +1082,19 @@ namespace application.Controllers
 
                 var Data = await Database.BookingInfos
                     .FirstOrDefaultAsync(x => x.BookId == obj.BookId && x.UserNumber == currentUserNumber);
+
                 if (Data != null)
                 {
                     if (Data.UserTaskCompleteStatus == false)
                     {
-                        Data.UserApprovalStatus = true;
+                        Data.UserTaskCompleteStatus= true;
                         await Database.SaveChangesAsync();
                         return Ok();
 
                     }
                     else
                     {
-                        Data.UserApprovalStatus = false;
+                        Data.UserTaskCompleteStatus = false;
                         await Database.SaveChangesAsync();
                         return Ok();
                     }
@@ -1121,9 +1123,33 @@ namespace application.Controllers
 
             try
             {
-                // =========================================================
+
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return StatusCode(404);
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(404, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(404, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+               
                 // 1. Validate ModelState
-                // =========================================================
+          
 
                 if (!ModelState.IsValid)
                 {
@@ -1133,9 +1159,8 @@ namespace application.Controllers
                     );
                 }
 
-                // =========================================================
                 // 2. Validate BookId
-                // =========================================================
+       
 
                 if (obj.BookId <= 0)
                 {
@@ -1145,9 +1170,8 @@ namespace application.Controllers
                     );
                 }
 
-                // =========================================================
                 // 3. Validate Payment Photo
-                // =========================================================
+   
 
                 if (obj.PaymentPhoto == null ||
                     obj.PaymentPhoto.Length == 0)
@@ -1158,9 +1182,8 @@ namespace application.Controllers
                     );
                 }
 
-                // =========================================================
                 // 4. Check booking
-                // =========================================================
+    
 
                 var bookingData =
                     await Database.BookingInfos
@@ -1176,9 +1199,9 @@ namespace application.Controllers
                     );
                 }
 
-                // =========================================================
+  
                 // 5. Check if old advance payment photo already exists
-                // =========================================================
+      
 
                 var oldPaymentData =
                     await Database.AdvancePaymentInfos
@@ -1186,16 +1209,15 @@ namespace application.Controllers
                             x => x.BookId == obj.BookId
                         );
 
-                // =========================================================
+        
                 // 6. Main folder
-                // =========================================================
+   
 
                 const string paymentFolder =
                     "uploads/advance-payment";
 
-                // =========================================================
                 // 7. Get wwwroot
-                // =========================================================
+        
 
                 var webRootPath =
                     _environment.WebRootPath;
@@ -1208,9 +1230,9 @@ namespace application.Controllers
                     );
                 }
 
-                // =========================================================
+        
                 // 8. Physical folder
-                // =========================================================
+      
 
                 var physicalPaymentFolderPath =
                     Path.Combine(
@@ -1476,7 +1498,7 @@ namespace application.Controllers
         }
 
 
-        //[Authorize(Policy = "RequireProviderUserRole")]
+        [Authorize(Policy = "RequireProviderUserRole")]
         [HttpPost]
         [Route("getadvancepaymentphoto")]
         public async Task<IActionResult> GetAdvancePaymentPhoto(
@@ -1484,6 +1506,30 @@ namespace application.Controllers
         {
             try
             {
+
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return StatusCode(502);
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(502, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(502, "You have been blocked by System.Contact to KaamMitra community.");
+                }
                 // =========================================================
                 // 1. Validate ModelState
                 // =========================================================
@@ -1496,19 +1542,7 @@ namespace application.Controllers
                     );
                 }
 
-                var userData = await Database.UserInfos
-                    .FirstOrDefaultAsync(
-                        x => x.Email == obj.UserEmail
-                    );
-
-                if (userData == null)
-                {
-                    return StatusCode(
-                        502,
-                        "No user found."
-                    );
-                }
-
+       
                 var Data = await Database.AdvancePaymentInfos.FirstOrDefaultAsync(x => x.BookId == obj.BookId);
                 if (Data != null)
                 {
@@ -1529,6 +1563,7 @@ namespace application.Controllers
                 );
             }
         }
+
 
         [Authorize(Policy = "RequireProviderUserRole")]
         [HttpPost]
@@ -1810,10 +1845,7 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 string newRelativePath =
                     $"/{mainFolder}/{folderName}/{fileName}";
 
-                Console.WriteLine($"BookId: {obj.BookId}");
-                Console.WriteLine($"Payment Method: {paymentMethod}");
-                Console.WriteLine($"Payment Amount: {obj.PaymentAmount}");
-                Console.WriteLine($"New Photo Path: {newRelativePath}");
+             
 
                 // =========================================================
                 // 10. Update existing payment or create a new one
@@ -1924,11 +1956,7 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             }
             catch (Exception ex)
             {
-                Console.WriteLine(
-                    "========== TASK COMPLETE PAYMENT ERROR ==========");
-
-                Console.WriteLine($"Error: {ex.Message}");
-                Console.WriteLine($"StackTrace: {ex.StackTrace}");
+             
 
                 // Delete the newly uploaded file only if the database
                 // operation did not succeed.
@@ -2046,7 +2074,7 @@ public async Task<IActionResult> GetProviderTaskCompletePayments()
 
                 var ProviderEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
 
-                Console.WriteLine($"Provider Email From JWT: {ProviderEmail}");
+            
 
                 if (string.IsNullOrWhiteSpace(ProviderEmail))
                 {
@@ -2068,7 +2096,7 @@ public async Task<IActionResult> GetProviderTaskCompletePayments()
 
                 if (Provider == null)
                 {
-                    Console.WriteLine("Provider verification failed.");
+                    
 
                     return StatusCode(403, new
                     {

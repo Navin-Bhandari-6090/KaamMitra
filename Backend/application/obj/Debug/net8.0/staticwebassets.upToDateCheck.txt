@@ -4,9 +4,6 @@ wwwroot\uploads\service-resources\photos\c7aaf53422834eb292e2def2ecdcd157.jpg
 wwwroot\uploads\service-resources\videos\6fe1444d35b84869afbb496145614312.mp4
 wwwroot\uploads\service-resources\photos\b882791e7633437e89f1a1f46898d49d.png
 wwwroot\uploads\service-resources\videos\2dd9a8df127d49e9935fd327e56b6cdc.mp4
-wwwroot\uploads\advance-payment\c63c04ceba15402eabf55ce6dae8a822.jpg
-wwwroot\uploads\advance-payment\ff728486242b4c209a40fe6619d47e70.png
-wwwroot\uploads\advance-payment\11b9e8fc84304ff588235465adb7c21c.jpg
 wwwroot\uploads\advance-payment-qr\a8c77cb5380e4bd7ab80a1ff0999a54a.jpg
 wwwroot\uploads\advertisements\photos\b57c10b2-cea9-4e85-8703-700a82bc8f24.jpg
 wwwroot\uploads\advertisements\videos\4bfaa0ed-5685-4155-8316-716eccf9d180.mp4
@@ -18,8 +15,11 @@ wwwroot\uploads\service-resources\photos\4c5e454e83034378baf80a48bc68bf65.jpg
 wwwroot\uploads\service-resources\videos\74bbb23127244c74b6a1e26978db435c.mp4
 wwwroot\uploads\service-resources\photos\5d3eb9cb5f484fd29b00f1b0b1dd7a79.jpg
 wwwroot\uploads\service-resources\videos\66a8bf318ccf4c678ed96916d2288d9b.mp4
-wwwroot\uploads\advance-payment\94d1625ac79f4e4283f8fed351547cb2.jpg
 wwwroot\uploads\admin-qr\domestic\71447e36a64a4010a15922095b76496b.jpg
 wwwroot\uploads\admin-qr\international\31bb9546801640dbaa90b430754e9156.png
-wwwroot\uploads\provider-task-complete-payment\domestic\4eb8a39aa5824ded8a215ac6adaa1b0f.jpg
-wwwroot\uploads\provider-task-complete-payment\domestic\32c7e005772e44518c533cc8c41dfd39.jpg
+wwwroot\uploads\service-documents\e26884c62882420c89e566166faf866d.pdf
+wwwroot\uploads\service-documents\cb6fbfc39faf4184a0d209fcdb27096d.pdf
+wwwroot\uploads\provider-task-complete-payment\domestic\528093db62e643e3967491d0f6a52369.jpg
+wwwroot\uploads\provider-task-complete-payment\international\16577facc9804f168f87bb61e9473e37.jpg
+wwwroot\uploads\advance-payment\e7349dc1d30b457cbfa78297c0362875.png
+wwwroot\uploads\profile\707fe5a6e88143e7938430656f4e742d.png

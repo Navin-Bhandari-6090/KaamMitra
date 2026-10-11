@@ -53,6 +53,22 @@
   },
   {
     "ContainingType": "application.Controllers.AdminController",
+    "Method": "AddFooterInfo",
+    "RelativePath": "api/Admin/addfooterinfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "application.Models.FooterInfoModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
     "Method": "DeleteAdvancePaymentInfo",
     "RelativePath": "api/Admin/deleteadvancepaymentinfo",
     "HttpMethod": "DELETE",
@@ -158,6 +174,22 @@
       {
         "Name": "model",
         "Type": "application.Models.DTOModels.ProTaskComPayIDDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "DeleteUserInfo",
+    "RelativePath": "api/Admin/deleteuserinfo",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UserNumberDTO",
         "IsRequired": true
       }
     ],
@@ -782,6 +814,48 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "application.Controllers.HomeController",
+    "Method": "AddChatMessage",
+    "RelativePath": "api/Home/addchatmessage",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "application.Models.ChatInfoModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.HomeController",
+    "Method": "GetChatMessages",
+    "RelativePath": "api/Home/getchatmessage",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "application.Models.DTOModels.UserNumberDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.HomeController",
+    "Method": "GetFooterInfo",
+    "RelativePath": "api/Home/getfooterinfo",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "application.Controllers.ProfileController",
     "Method": "AddFonepayQr",
     "RelativePath": "api/Profile/addfonepayqr",
@@ -827,6 +901,11 @@
       },
       {
         "Name": "Email",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ProRegServiceDescription",
         "Type": "System.String",
         "IsRequired": false
       }
@@ -986,6 +1065,22 @@
       {
         "Name": "obj",
         "Type": "application.Models.DTOModels.UpdateAddressDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "UpdateProviderServiceDescription",
+    "RelativePath": "api/Profile/updatedescription",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "application.Models.DTOModels.ProServDescpDTO",
         "IsRequired": true
       }
     ],

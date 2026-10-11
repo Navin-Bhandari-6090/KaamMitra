@@ -757,7 +757,7 @@ class _AdminQrSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Section(
       icon: Icons.qr_code_2_rounded,
-      title: "Admin QR codes",
+      title: "KaamMitra QR codes",
       subtitle:
       "Scan the Nepal QR, or pay with PayPal for international payments, then upload the payment proof below.",
       child: _TwoUp(

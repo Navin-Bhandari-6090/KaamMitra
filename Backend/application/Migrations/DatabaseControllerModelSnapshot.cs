@@ -58,8 +58,6 @@ namespace application.Migrations
 
                     b.HasKey("PaymentId");
 
-                    b.HasIndex("BookId");
-
                     b.ToTable("AdvancePaymentInfos");
                 });
 
@@ -175,9 +173,63 @@ namespace application.Migrations
 
                     b.HasKey("BookId");
 
-                    b.HasIndex("UserNumber");
-
                     b.ToTable("BookingInfos");
+                });
+
+            modelBuilder.Entity("application.Models.ChatInfoModel", b =>
+                {
+                    b.Property<int>("ChatId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ChatId"));
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("ReceiverNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SenderNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("StoreAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ChatId");
+
+                    b.ToTable("ChatInfos");
+                });
+
+            modelBuilder.Entity("application.Models.FooterInfoModel", b =>
+                {
+                    b.Property<int>("FooterInfoId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("FooterInfoId"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContactNumber")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SocialMediaInfo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("FooterInfoId");
+
+                    b.ToTable("FooterInfos");
                 });
 
             modelBuilder.Entity("application.Models.NewNotificationInfoModel", b =>
@@ -249,8 +301,6 @@ namespace application.Migrations
 
                     b.HasKey("TaskCompletePaymentId");
 
-                    b.HasIndex("BookId");
-
                     b.ToTable("ProTaskCompletePaymentInfos");
                 });
 
@@ -261,11 +311,6 @@ namespace application.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ProviderServiceResourcesId"));
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
 
                     b.Property<int>("ProviderServiceId")
                         .HasColumnType("integer");
@@ -283,10 +328,6 @@ namespace application.Migrations
 
                     b.HasKey("ProviderServiceResourcesId");
 
-                    b.HasIndex("ProviderServiceId");
-
-                    b.HasIndex("UserNumber");
-
                     b.ToTable("ProviderServiceResourcesInfo");
                 });
 
@@ -298,10 +339,9 @@ namespace application.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ProviderServiceId"));
 
-                    b.Property<string>("Email")
+                    b.Property<string>("ProRegServiceDescription")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<string>("ServiceDocument")
                         .IsRequired()
@@ -316,8 +356,6 @@ namespace application.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("ProviderServiceId");
-
-                    b.HasIndex("UserNumber");
 
                     b.ToTable("ProviderServiceInfo");
                 });
@@ -351,8 +389,6 @@ namespace application.Migrations
                         .HasColumnType("character varying(200)");
 
                     b.HasKey("RtingId");
-
-                    b.HasIndex("BookId");
 
                     b.ToTable("RatingInfos");
                 });
@@ -454,103 +490,6 @@ namespace application.Migrations
                     b.HasKey("UserNumber");
 
                     b.ToTable("UserInfos");
-                });
-
-            modelBuilder.Entity("application.Models.AdvancePaymentInfoModel", b =>
-                {
-                    b.HasOne("application.Models.BookinInfoModel", "BookingInfos")
-                        .WithMany("AdvancePaymentInfos")
-                        .HasForeignKey("BookId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("BookingInfos");
-                });
-
-            modelBuilder.Entity("application.Models.BookinInfoModel", b =>
-                {
-                    b.HasOne("application.Models.UserInfo", "Users")
-                        .WithMany("Bookings")
-                        .HasForeignKey("UserNumber")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Users");
-                });
-
-            modelBuilder.Entity("application.Models.ProTaskCompletePaymentInfos", b =>
-                {
-                    b.HasOne("application.Models.BookinInfoModel", "BookingInfos")
-                        .WithMany("TaskCompletePayments")
-                        .HasForeignKey("BookId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("BookingInfos");
-                });
-
-            modelBuilder.Entity("application.Models.ProviderRegisterServiceResources", b =>
-                {
-                    b.HasOne("application.Models.ProviderRegisterServices", "ProviderServices")
-                        .WithMany("ProviderServicesResources")
-                        .HasForeignKey("ProviderServiceId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("application.Models.UserInfo", "Users")
-                        .WithMany("ProviderServicesResources")
-                        .HasForeignKey("UserNumber")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ProviderServices");
-
-                    b.Navigation("Users");
-                });
-
-            modelBuilder.Entity("application.Models.ProviderRegisterServices", b =>
-                {
-                    b.HasOne("application.Models.UserInfo", "Users")
-                        .WithMany("ProviderServices")
-                        .HasForeignKey("UserNumber")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Users");
-                });
-
-            modelBuilder.Entity("application.Models.RatingInfoModel", b =>
-                {
-                    b.HasOne("application.Models.BookinInfoModel", "Bookings")
-                        .WithMany("RatingInfos")
-                        .HasForeignKey("BookId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Bookings");
-                });
-
-            modelBuilder.Entity("application.Models.BookinInfoModel", b =>
-                {
-                    b.Navigation("AdvancePaymentInfos");
-
-                    b.Navigation("RatingInfos");
-
-                    b.Navigation("TaskCompletePayments");
-                });
-
-            modelBuilder.Entity("application.Models.ProviderRegisterServices", b =>
-                {
-                    b.Navigation("ProviderServicesResources");
-                });
-
-            modelBuilder.Entity("application.Models.UserInfo", b =>
-                {
-                    b.Navigation("Bookings");
-
-                    b.Navigation("ProviderServices");
-
-                    b.Navigation("ProviderServicesResources");
                 });
 #pragma warning restore 612, 618
         }

@@ -21,9 +21,6 @@ import 'userbookinginfodetailsscreen.dart';
 // Adjust the user_booking_screen_getx.dart import path above to match
 // wherever you place that file relative to this one.
 
-/// ---------------------------------------------------------------------------
-/// THEME TOKENS (dark green, modern) — matches Header.dart / ProviderBookingsScreen
-/// ---------------------------------------------------------------------------
 class _Theme {
   static const Color bgTop = Color(0xFF0F1F17);
   static const Color bgMid = Color(0xFF12261C);
@@ -95,7 +92,7 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
     super.initState();
 
     try {
-      User_Jwt_Verify(Jwt_Token: widget.Current_User_JwtToken);
+      User_Jwt_Verify(Jwt_Token: widget.Current_User_JwtToken, context: context);
 
       _entranceController = AnimationController(
         vsync: this,
@@ -159,38 +156,69 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
   }
 
 
-  Future<void> User_Jwt_Verify({required String Jwt_Token}) async {
+
+
+  // ============================================================
+// REFRESH — reloads bookings, notifications and the bell state
+// ============================================================
+  Future<void> _onRefreshTap() async {
     try {
-      int Result = await UserJwtVerify(Jwt_Token: Jwt_Token);
-      if (Result == 1) {
-        return;
-      } else {
-        await Clear_User_Data();
-        await Random_token_Clear();
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => ErrorPage()),
-              (route) => false,
-        );
-        Toastget().Toastmsg("Session End.Relogin please.");
-        return;
+      if (bookingCont.isLoading.value) return; // ignore taps while loading
+      await _loadEverything();
+      if (!bookingCont.hasLoadError.value) {
+        Toast.Toastmsg("Bookings refreshed.");
       }
     } catch (e) {
-      // Defensive fallback only — an unexpected failure here shouldn't
-      // crash the screen; surface a toast instead so the person knows
-      // something went wrong.
-      print("Unexpected error in User_Jwt_Verify: $e");
-      Toastget().Toastmsg("Something went wrong. Please try again.");
-      await Clear_User_Data();
-      await Random_token_Clear();
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => ErrorPage()),
-            (route) => false,
-      );
-      Toastget().Toastmsg("Session End.Relogin please.");
-      return;
+      print("Unexpected error in _onRefreshTap: $e");
     }
+  }
+
+  Widget _buildRefreshButton() {
+    return Obx(() {
+      final bool loading = bookingCont.isLoading.value;
+
+      return Tooltip(
+        message: "Refresh bookings",
+        child: Material(
+          color: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: loading ? _Theme.emerald.withOpacity(0.6) : _Theme.border,
+              width: 1.3,
+            ),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: loading ? null : _onRefreshTap,
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: _Theme.surface,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: loading
+                    ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    color: _Theme.emerald,
+                  ),
+                )
+                    : const Icon(
+                  Icons.refresh_rounded,
+                  color: _Theme.mint,
+                  size: 21,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    });
   }
 
 
@@ -511,7 +539,8 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
   void _onBookingCardTap(BookingInfoModel booking,{required num BookingId}) {
     try {
 
-      Navigator.push(
+      Navigator.push
+        (
         context,
         MaterialPageRoute(
           builder: (context) {
@@ -529,7 +558,12 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
               );
           },
         ),
+
       );
+
+      if (mounted) _loadEverything();
+
+
 
 
     } catch (e) {
@@ -766,12 +800,24 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
           ),
         ],
       ),
+
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 12),
-          child: Center(child: _buildNotificationBell()),
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildRefreshButton(),
+                const SizedBox(width: 10),
+                _buildNotificationBell(),
+              ],
+            ),
+          ),
         ),
       ],
+
+
     );
   }
 

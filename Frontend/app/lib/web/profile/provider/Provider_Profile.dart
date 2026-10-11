@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:app/web/footer/Footer.dart';
 import 'package:app/web/profile/provider/Provider_add_Sevice_Resources.dart';
+import 'package:app/web/profile/provider/update_pro_reg_ser_descp.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
@@ -22,7 +23,6 @@ import 'ProviderAddService.dart';
 import 'Provider_Service_Select.dart';
 import 'Provider_Update_Service_File.dart';
 import 'Select_Ser_Res_Update.dart';
-import '../provider_user/Update_Email.dart';
 import '../provider_user/Update_Password.dart';
 import 'add_update_fonepay_qr.dart';
 
@@ -75,8 +75,7 @@ class _ProviderProfileState extends State<ProviderProfile>
   @override
   void initState() {
     super.initState();
-    Provider_Jwt_Verify(Jwt_Token: widget.User_JwtToken);
-
+    Provider_Jwt_Verify(Jwt_Token: widget.User_JwtToken, context: context);
     _entranceController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -94,22 +93,6 @@ class _ProviderProfileState extends State<ProviderProfile>
     super.dispose();
   }
 
-  Future<void> Provider_Jwt_Verify({required String Jwt_Token}) async {
-    int Result = await ProviderJwtVerify(Jwt_Token: Jwt_Token);
-    if (Result == 1) {
-      return;
-    } else {
-      await Clear_User_Data();
-      await Random_token_Clear();
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => ErrorPage()),
-            (route) => false,
-      );
-      Toastget().Toastmsg("Session End.Relogin please.");
-      return;
-    }
-  }
 
   List<UserInfo> UserInfoModelList = [];
 
@@ -461,14 +444,12 @@ class _ProviderProfileState extends State<ProviderProfile>
 
       _ActionItem(
         icon: Icons.email_rounded,
-        label: "Update email",
+        label: "Update register service description",
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => UpdateEmail(
-              User_Email: widget.User_Email,
+            builder: (context) => UpdateProRegSerDescp(
               User_JwtToken: widget.User_JwtToken,
-              User_Role: widget.User_Role,
             ),
           ),
         ),

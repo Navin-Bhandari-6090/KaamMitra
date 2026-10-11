@@ -12,18 +12,10 @@ import 'dart:math';
 import 'package:get/get.dart';
 
 import '../../../models/RatingInfoModel.dart';
-import '../../../models/Service_Screen_Service_Model.dart';
+import '../../../models/ServiceScreenServiceModel.dart';
 import '../../../models/Service_Screen_User_Info_Model.dart';
 
-/// How the provider list is currently ordered.
 enum ServiceSortMode { distance, rating }
-
-/// One row of the Services screen list: a service, joined with its
-/// provider's profile info and average rating, plus the computed distance
-/// from the current user.
-///
-/// This is a *view* model only — it does not replace or alter
-/// ServiceScreenServiceModel / ServiceScreenUserInfoModel / RatingInfoModel.
 class CombinedServiceCard
 {
   final ServiceScreenServiceModel service;
@@ -39,12 +31,11 @@ class CombinedServiceCard
     required this.distanceKm,
     required this.hasLocation,
   });
+
+
 }
 
 class ServiceScreenGetx extends GetxController {
-  // ============================================================
-  // LOADING STATE
-  // ============================================================
 
   RxBool isLoading = false.obs;
   RxBool hasLoadError = false.obs;
@@ -52,19 +43,13 @@ class ServiceScreenGetx extends GetxController {
   void setLoading(bool value) => isLoading.value = value;
   void setLoadError(bool value) => hasLoadError.value = value;
 
-  // ============================================================
-  // COMBINED + DERIVED LISTS
-  // allCards  = every service joined with provider + rating info.
-  // displayedCards = allCards after search filter + sort are applied.
-  // ============================================================
+
 
   final RxList<CombinedServiceCard> allCards = <CombinedServiceCard>[].obs;
   final RxList<CombinedServiceCard> displayedCards =
       <CombinedServiceCard>[].obs;
 
-  // ============================================================
-  // SEARCH + SORT
-  // ============================================================
+
 
   RxString searchText = "".obs;
   Rx<ServiceSortMode> sortMode = ServiceSortMode.distance.obs;
@@ -80,9 +65,7 @@ class ServiceScreenGetx extends GetxController {
     _applyFilterSort();
   }
 
-  // ============================================================
-  // UI-ONLY REACTIVE STATE (replaces setState — press/hover/focus)
-  // ============================================================
+
 
   RxBool isSearchFocused = false.obs;
   RxInt hoveredCardIndex = (-1).obs;
@@ -94,11 +77,7 @@ class ServiceScreenGetx extends GetxController {
   void setPressedCard(int index) => pressedCardIndex.value = index;
   void clearPressedCard() => pressedCardIndex.value = -1;
 
-  // ============================================================
-  // CURRENT USER LOCATION
-  // (Set once, before building the combined list — see notes in
-  // ServicesScreen on where this currently comes from.)
-  // ============================================================
+
 
   double _currentUserLat = 0.0;
   double _currentUserLong = 0.0;
@@ -110,12 +89,7 @@ class ServiceScreenGetx extends GetxController {
     _currentUserLocationKnown = known;
   }
 
-  // ============================================================
-  // BUILD COMBINED LIST
-  // Joins service (by email) -> provider profile, and service (by email
-  // AND service name) -> rating. Does not mutate or re-request any of the
-  // raw source lists.
-  // ============================================================
+
 
   void buildCombinedList({
     required List<ServiceScreenServiceModel> services,
@@ -135,10 +109,11 @@ class ServiceScreenGetx extends GetxController {
 
     for (final service in services)
     {
+
       ServiceScreenUserInfoModel? provider;
       for (final p in providers)
       {
-        if (p.email == service.email) {
+        if (p.userNumber == service.userNumber) {
           provider = p;
           break;
         }
@@ -152,7 +127,8 @@ class ServiceScreenGetx extends GetxController {
       // row for that provider happened to come first.
       // ----------------------------------------------------------
       double rating = 0.0;
-      for (final r in ratings) {
+      for (final r in ratings)
+      {
         if (r.ratingReceiverNumber == service.userNumber &&
             r.serviceName == service.serviceName) {
           rating = asDouble(r.averageRating);
@@ -180,6 +156,8 @@ class ServiceScreenGetx extends GetxController {
         distanceKm: distance,
         hasLocation: hasLocation,
       ));
+
+
     }
 
     allCards.assignAll(combined);

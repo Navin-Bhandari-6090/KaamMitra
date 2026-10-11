@@ -21,6 +21,9 @@ namespace application.Models.DTOModels
         [EmailAddress]
         public string Email { get; set; } = string.Empty;
 
+        [Required]
+        public string ProRegServiceDescription { get; set; } = string.Empty;
+
 
     }
 }

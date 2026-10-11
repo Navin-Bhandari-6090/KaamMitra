@@ -64,16 +64,10 @@ namespace application.Models
         public double RatingValueUser { get; set; }
 
 
-        [ForeignKey("UserNumber")]
-        public UserInfo? Users { get; set; }
+ 
 
 
-        public ICollection<AdvancePaymentInfoModel> AdvancePaymentInfos { get; set; } = [];
-
-
-        public ICollection<RatingInfoModel> RatingInfos { get; set; } = [];
-
-        public ICollection<ProTaskCompletePaymentInfos> TaskCompletePayments { get; set; } = [];
+    
 
     }
 }

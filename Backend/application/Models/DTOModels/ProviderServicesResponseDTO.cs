@@ -8,8 +8,10 @@
 
         public string ServiceDocument { get; set; } = string.Empty;
 
-        public string Email { get; set; } = string.Empty;
+     
 
         public int UserNumber { get; set; }
+
+        public string ProRegServiceDescription { get; set; } = string.Empty;
     }
 }

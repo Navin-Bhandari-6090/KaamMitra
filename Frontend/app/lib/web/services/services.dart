@@ -8,7 +8,8 @@ import 'package:http/http.dart' as http;
 
 import '../../constant/Server_Database.dart';
 import '../../models/RatingInfoModel.dart';
-import '../../models/Service_Screen_Service_Model.dart';
+import '../../models/ServiceScreenServiceModel.dart';
+
 import '../../models/Service_Screen_User_Info_Model.dart';
 import '../../state management/getx/services/service_screen_getx.dart';
 import '../authentication/Error_page.dart';
@@ -79,7 +80,8 @@ class _ServicesScreenState extends State<ServicesScreen>
   @override
   void initState() {
     super.initState();
-    JwtVerify(Jwt_Token: widget.User_JwtToken);
+
+    Provider_User_Jwt_Verify(Jwt_Token: widget.User_JwtToken, context: context);
 
     _entranceController = AnimationController(
       vsync: this,
@@ -118,27 +120,7 @@ class _ServicesScreenState extends State<ServicesScreen>
     super.dispose();
   }
 
-  // ============================================================
-  // ORIGINAL NETWORK / AUTH LOGIC — UNCHANGED
-  // (same URLs, same status-code branches, same error handling as before)
-  // ============================================================
 
-  Future<void> JwtVerify({required String Jwt_Token}) async {
-    int Result = await UserProviderJwtVerify(Jwt_Token: Jwt_Token);
-    if (Result == 1) {
-      return;
-    } else {
-      await Clear_User_Data();
-      await Random_token_Clear();
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => ErrorPage()),
-            (route) => false,
-      );
-      Toastget().Toastmsg("Session End.Relogin please.");
-      return;
-    }
-  }
 
   List<RatingInfoModel> RatingInfoList = [];
 
@@ -350,13 +332,8 @@ class _ServicesScreenState extends State<ServicesScreen>
     serviceCont.setLoading(false);
   }
 
-  void _onCardTap(CombinedServiceCard card,{required String ServiceName,required num ProviderNumber,required num ServiceId })
+  void _onCardTap(CombinedServiceCard card,{required String ProviderEmail,required String ServiceName,required num ProviderNumber,required num ServiceId,required String ProRegServiceDescription })
   {
-
-    // print("infos user");
-    // print(widget.User_Email);
-    // print(card.service.email);
-
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -367,13 +344,13 @@ class _ServicesScreenState extends State<ServicesScreen>
           Current_User_Role: widget.User_Role,
           Distance: card.distanceKm,
           Rating: card.rating,
-          Provider_User_Email: card.service.email ?? "",
+          Provider_User_Email: ProviderEmail,
           Service_info_List: ServiceInfoList,
           Provider_info_List: ProviderInfoList,
           Provider_Service_Name: ServiceName,
           Providernumber: ProviderNumber,
           ServiceId:ServiceId,
-          ServiceName:ServiceName,
+          ProRegServiceDescription:ProRegServiceDescription,
         ),
       ),
     );
@@ -649,7 +626,7 @@ class _ServicesScreenState extends State<ServicesScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ---------------- Search field ----------------
+
           Obx(
                 () => AnimatedContainer(
               duration: const Duration(milliseconds: 200),
@@ -718,12 +695,14 @@ class _ServicesScreenState extends State<ServicesScreen>
 
           SizedBox(height: isMobile ? 14 : 16),
 
-          // ---------------- Sort chips ----------------
-          Row(
+
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               const Icon(Icons.tune_rounded,
                   color: _Theme.mutedTextAlt, size: 15),
-              const SizedBox(width: 8),
               const Text(
                 "Sort by",
                 style: TextStyle(
@@ -732,13 +711,11 @@ class _ServicesScreenState extends State<ServicesScreen>
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(width: 12),
               _sortChip(
                 label: "Nearest",
                 icon: Icons.near_me_rounded,
                 mode: ServiceSortMode.distance,
               ),
-              const SizedBox(width: 10),
               _sortChip(
                 label: "Top rated",
                 icon: Icons.star_rounded,
@@ -750,6 +727,7 @@ class _ServicesScreenState extends State<ServicesScreen>
       ),
     );
   }
+
 
   Widget _sortChip({
     required String label,
@@ -808,7 +786,9 @@ class _ServicesScreenState extends State<ServicesScreen>
   // RESULTS
   // ============================================================
 
-  Widget _buildResultsSection({required bool isMobile, required int columns}) {
+  Widget _buildResultsSection({required bool isMobile, required int columns})
+
+  {
     return Obx(() {
       if (serviceCont.isLoading.value) {
         return _resultsShell(
@@ -862,23 +842,29 @@ class _ServicesScreenState extends State<ServicesScreen>
               ),
             ),
           ),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: cards.length,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columns,
-              crossAxisSpacing: 14,
-              mainAxisSpacing: 14,
-              childAspectRatio: columns == 1 ? 2.7 : 1.35,
-            ),
-            itemBuilder: (context, index) {
-              return _providerCard(cards[index], index);
+
+
+          LayoutBuilder(
+            builder: (context, box) {
+              const double gap = 14;
+              final double raw = (box.maxWidth - gap * (columns - 1)) / columns;
+              final double cardW = raw < 0 ? 0 : raw;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  for (int i = 0; i < cards.length; i++)
+                    SizedBox(width: cardW, child: _providerCard(cards[i], i)),
+                ],
+              );
             },
           ),
+
+
         ],
       );
     });
+
   }
 
   Widget _resultsShell({required Widget child}) {
@@ -931,17 +917,21 @@ class _ServicesScreenState extends State<ServicesScreen>
   // PROVIDER CARD
   // ------------------------------------------------------------
 
-  Widget _providerCard(CombinedServiceCard card, int index)
-  {
-
+  Widget _providerCard(CombinedServiceCard card, int index) {
     final String providerName = card.provider != null
         ? "${card.provider!.firstName ?? ''} ${card.provider!.lastName ?? ''}"
         .trim()
         : "";
     final String serviceName = card.service.serviceName!;
-    final num serviceId = card.service.providerServiceId!;                     //serviceId = providerserviceid
-    final num? userNumber = card.service.userNumber!;  //userNumber=provider number
+    final String ProviderServiceDescription =
+        card.service.proRegServiceDescription ?? '';
+
+    final num serviceId = card.service.providerServiceId!;
+    final num? userNumber = card.service.userNumber!;
     final String userNumberLabel = userNumber != null ? "#$userNumber" : "#--";
+    final String Provider_Email = card.provider!.email!;
+
+    final bool noDesc = ProviderServiceDescription.trim().isEmpty;
 
     return Obx(() {
       final bool hovered = serviceCont.hoveredCardIndex.value == index;
@@ -956,10 +946,12 @@ class _ServicesScreenState extends State<ServicesScreen>
           onTapCancel: () => serviceCont.clearPressedCard(),
           onTapUp: (_) => serviceCont.clearPressedCard(),
           onTap: () => _onCardTap(
-              card,
-              ServiceName:serviceName,
-              ProviderNumber: userNumber!,
-              ServiceId: serviceId
+            card,
+            ServiceName: serviceName,
+            ProviderNumber: userNumber!,
+            ServiceId: serviceId,
+            ProRegServiceDescription: ProviderServiceDescription,
+            ProviderEmail: Provider_Email,
           ),
           child: AnimatedScale(
             scale: pressed ? 0.97 : 1.0,
@@ -994,10 +986,14 @@ class _ServicesScreenState extends State<ServicesScreen>
                   ),
                 ],
               ),
+              // mainAxisSize.min + no Spacer = card height follows content
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ---------- title row ----------
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
@@ -1005,11 +1001,8 @@ class _ServicesScreenState extends State<ServicesScreen>
                           color: _Theme.emerald.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: const Icon(
-                          Icons.engineering_rounded,
-                          color: _Theme.mint,
-                          size: 20,
-                        ),
+                        child: const Icon(Icons.engineering_rounded,
+                            color: _Theme.mint, size: 20),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1017,52 +1010,96 @@ class _ServicesScreenState extends State<ServicesScreen>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              "Service name = $serviceName",
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                              serviceName,
+                              softWrap: true,
                               style: const TextStyle(
                                 color: _Theme.primaryText,
-                                fontSize: 15,
+                                fontSize: 15.5,
+                                height: 1.25,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
-                            if (providerName.isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                "provider name = $providerName · Provider Number = $userNumberLabel",
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: _Theme.mutedTextAlt,
-                                  fontSize: 11.5,
-                                ),
+                            const SizedBox(height: 3),
+                            Text(
+                              providerName.isNotEmpty
+                                  ? providerName
+                                  : "Provider $userNumberLabel",
+                              softWrap: true,
+                              style: const TextStyle(
+                                color: _Theme.mutedTextAlt,
+                                fontSize: 12,
+                                height: 1.3,
+                                fontWeight: FontWeight.w600,
                               ),
-                            ] else ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                userNumberLabel,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: _Theme.mutedTextAlt,
-                                  fontSize: 11.5,
-                                ),
-                              ),
-                            ],
+                            ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  const Spacer(),
+
+                  const SizedBox(height: 12),
+
+                  // ---------- description: fully visible, wraps freely ----------
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _Theme.surfaceBar,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: _Theme.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: const [
+                            Icon(Icons.notes_rounded,
+                                size: 13, color: _Theme.mint),
+                            SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                "SERVICE DESCRIPTION",
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: _Theme.mutedTextAlt,
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          noDesc
+                              ? "No description provided."
+                              : ProviderServiceDescription.trim(),
+                          softWrap: true,
+                          style: TextStyle(
+                            color: noDesc
+                                ? _Theme.mutedTextAlt
+                                : _Theme.primaryText,
+                            fontSize: 13,
+                            height: 1.5,
+                            fontStyle:
+                            noDesc ? FontStyle.italic : FontStyle.normal,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // ---------- stat pills ----------
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
                     children: [
                       _statPill(
-                        icon: Icons.badge_rounded,
-                        label: userNumberLabel,
-                      ),
+                          icon: Icons.badge_rounded, label: userNumberLabel),
                       _statPill(
                         icon: Icons.location_on_rounded,
                         label: card.hasLocation
@@ -1078,25 +1115,28 @@ class _ServicesScreenState extends State<ServicesScreen>
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Icon(
-                        Icons.play_circle_fill_rounded,
-                        color: _Theme.mint,
-                        size: 15,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        "Start work",
-                        style: TextStyle(
-                          color: _Theme.mint,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
+
+                  const SizedBox(height: 12),
+
+                  // ---------- call to action ----------
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.play_circle_fill_rounded,
+                            color: _Theme.mint, size: 16),
+                        SizedBox(width: 5),
+                        Text(
+                          "Start work",
+                          style: TextStyle(
+                            color: _Theme.mint,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),

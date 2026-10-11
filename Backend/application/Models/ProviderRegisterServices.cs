@@ -18,20 +18,15 @@ namespace application.Models
         [Required]
         public string ServiceDocument { get; set; } = string.Empty;
 
-        [Required]
-        [StringLength(200)]
-        [EmailAddress]
-        public string Email { get; set; } = string.Empty;
 
+        [Required]
+        public string ProRegServiceDescription { get; set; } = string.Empty;
 
         [Required]
         public int UserNumber { get; set; }
 
 
-        [ForeignKey("UserNumber")]
-        public UserInfo? Users { get; set; }
-
-        public ICollection<ProviderRegisterServiceResources> ProviderServicesResources { get; set; } = [];
+   
 
 
     }

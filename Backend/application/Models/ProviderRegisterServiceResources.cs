@@ -19,21 +19,12 @@ namespace application.Models
         [Required]
         public int ProviderServiceId { get; set; }
 
-        [Required]
-        [StringLength(200)]
-        [EmailAddress]
-        public string Email { get; set; } = string.Empty;
-
 
         [Required]
         public int UserNumber { get; set; }
 
 
-        [ForeignKey("ProviderServiceId")]
-        public ProviderRegisterServices? ProviderServices { get; set; }
 
-        [ForeignKey("UserNumber")]
-        public UserInfo? Users { get; set; }
 
     }
 }

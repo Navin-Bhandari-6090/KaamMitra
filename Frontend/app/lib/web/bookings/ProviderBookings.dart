@@ -97,7 +97,8 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
     super.initState();
 
     try {
-      Provider_Jwt_Verify(Jwt_Token: widget.Current_User_JwtToken);
+
+      Provider_Jwt_Verify(Jwt_Token: widget.Current_User_JwtToken, context: context);
 
       _entranceController = AnimationController(
         vsync: this,
@@ -160,40 +161,71 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
     super.dispose();
   }
 
-
-  Future<void> Provider_Jwt_Verify({required String Jwt_Token}) async {
+  // ============================================================
+// REFRESH — reloads bookings, notifications and the bell state
+// ============================================================
+  Future<void> _onRefreshTap() async {
     try {
-      int Result = await ProviderJwtVerify(Jwt_Token: Jwt_Token);
-      if (Result == 1) {
-        return;
-      } else {
-        await Clear_User_Data();
-        await Random_token_Clear();
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => ErrorPage()),
-              (route) => false,
-        );
-        Toastget().Toastmsg("Session End.Relogin please.");
-        return;
+      if (bookingCont.isLoading.value) return; // ignore taps while loading
+      await _loadEverything();
+      if (!bookingCont.hasLoadError.value) {
+        Toast.Toastmsg("Bookings refreshed.");
       }
     } catch (e) {
-      // Defensive fallback only — an unexpected failure here shouldn't
-      // crash the screen; surface a toast instead so the person knows
-      // something went wrong.
-      print("Unexpected error in Provider_Jwt_Verify: $e");
-      Toastget().Toastmsg("Something went wrong. Please try again.");
-      await Clear_User_Data();
-      await Random_token_Clear();
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => ErrorPage()),
-            (route) => false,
-      );
-      Toastget().Toastmsg("Session End.Relogin please.");
-      return;
+      print("Unexpected error in _onRefreshTap: $e");
     }
   }
+
+  Widget _buildRefreshButton() {
+    return Obx(() {
+      final bool loading = bookingCont.isLoading.value;
+
+      return Tooltip(
+        message: "Refresh bookings",
+        child: Material(
+          color: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+              color: loading ? _Theme.emerald.withOpacity(0.6) : _Theme.border,
+              width: 1.3,
+            ),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: loading ? null : _onRefreshTap,
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: _Theme.surface,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: loading
+                    ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    color: _Theme.emerald,
+                  ),
+                )
+                    : const Icon(
+                  Icons.refresh_rounded,
+                  color: _Theme.mint,
+                  size: 21,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+
+
 
 
   List<BookingInfoModel> BookingInfoList = [];
@@ -543,6 +575,8 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
         ),
       );
 
+      if (mounted) _loadEverything();
+
 
     } catch (e) {
       // Defensive fallback only — never let a bad navigation attempt
@@ -781,7 +815,16 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 12),
-          child: Center(child: _buildNotificationBell()),
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildRefreshButton(),
+                const SizedBox(width: 10),
+                _buildNotificationBell(),
+              ],
+            ),
+          ),
         ),
       ],
     );

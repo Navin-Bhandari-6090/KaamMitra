@@ -29,8 +29,6 @@ namespace application.Models
         [Required]
         public int BookId { get; set; }
 
-        [ForeignKey("BookId")]
-        public BookinInfoModel? Bookings { get; set; }
 
 
 

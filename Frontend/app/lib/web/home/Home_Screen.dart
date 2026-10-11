@@ -1,11 +1,23 @@
+import 'dart:convert';
+
 import 'package:app/web/footer/Footer.dart';
 import 'package:flutter/material.dart';
 import 'package:app/web/header/Header.dart';
+import 'package:get/get_core/src/get_main.dart';
+import 'package:get/get_instance/src/extension_instance.dart';
+import 'package:hive/hive.dart';
+import 'package:http/http.dart' as http;
 import 'package:velocity_x/velocity_x.dart';
+import '../../constant/Server_Database.dart';
+import '../../constant/variable.dart';
+import '../../models/AdvertisementInfoModel.dart';
+import '../../models/FooterInfosModel.dart';
 import '../authentication/Error_page.dart';
 import '../authentication/Login.dart';
 import '../common method/Commmon_Method.dart';
-import '../common widget/toast.dart';
+import '../communi_services/services.dart';
+import '../communication/chat/chat_screen.dart';
+
 
 class HomeScreenUi extends StatefulWidget
 {
@@ -29,15 +41,22 @@ class _HomeScreenUiState extends State<HomeScreenUi>
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
 
+  final SignalRService SignalR =
+  Get.put(SignalRService(), permanent: true);
+
+
   @override
   void initState()
   {
-
     super.initState();
-
     widget.UserLogin == true
-        ? User_Provider_Jwt_Verify(Jwt_Token: widget.User_JwtToken)
-        : Random_Jwt_Verify(Jwt_Token: widget.User_JwtToken);
+        ? Provider_User_Jwt_Verify(Jwt_Token: widget.User_JwtToken, context: context)
+        : Random_Jwt_Verify(Jwt_Token: widget.User_JwtToken, context: context);
+
+    if(widget.UserLogin){
+
+      ConnectSignalR();
+    }
 
     _animationController = AnimationController(
       vsync: this,
@@ -66,73 +85,179 @@ class _HomeScreenUiState extends State<HomeScreenUi>
     super.dispose();
   }
 
-  Future<void> Random_Jwt_Verify({required String Jwt_Token}) async {
+  Future<void> ConnectSignalR() async {
     try {
-      int Result = await RandomJwtVerify(Jwt_Token: Jwt_Token);
+      final box = Hive.box('User_Data');
 
-      if (Result == 1) {
+      final String User_JwtToken =
+      box.get('jwt_token', defaultValue: '').toString();
+
+      if (User_JwtToken.isEmpty) {
+        print("SignalR: JWT token is missing.");
         return;
-      } else {
+      }
+
+      await SignalR.ConnectSignalR(
+        User_JwtToken: User_JwtToken,
+      );
+    } catch (e) {
+      print("HomeScreen SignalR error: $e");
+    }
+  }
+
+  List<FooterInfosModel> FooterInfosList=[];
+
+  Future<void> GetFooterInfos({
+    required String jwttoken,
+  }) async {
+    try {
+      final String url =
+          Backend_Server_Url + "api/Home/getfooterinfo";
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $jwttoken",
+        },
+      );
+
+
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+
+        // Clear old data before adding new data
+        FooterInfosList.clear();
+
+        // Backend returns a single object because the table has only one row
+        FooterInfosList.add(
+          FooterInfosModel.fromJson(data),
+        );
+
+        // print("Footer information loaded successfully.");
+      } else if (response.statusCode == 400) {
+        // Toast.Toastmsg("Data are not in correct format.");
+        // print("Footer info request returned 400.");
+      } else if (response.statusCode == 401) {
+        // Toast.Toastmsg("Unauthorized access.");
+        // print("Footer info request returned 401.");
+     Logout(context: context);
+      } else if (response.statusCode == 403) {
+        // Toast.Toastmsg("You do not have permission to access footer information.");
+        // print("Footer info request returned 403.");
+      } else if (response.statusCode == 404) {
+        // Toast.Toastmsg("Footer information not found.");
+        // print("Footer information not found.");
+      } else if (response.statusCode == 502) {
+        // Toast.Toastmsg("User not found.");
+        // print("User not found.");
         await Clear_User_Data();
         await Random_token_Clear();
-
-        Navigator.pushReplacement(
+        Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => ErrorPage()),
+              (route) => false,
         );
+        Toast.Toastmsg("Session End.Relogin please.");
+      } else if (response.statusCode == 506) {
+        Toast.Toastmsg(
+          "You have been blocked by the system. Please contact the KaamMitra community.",
+        );
+        print("User has been blocked.");
+    Logout(context: context);
 
-        Toastget().Toastmsg("Session End.Relogin please.");
-
-        return;
-      }
-    } catch (e)
-    {
-
-      await Clear_User_Data();
-      await Random_token_Clear();
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => ErrorPage()),
-      );
-
-      Toastget().Toastmsg("Session End.Relogin please.");
-
-      return;
-
-    }
-  }
-
-  Future<void> User_Provider_Jwt_Verify({required String Jwt_Token}) async {
-    try {
-      int Result = await UserProviderJwtVerify(Jwt_Token: Jwt_Token);
-
-      if (Result == 1) {
-        return;
+      } else if (response.statusCode == 500) {
+        // Toast.Toastmsg(
+        //   "Something went wrong while getting footer information.",
+        // );
+        // print("Server error while getting footer information.");
       } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => ErrorPage()),
-        );
-
-        Toastget().Toastmsg("Session End.Relogin please.");
-
-        return;
+        // Toast.Toastmsg("Something went wrong.");
+        // print("Unexpected status code: ${response.statusCode}");
       }
     } catch (e) {
-      await Clear_User_Data();
-      await Random_token_Clear();
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => ErrorPage()),
-      );
-
-      Toastget().Toastmsg("Session End.Relogin please.");
+      // Toast.Toastmsg("Something went wrong.");
+      // print("========== GET FOOTER INFO ERROR ==========");
+      // print(e);
 
       return;
     }
   }
+
+  List<AdvertisementInfoModel> AdvertisementInfosList=[];
+
+  Future<void> GetAllAdvertisementInfos({
+    required String jwttoken,
+  }) async {
+    try {
+      const String url =
+          Backend_Server_Url + "api/Admin/getalladvertisementinfos";
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $jwttoken",
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+
+        AdvertisementInfosList.clear();
+
+        AdvertisementInfosList.addAll(
+          data.map(
+                (json) => AdvertisementInfoModel.fromJson(json),
+          ),
+        );
+
+        // print("Advertisement count: ${AdvertisementInfosList.length}");
+      } else if (response.statusCode == 400) {
+        // Toast.Toastmsg(
+        //   "Data are not in correct format.",
+        // );
+      } else if (response.statusCode == 401) {
+        Toast.Toastmsg(
+          "Unauthorized access.",
+        );
+ Logout(context: context);
+      } else if (response.statusCode == 403) {
+        // Toast.Toastmsg(
+        //   "You do not have permission to access advertisements.",
+        // );
+      } else if (response.statusCode == 404) {
+        // Toast.Toastmsg(
+        //   "No advertisement information is present.",
+        // );
+      } else if (response.statusCode == 506) {
+        Toast.Toastmsg(
+          "You have been blocked by the system. Please contact the KaamMitra community.",
+        );
+      Logout(context: context);
+
+      } else if (response.statusCode == 500) {
+        // Toast.Toastmsg(
+        //   "Something went wrong while getting advertisement information.",
+        // );
+      } else {
+        // Toast.Toastmsg(
+        //   "Something went wrong.",
+        // );
+      }
+    } catch (e) {
+      // print("========== GET ADVERTISEMENT ERROR ==========");
+      // print(e);
+
+      // Toast.Toastmsg(
+      //   "Something went wrong.",
+      // );
+    }
+  }
+
+
+
 
   // ------------------------------------------------------------
   // COLORS
@@ -174,6 +299,27 @@ class _HomeScreenUiState extends State<HomeScreenUi>
                           User_JwtToken: widget.User_JwtToken,
                         ),
 
+                        SizedBox(height: 10,),
+
+                        ElevatedButton(
+                          onPressed: () async {
+                            try {
+                              await GetFooterInfos(
+                                jwttoken: widget.User_JwtToken,
+                              );
+
+                              await GetAllAdvertisementInfos(
+                                jwttoken: widget.User_JwtToken,
+                              );
+                            } catch (e) {
+                              print(e.toString());
+                            }
+                          },
+                          child: const Text("Test Get Footer & Advertisement"),
+                        ),
+
+                        SizedBox(height: 10,),
+
                         FadeTransition
                           (
                           opacity: _fadeAnimation,
@@ -197,9 +343,9 @@ class _HomeScreenUiState extends State<HomeScreenUi>
     );
   }
 
-  // ============================================================
+
   // HOME BODY
-  // ============================================================
+
 
   Widget _buildHomeBody() {
     return LayoutBuilder(
@@ -232,53 +378,44 @@ class _HomeScreenUiState extends State<HomeScreenUi>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ==================================================
+
                   // LOGIN NOTICE
-                  // ==================================================
+
 
                   if (!widget.UserLogin) _buildLoginNotice(),
 
                   if (!widget.UserLogin) const SizedBox(height: 24),
 
-                  // ==================================================
+
                   // WELCOME / HERO
-                  // ==================================================
+
                   _buildHeroSection(),
 
                   const SizedBox(height: 32),
 
-                  // // ==================================================
-                  // // SECTION TITLE
-                  // // ==================================================
-                  //
-                  // _buildSectionTitle(),
-                  //
-                  // const SizedBox(height: 18),
-                  //
-                  // // ==================================================
-                  // // WIDGET 1
-                  // // ==================================================
-                  //
-                  // _buildServiceGrid(),
-                  //
-                  // const SizedBox(height: 40),
-                  //
-                  // // ==================================================
-                  // // WIDGET 2
-                  // // ==================================================
-                  //
-                  // _buildWhySection(),
-                  //
-                  // const SizedBox(height: 40),
-                  //
-                  // // ==================================================
-                  // // WIDGET 3
-                  // // Future widgets go here
-                  // // ==================================================
-                  //
-                  // _buildBottomCallout(),
-                  //
-                  // const SizedBox(height: 20),
+                  if (widget.UserLogin) ElevatedButton(onPressed: ()async{
+
+                    final box =
+                    await Hive.openBox('User_Data');
+
+                    int? User_Number =
+                    box.get('user_number');
+
+
+
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute
+                        (
+                        builder: (context) =>
+                            ChatScreen(User_JwtToken: widget.User_JwtToken, CurrentUserNumber:User_Number!),
+                            ),
+                      );
+
+                  }, child: Text("Communicate with people.")),
+
+                  const SizedBox(height: 32),
+
                 ],
               ),
             ),

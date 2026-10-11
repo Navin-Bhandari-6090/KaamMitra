@@ -15,7 +15,7 @@ import '../../common widget/getx_cont_pick_single_photo_int.dart';
 import '../../common widget/toast.dart';
 import '../../header/Header.dart';
 import '../provider_user/Update_Location.dart';
-import '../provider_user/Update_Email.dart';
+
 import '../provider_user/Update_Password.dart';
 import '../provider_user/update_address.dart';
 import '../provider_user/update_user_name.dart';
@@ -386,20 +386,6 @@ class _UserProfileState extends State<UserProfile>
         ),
       ),
 
-      _ActionItem(
-        icon: Icons.email_rounded,
-        label: "Update email",
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => UpdateEmail(
-              User_Email: widget.User_Email,
-              User_JwtToken: widget.User_JwtToken,
-              User_Role: widget.User_Role,
-            ),
-          ),
-        ),
-      ),
 
       _ActionItem(
         icon: Icons.location_city_rounded,

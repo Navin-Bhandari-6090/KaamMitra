@@ -8,8 +8,8 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
-// Adjust the relative import segment counts / folder names to your project.
-import '../../models/Service_Screen_Service_Model.dart';
+
+import '../../models/ServiceScreenServiceModel.dart';
 import '../../state management/getx/admin/show_serv_res_info_getx.dart';
 import '../common method/Commmon_Method.dart';
 

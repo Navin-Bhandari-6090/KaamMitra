@@ -9,9 +9,12 @@ import '../authentication/Error_page.dart';
 import '../common method/Commmon_Method.dart';
 import '../common widget/toast.dart';
 import 'add_del_services.dart';
+import 'add_footer_info.dart';
 import 'admin_qr.dart';
 import 'advance_pay_qr_info.dart';
+import 'booking_pro_task_pay_summary.dart';
 import 'del_pro_reg_service_res.dart';
+import 'delete_user.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   final String User_Role;
@@ -190,15 +193,67 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
             SizedBox(height: 10,),
 
-            ElevatedButton(onPressed: ()async{
-              await Clear_User_Data();
-              await Random_token_Clear();
-              Toast.Toastmsg("Logout Success");
-              Navigator.pushReplacement(
+            SizedBox(height: 10,),
+
+
+            ElevatedButton(onPressed: (){
+
+              Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => ErrorPage()),
+                MaterialPageRoute(builder: (context) => AddFooterInfo(
+                  User_JwtToken: widget.User_JwtToken,
+                )
+
+                ),
               );
-              Toastget().Toastmsg("Session End.Relogin please.");
+
+            }, child: Text("Update footer details.")),
+
+            SizedBox(height: 10,),
+            SizedBox(height: 10,),
+
+
+            ElevatedButton(onPressed: (){
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => DeleteUser(
+                  User_JwtToken: widget.User_JwtToken,
+                )
+
+                ),
+              );
+
+            }, child: Text("Delete user.")),
+
+            SizedBox(height: 10,),
+
+            SizedBox(height: 10,),
+
+
+            ElevatedButton(onPressed: (){
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => FilterSummaryBookingTaskCompPayment(
+                  User_JwtToken: widget.User_JwtToken,
+                  User_Role:widget.User_Role,
+                  User_Email: widget.User_Email,
+                  User_Number: widget.User_Number,
+                )
+
+                ),
+              );
+
+            }, child: Text("Filtered booking details.")),
+
+            SizedBox(height: 10,),
+
+            SizedBox(height: 10,),
+
+
+            ElevatedButton(onPressed: ()async{
+              Logout(context: context);
               return;
 
             }, child: Text("Logout")),

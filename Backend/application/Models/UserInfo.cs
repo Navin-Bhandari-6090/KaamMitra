@@ -55,11 +55,7 @@ namespace application.Models
 
         public bool LoginAccess { get; set; } = true; 
 
-        public ICollection<ProviderRegisterServices> ProviderServices { get; set; } = [];
 
-        public ICollection<ProviderRegisterServiceResources> ProviderServicesResources { get; set; } = [];
-
-        public ICollection<BookinInfoModel> Bookings { get; set; } = [];
 
     }
 }

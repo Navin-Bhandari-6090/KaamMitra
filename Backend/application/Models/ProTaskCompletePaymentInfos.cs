@@ -6,6 +6,7 @@ namespace application.Models
     public class ProTaskCompletePaymentInfos
     {
 
+
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int TaskCompletePaymentId { get; set; }
@@ -24,9 +25,7 @@ namespace application.Models
         [Required]
         public string PaymentPhoto { get; set; }
 
-        [ForeignKey("BookId")]
-        public BookinInfoModel? BookingInfos { get; set; }
-
+   
 
     }
 }

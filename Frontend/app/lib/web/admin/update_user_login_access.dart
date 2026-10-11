@@ -163,42 +163,7 @@ class _UpdateUserLoginAccessState extends State<UpdateUserLoginAccess>
   }
 
 
-  List<AdminUserInfosModel> UserInfoModelList = [];
 
-  Future<void> GetUserInfo({
-    required String jwttoken,
-  }) async {
-    try {
-      const String url = Backend_Server_Url + "api/Admin/getuserinfo";
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': 'Bearer $jwttoken',
-        },
-      );
-      if (response.statusCode == 200) {
-        print("user info");
-        UserInfoModelList.clear();
-        List<dynamic> responseData = await jsonDecode(response.body);
-        UserInfoModelList.clear();
-        UserInfoModelList.addAll(
-            responseData.map((data) => AdminUserInfosModel.fromJson(data)).toList());
-        return;
-        return;
-      } else {
-        UserInfoModelList.clear();
-        print("Data insert in userinfo list failed.");
-        return;
-      }
-
-    } catch (obj) {
-      UserInfoModelList.clear();
-      print("Exception caught while fetching user data for profile screen");
-      print(obj.toString());
-      return;
-    }
-  }
 
   // ============================================================
   // BUILD — visual redesign; every action body is the original logic

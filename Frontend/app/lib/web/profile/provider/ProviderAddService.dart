@@ -57,6 +57,7 @@ class _ProviderAddServiceState extends State<ProviderAddService>
   final AvailableServiceCont = TextEditingController();
   final SearchTextGetxCont = Get.put(AddServiceGetx());
   final ProviderAddServiceNameCont = TextEditingController();
+  final ProDescpServiceCont = TextEditingController();
 
   // ============================================================
   // ENTRANCE ANIMATION (UI-only addition, no business logic)
@@ -73,7 +74,7 @@ class _ProviderAddServiceState extends State<ProviderAddService>
   @override
   void initState() {
     super.initState();
-    Provider_Jwt_Verify(Jwt_Token: widget.User_JwtToken);
+    Provider_Jwt_Verify(Jwt_Token: widget.User_JwtToken, context: context);
 
     _entranceController = AnimationController(
       vsync: this,
@@ -115,33 +116,19 @@ class _ProviderAddServiceState extends State<ProviderAddService>
     super.dispose();
   }
 
-  Future<void> Provider_Jwt_Verify({required String Jwt_Token}) async {
-    int Result = await ProviderJwtVerify(Jwt_Token: Jwt_Token);
-    if (Result == 1) {
-      return;
-    } else {
-      await Clear_User_Data();
-      await Random_token_Clear();
-      Navigator.pushReplacement(
-          context, MaterialPageRoute(builder: (context) => ErrorPage()));
-      Toastget().Toastmsg("Session End.Relogin please.");
-      return;
-    }
-  }
+
 
   Future<int> AddService({
     required List<int> FileBytes,
     required String ServiceName,
+    required String ProRegServiceDescription
   }) async {
     try {
       // =========================================================
       // 2. Print information
       // =========================================================
 
-      print("========== ADD SERVICE ==========");
-      print("Service Name: $ServiceName");
-      print("Email: ${widget.User_Email}");
-      print("Document Size: ${FileBytes.length} bytes");
+
 
       // =========================================================
       // 3. Validate document bytes
@@ -175,6 +162,18 @@ class _ProviderAddServiceState extends State<ProviderAddService>
         return 2;
       }
 
+      if (ProRegServiceDescription.isEmpty) {
+        Toast.Toastmsg(
+          'Description about your sevice is required',
+        );
+
+        print(
+          'Description about your sevice is required',
+        );
+
+        return 2;
+      }
+
       // =========================================================
       // 5. API URL
       // =========================================================
@@ -203,6 +202,8 @@ class _ProviderAddServiceState extends State<ProviderAddService>
       // =========================================================
 
       request.fields["ServiceName"] = ServiceName.trim().toLowerCase();
+
+      request.fields["ProRegServiceDescription"] = ProRegServiceDescription.trim().toLowerCase();
 
       request.fields["Email"] = widget.User_Email;
 
@@ -457,6 +458,7 @@ class _ProviderAddServiceState extends State<ProviderAddService>
         int Result = await AddService(
           FileBytes: change_file_cont_getx.fileBytes.value!,
           ServiceName: enteredServiceName,
+          ProRegServiceDescription: ProDescpServiceCont.text.trim(),
         );
 
         if (Result == 1) {
@@ -1195,6 +1197,13 @@ class _ProviderAddServiceState extends State<ProviderAddService>
               label: "Enter service name.",
               icon: Icons.work,
           ),
+          const SizedBox(height: 16),
+          GreenField(
+            controller: ProDescpServiceCont,
+            label: "Enter description about your service.",
+            icon: Icons.work,
+          ),
+
         ],
       ),
     );

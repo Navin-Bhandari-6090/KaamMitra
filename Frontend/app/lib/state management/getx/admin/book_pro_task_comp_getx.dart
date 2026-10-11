@@ -13,7 +13,6 @@ import '../../../web/common method/Commmon_Method.dart';
 
 // =============================================================================
 // CONTROLLER — all state lives here (no setState anywhere).
-// API method bodies keep the original logic, moved from the screen.
 // =============================================================================
 class BookProTaskCompGetx extends GetxController {
   // ---------------- reactive state ----------------
@@ -69,13 +68,31 @@ class BookProTaskCompGetx extends GetxController {
     return n % 1 == 0 ? n.toInt().toString() : n.toString();
   }
 
+  /// Every booking exactly once. The server sends one item per payment, so a
+  /// booking with several payments appears several times in the raw list.
+  List<AdminTaskCompletePaymentModel> get _uniqueBookings {
+    final Set<num> seen = <num>{};
+    return adminTaskCompletePaymentList.where((m) {
+      final num? id = m.bookingInfo?.bookId;
+      return id != null && seen.add(id);
+    }).toList();
+  }
+
+  /// Total distinct bookings (not affected by search). Used by the header.
+  int get bookingCount {
+    try {
+      return _uniqueBookings.length;
+    } catch (obj) {
+      print(obj.toString());
+      return 0;
+    }
+  }
+
   /// Booking search: Book ID or User number.
   List<AdminTaskCompletePaymentModel> get filteredBookings {
     try {
       final String q = bookingQuery.value.trim().toLowerCase();
-      final list = adminTaskCompletePaymentList
-          .where((m) => m.bookingInfo != null)
-          .toList();
+      final list = _uniqueBookings;
       if (q.isEmpty) return list;
       return list.where((m) {
         final b = m.bookingInfo;
@@ -88,6 +105,7 @@ class BookProTaskCompGetx extends GetxController {
   }
 
   /// Payment search: TaskCompletePaymentId or Book ID.
+  /// Includes orphan payments (booking deleted -> bookingInfo == null).
   List<AdminTaskCompletePaymentModel> get filteredPayments {
     try {
       final String q = paymentQuery.value.trim().toLowerCase();
@@ -155,7 +173,8 @@ class BookProTaskCompGetx extends GetxController {
     }
   }
 
-  Future<void> changeProTaskComplete({
+  Future<void> changeProTaskComplete(
+      {
     required BuildContext context,
     required num providerNumber,
     required num bookId,
@@ -163,18 +182,20 @@ class BookProTaskCompGetx extends GetxController {
     if (busyKey.value.isNotEmpty) return;
     busyKey.value = 'pro_${bookId.toInt()}';
     try {
+
       final int ProviderNumberValue = providerNumber.toInt();
       final int BookIdValue = bookId.toInt();
 
       final RequestTaskResult = await ProRequestTaskComplete(
         BookId: BookIdValue,
       );
+
       print("Request for task complete result = ${RequestTaskResult}");
 
       await AddNotifications(
         ReceiverNumber: ProviderNumberValue,
         Message:
-        "Admin have change provider task complete status for the booking id = ${BookIdValue}.",
+        "KaamMitra have change provider task complete status for the booking id = ${BookIdValue}.",
         Current_User_JwtToken: _jwt,
         context: context,
       );
@@ -185,6 +206,8 @@ class BookProTaskCompGetx extends GetxController {
         Current_User_JwtToken: _jwt,
         context: context,
       );
+
+      print("notification add success");
 
       await GetAllTaskCompletePayments(JwtToken: _jwt);
     } catch (e) {
@@ -215,7 +238,7 @@ class BookProTaskCompGetx extends GetxController {
   }
 
   // ===========================================================================
-  // ORIGINAL API METHODS — logic unchanged
+  // API METHODS
   // ===========================================================================
   Future<int> DeleteBooking({
     required num BookId,
@@ -374,26 +397,41 @@ class BookProTaskCompGetx extends GetxController {
 
         if (responseData is List) {
           final List<AdminTaskCompletePaymentModel> fresh = [];
+          int failed = 0;
           for (var item in responseData) {
             try {
               if (item is Map<String, dynamic>) {
                 fresh.add(AdminTaskCompletePaymentModel.fromJson(item));
+              } else {
+                failed++;
+                print("Skipped non-map item: $item");
               }
-            } catch (e, stackTrace) {
+            } catch (e) {
+              // Do NOT hide parse problems: this tells you exactly which
+              // row/field breaks fromJson.
+              failed++;
+              print("PARSE FAILED for item: $e\n$item");
               continue;
             }
           }
+
+          print("Received ${responseData.length} items, parsed ${fresh.length}, failed $failed");
 
           adminTaskCompletePaymentList.assignAll(fresh);
 
           if (adminTaskCompletePaymentList.isEmpty) {
             print("No booking information is available.");
-            Toast.Toastmsg("No booking information is available.");
+            Toast.Toastmsg("No booking or payment information is available.");
             return;
           }
 
-          Toast.Toastmsg(
-              "Task complete payment information loaded successfully.");
+          if (failed > 0) {
+            Toast.Toastmsg(
+                "$failed record(s) could not be read. Check the console log.");
+          } else {
+            Toast.Toastmsg(
+                "Task complete payment information loaded successfully.");
+          }
           return;
         } else {
           adminTaskCompletePaymentList.clear();
@@ -429,6 +467,7 @@ class BookProTaskCompGetx extends GetxController {
             response.body.isNotEmpty ? response.body : "Something went wrong.");
       }
     } catch (e, stackTrace) {
+      print("GetAllTaskCompletePayments exception: $e\n$stackTrace");
       adminTaskCompletePaymentList.clear();
       Toast.Toastmsg(
           "An error occurred while getting task complete payment information.");

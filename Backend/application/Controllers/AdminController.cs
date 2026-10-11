@@ -598,27 +598,16 @@ namespace application.Controllers
                             UploadedAt=DateTime.UtcNow
                     };
 
-                Console.WriteLine(
-                    "Advertisement database object created.");
-
                 // =========================================================
                 // 10. Add to database
                 // =========================================================
                 await Database.AdvertisementInfos.AddAsync(Advertisement);
 
-                Console.WriteLine(
-                    "Advertisement added to DbContext.");
+         
 
                 await Database.SaveChangesAsync();
 
-                Console.WriteLine(
-                    "Advertisement saved to database successfully.");
-
-                // =========================================================
-                // 11. SUCCESS
-                // =========================================================
-                Console.WriteLine(
-                    "Advertisement added successfully.");
+            
 
                 return StatusCode(
                     200,
@@ -626,14 +615,7 @@ namespace application.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine(
-                    "========== ADD ADVERTISEMENT ERROR ==========");
-
-                Console.WriteLine(
-                    $"Exception: {ex.Message}");
-
-                Console.WriteLine(
-                    $"StackTrace: {ex.StackTrace}");
+             
 
                 // ---------------------------------------------------------
                 // Delete saved photo if exception occurs
@@ -1093,7 +1075,7 @@ namespace application.Controllers
             }
         }
 
-        [Authorize(Policy = "RequireAdminRole")]
+        [Authorize(Policy = "RequireforAllRole")]
         [HttpGet]
         [Route("getuserinfo")]
         public async Task<IActionResult> GetUserInfo()
@@ -2162,7 +2144,7 @@ public async Task<IActionResult> DeleteAdvancePaymentInfo(
             }
         }
 
-        //[Authorize(Policy = "RequireAdminRole")]
+        [Authorize(Policy = "RequireforAllRole")]
         [HttpGet]
         [Route("getalladvertisementinfos")]
         public async Task<IActionResult> GetAllAdvertisementInfos()
@@ -3043,6 +3025,7 @@ public async Task<IActionResult> DeleteAdvancePaymentInfo(
             }
         }
 
+
         [Authorize(Policy = "RequireAdminRole")]
         [HttpGet]
         [Route("getalltaskcompletepayments")]
@@ -3050,26 +3033,16 @@ public async Task<IActionResult> DeleteAdvancePaymentInfo(
         {
             try
             {
-                Console.WriteLine(
-                    "========== GET ALL BOOKING + TASK COMPLETE PAYMENT INFORMATION =========="
-                );
+                Console.WriteLine("========== GET ALL BOOKING + TASK COMPLETE PAYMENT INFORMATION ==========");
 
-                // ---------------------------------------------------------
-                // 1. Get current admin UserNumber from JWT
-                // ---------------------------------------------------------
-
-                var userNumberClaim =
-                    User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
+                // 1. Admin number from JWT
+                var userNumberClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (!int.TryParse(userNumberClaim, out int currentAdminNumber))
                 {
                     return Forbid();
                 }
 
-                // ---------------------------------------------------------
                 // 2. Check admin user
-                // ---------------------------------------------------------
-
                 var adminUser = await Database.UserInfos
                     .FirstOrDefaultAsync(x => x.UserNumber == currentAdminNumber);
 
@@ -3078,22 +3051,13 @@ public async Task<IActionResult> DeleteAdvancePaymentInfo(
                     return StatusCode(404, "Admin user not found.");
                 }
 
-                // ---------------------------------------------------------
                 // 3. Check login access
-                // ---------------------------------------------------------
-
                 if (adminUser.LoginAccess == false)
                 {
-                    return StatusCode(
-                        506,
-                        "You have been blocked by System. Contact KaamMitra community."
-                    );
+                    return StatusCode(506, "You have been blocked by System. Contact KaamMitra community.");
                 }
 
-                // ---------------------------------------------------------
                 // 4. Load data
-                // ---------------------------------------------------------
-
                 var bookingList = await Database.BookingInfos.ToListAsync();
                 var paymentList = await Database.ProTaskCompletePaymentInfos.ToListAsync();
                 var userList = await Database.UserInfos.ToListAsync();
@@ -3102,100 +3066,48 @@ public async Task<IActionResult> DeleteAdvancePaymentInfo(
 
                 Console.WriteLine($"Bookings: {bookingList.Count}");
                 Console.WriteLine($"Task complete payments: {paymentList.Count}");
-                Console.WriteLine($"Users: {userList.Count}");
-                Console.WriteLine($"Provider services: {providerServiceList.Count}");
-                Console.WriteLine($"Services: {serviceList.Count}");
 
                 var result = new List<AdminTaskCompletePaymentDTO>();
 
-                // ---------------------------------------------------------
-                // 5. Nothing to show is NOT an error.
-                //    Return an empty list (200) instead of 404.
-                // ---------------------------------------------------------
-
-                if (bookingList.Count == 0)
+                // Local helper: entity -> flat DTO (no navigation properties serialized)
+                TaskCompletePaymentInfoDTO ToPaymentDto(ProTaskCompletePaymentInfos p)
                 {
-                    Console.WriteLine("No bookings exist yet. Returning empty list.");
-                    return Ok(result);
+                    return new TaskCompletePaymentInfoDTO
+                    {
+                        TaskCompletePaymentId = p.TaskCompletePaymentId,
+                        BookId = p.BookId,
+                        PaymentAmount = p.PaymentAmount,
+                        PaymentMethod = p.PaymentMethod,
+                        PaymentPhoto = p.PaymentPhoto,
+                        PaymentDate = p.PaymentDate
+                    };
                 }
 
-                // ---------------------------------------------------------
-                // 6. Loop through BOOKINGS (never skip a booking).
-                //
-                // Booking  = always returned
-                // Payment  = optional (null when provider has not uploaded)
-                // User / Provider / Service rows that cannot be found
-                // fall back to empty values instead of dropping the booking.
-                // ---------------------------------------------------------
-
-                foreach (var booking in bookingList)
+                // 5. Newest bookings first.
+                //    NOTE: no early return when there are no bookings,
+                //    because orphan payments must still be returned.
+                var bookingIds = new HashSet<int>();
+                foreach (var b in bookingList)
                 {
-                    Console.WriteLine("-------------------------------------------------");
-                    Console.WriteLine($"Processing BookId: {booking.BookId}");
+                    bookingIds.Add((int)b.BookId);
+                }
 
-                    // ----- User -----
-                    var user = userList.FirstOrDefault(
-                        x => x.UserNumber == booking.UserNumber
-                    );
+                // 6. A) EVERY booking.
+                //    - no payment      -> one item with PaymentInfo = null
+                //    - 1..n payments   -> one item per payment (same BookingInfo)
+                foreach (var booking in bookingList.OrderByDescending(x => x.CreatedAt))
+                {
+                    var user = userList.FirstOrDefault(x => x.UserNumber == booking.UserNumber);
+                    var provider = userList.FirstOrDefault(x => x.UserNumber == booking.ProviderNumber);
 
-                    if (user == null)
-                    {
-                        Console.WriteLine(
-                            $"WARNING: user not found for UserNumber {booking.UserNumber}"
-                        );
-                    }
-
-                    // ----- Provider -----
-                    var provider = userList.FirstOrDefault(
-                        x => x.UserNumber == booking.ProviderNumber
-                    );
-
-                    if (provider == null)
-                    {
-                        Console.WriteLine(
-                            $"WARNING: provider not found for ProviderNumber {booking.ProviderNumber}"
-                        );
-                    }
-
-                    // ----- Provider service (ProviderServiceId = 0 if missing) -----
                     var providerService = providerServiceList.FirstOrDefault(
-                        x =>
-                            x.UserNumber == booking.ProviderNumber &&
-                            x.ServiceName == booking.ServiceName
-                    );
+                        x => x.UserNumber == booking.ProviderNumber &&
+                             x.ServiceName == booking.ServiceName);
 
-                    if (providerService == null)
-                    {
-                        Console.WriteLine(
-                            "WARNING: provider service not found. ProviderServiceId will be 0."
-                        );
-                    }
-
-                    // ----- Service (by id, then by name as a fallback) -----
                     var service =
                         serviceList.FirstOrDefault(x => x.ServiceId == booking.ServiceId)
                         ?? serviceList.FirstOrDefault(x => x.ServiceName == booking.ServiceName);
 
-                    if (service == null)
-                    {
-                        Console.WriteLine(
-                            $"WARNING: service not found for ServiceId {booking.ServiceId}. Prices will be 0."
-                        );
-                    }
-
-                    // ----- Task complete payment: OPTIONAL (latest one) -----
-                    var paymentInfo = paymentList
-                        .Where(x => x.BookId == booking.BookId)
-                        .OrderByDescending(x => x.TaskCompletePaymentId)
-                        .FirstOrDefault();
-
-                    Console.WriteLine(
-                        paymentInfo == null
-                            ? "No task complete payment uploaded for this booking."
-                            : $"Task complete payment found. PaymentId: {paymentInfo.TaskCompletePaymentId}"
-                    );
-
-                    // ----- Booking information (null-safe) -----
                     var bookingInfo = new SendBookingInfoUserDTO
                     {
                         UserAddress = user?.Address ?? "",
@@ -3245,47 +3157,54 @@ public async Task<IActionResult> DeleteAdvancePaymentInfo(
                         InternationalPriceDiscount = service?.InternationalPriceDiscount ?? 0
                     };
 
-                    // Booking + optional payment
-                    result.Add(
-                        new AdminTaskCompletePaymentDTO
+                    var bookingPayments = paymentList
+                        .Where(x => x.BookId == booking.BookId)
+                        .OrderByDescending(x => x.TaskCompletePaymentId)
+                        .ToList();
+
+                    if (bookingPayments.Count == 0)
+                    {
+                        result.Add(new AdminTaskCompletePaymentDTO
                         {
-                            // Flat DTO (NOT the EF entity) so no navigation
-                            // properties (BookingInfos -> Users -> Bookings ...)
-                            // are serialized.
-                            PaymentInfo = paymentInfo == null
-                                ? null
-                                : new TaskCompletePaymentInfoDTO
-                                {
-                                    TaskCompletePaymentId = paymentInfo.TaskCompletePaymentId,
-                                    BookId = paymentInfo.BookId,
-                                    PaymentAmount = paymentInfo.PaymentAmount,
-                                    PaymentMethod = paymentInfo.PaymentMethod,
-                                    PaymentPhoto = paymentInfo.PaymentPhoto,
-                                    PaymentDate = paymentInfo.PaymentDate
-                                },
-                            BookingInfo = bookingInfo
+                            BookingInfo = bookingInfo,
+                            PaymentInfo = null
+                        });
+                    }
+                    else
+                    {
+                        foreach (var pay in bookingPayments)
+                        {
+                            result.Add(new AdminTaskCompletePaymentDTO
+                            {
+                                BookingInfo = bookingInfo,
+                                PaymentInfo = ToPaymentDto(pay)
+                            });
                         }
-                    );
+                    }
                 }
 
-                // ---------------------------------------------------------
-                // 7. Newest bookings first
-                // ---------------------------------------------------------
-
-                result = result
-                    .OrderByDescending(x => x.BookingInfo.CreatedAt)
+                // 6. B) ORPHAN payments (their booking no longer exists) -> still returned
+                var orphanPayments = paymentList
+                    .Where(p => !bookingIds.Contains((int)p.BookId))
+                    .OrderByDescending(p => p.TaskCompletePaymentId)
                     .ToList();
 
-                Console.WriteLine($"Final booking result count: {result.Count}");
-                Console.WriteLine("========== BOOKING + PAYMENT INFORMATION SUCCESS ==========");
+                foreach (var pay in orphanPayments)
+                {
+                    result.Add(new AdminTaskCompletePaymentDTO
+                    {
+                        BookingInfo = null,
+                        PaymentInfo = ToPaymentDto(pay)
+                    });
+                }
+
+             
 
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                Console.WriteLine("========== GET ALL BOOKING + PAYMENT ERROR ==========");
-                Console.WriteLine($"Error: {ex.Message}");
-                Console.WriteLine($"StackTrace: {ex.StackTrace}");
+               
 
                 return StatusCode(
                     500,
@@ -3293,6 +3212,7 @@ public async Task<IActionResult> DeleteAdvancePaymentInfo(
                 );
             }
         }
+
 
 
 
@@ -3499,6 +3419,8 @@ public async Task<IActionResult> DeleteAdvancePaymentInfo(
                 );
             }
         }
+
+
 
         [Authorize(Policy = "RequireAdminRole")]
         [HttpDelete]
@@ -3969,6 +3891,278 @@ public async Task<IActionResult> DeleteAdvancePaymentInfo(
                 );
             }
         }
+
+
+        [HttpPost("addfooterinfo")]
+        [Authorize(Policy = "RequireAdminRole")]
+        public async Task<IActionResult> AddFooterInfo([FromBody] FooterInfoModel model)
+        {
+            try
+            {
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return Forbid();
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(502, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(506, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
+                // =========================
+                // MODEL STATE CHECK
+                // =========================
+                if (!ModelState.IsValid)
+                {
+                    return StatusCode(400, ModelState);
+                }
+
+                // =========================
+                // CHECK EXISTING FOOTER ROW
+                // =========================
+                var existingFooter = await Database.FooterInfos
+                    .FirstOrDefaultAsync();
+
+                // =========================
+                // IF ROW EXISTS -> UPDATE
+                // =========================
+                if (existingFooter != null)
+                {
+                    existingFooter.ContactNumber = model.ContactNumber;
+                    existingFooter.Address = model.Address;
+                    existingFooter.Email = model.Email;
+                    existingFooter.SocialMediaInfo = model.SocialMediaInfo;
+
+                    await Database.SaveChangesAsync();
+
+                    return Ok();
+                }
+
+                // =========================
+                // IF ROW DOES NOT EXIST -> ADD
+                // =========================
+                var newFooter = new FooterInfoModel
+                {
+                    ContactNumber = model.ContactNumber,
+                    Address = model.Address,
+                    Email = model.Email,
+                    SocialMediaInfo = model.SocialMediaInfo
+                };
+
+                await Database.FooterInfos.AddAsync(newFooter);
+                await Database.SaveChangesAsync();
+
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = "Something went wrong while saving footer information.",
+                    error = ex.Message
+                });
+            }
+        }
+
+        [Authorize(Policy = "RequireAdminRole")]
+        [HttpDelete]
+        [Route("deleteuserinfo")]
+        public async Task<IActionResult> DeleteUserInfo(
+    [FromBody] UserNumberDTO obj)
+        {
+            string? physicalPhotoPath = null;
+
+            try { 
+
+                // 1. Validate ModelState
+
+
+                if (!ModelState.IsValid)
+                {
+                    return StatusCode(
+                        400,
+                        "The provided data is not in correct format."
+                    );
+                }
+
+
+                // 2. Validate admin JWT
+                // RequireAdminRole validates the admin authorization first.
+
+
+                var adminNumberClaim =
+                    User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(
+                    adminNumberClaim,
+                    out int currentAdminNumber))
+                {
+                    return Forbid();
+                }
+
+
+                // 3. Find target user
+ 
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(
+                        x => x.UserNumber == obj.UserNumber
+                    );
+
+                if (user == null)
+                {
+                    return StatusCode(404, "User not found.");
+                }
+
+                // 4. Get wwwroot path
+
+
+                var webRootPath = _environment.WebRootPath;
+
+                if (string.IsNullOrWhiteSpace(webRootPath))
+                {
+                    return StatusCode(
+                        500,
+                        "Server wwwroot folder is not configured."
+                    );
+                }
+
+                // 5. Delete profile photo first
+   
+
+                if (!string.IsNullOrWhiteSpace(user.Photo))
+                {
+                    var photoPath = user.Photo.Trim();
+
+                    // Accept only a profile-photo URL/path such as:
+                    // /uploads/profile/707fe5a6e88143e7938430656f4e742d.png
+
+                    var normalizedPath = photoPath.Replace('\\', '/');
+
+                    const string allowedPrefix = "/uploads/profile/";
+
+                    if (!normalizedPath.StartsWith(
+                        allowedPrefix,
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        return StatusCode(
+                            400,
+                            "Invalid profile photo path. User data was not deleted."
+                        );
+                    }
+
+                    // Only allow a filename, not nested paths or traversal.
+                    var fileName = normalizedPath.Substring(
+                        allowedPrefix.Length
+                    );
+
+                    if (string.IsNullOrWhiteSpace(fileName) ||
+                        fileName.Contains('/') ||
+                        fileName.Contains('\\') ||
+                        fileName == "." ||
+                        fileName == "..")
+                    {
+                        return StatusCode(
+                            400,
+                            "Invalid profile photo path. User data was not deleted."
+                        );
+                    }
+
+                    var profileFolder = Path.GetFullPath(
+                        Path.Combine(
+                            webRootPath,
+                            "uploads",
+                            "profile"
+                        )
+                    );
+
+                    physicalPhotoPath = Path.GetFullPath(
+                        Path.Combine(
+                            profileFolder,
+                            fileName
+                        )
+                    );
+
+                    // Ensure the resolved file stays in the profile folder.
+                    var expectedPrefix =
+                        profileFolder.TrimEnd(
+                            Path.DirectorySeparatorChar
+                        ) + Path.DirectorySeparatorChar;
+
+                    if (!physicalPhotoPath.StartsWith(
+                        expectedPrefix,
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        return StatusCode(
+                            400,
+                            "Invalid profile photo path. User data was not deleted."
+                        );
+                    }
+
+                    // If the photo path exists in the database but the file
+                    // is missing, stop instead of deleting the user record.
+                    if (!System.IO.File.Exists(physicalPhotoPath))
+                    {
+                        return StatusCode(
+                            500,
+                            "Profile photo was not found on the server. User data was not deleted."
+                        );
+                    }
+
+                    // Delete photo BEFORE deleting the database record.
+                    System.IO.File.Delete(physicalPhotoPath);
+
+                    // Verify the photo was deleted.
+                    if (System.IO.File.Exists(physicalPhotoPath))
+                    {
+                        return StatusCode(
+                            500,
+                            "Failed to delete profile photo. User data was not deleted."
+                        );
+                    }
+                }
+
+
+                Database.UserInfos.Remove(user);
+
+                await Database.SaveChangesAsync();
+
+
+                return Ok("User and profile photo deleted successfully.");
+            }
+            catch (Exception ex)
+            {
+              
+
+                return StatusCode(
+                    500,
+                    $"An error occurred while deleting user data: {ex.Message}"
+                );
+            }
+        }
+
+
+
+
+
+
+
+
+
 
 
 

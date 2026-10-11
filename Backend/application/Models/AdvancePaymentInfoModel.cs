@@ -18,8 +18,6 @@ namespace application.Models
         public int BookId { get; set; }
 
 
-        [ForeignKey("BookId")]
-        public BookinInfoModel? BookingInfos { get; set; }
 
     }
 }

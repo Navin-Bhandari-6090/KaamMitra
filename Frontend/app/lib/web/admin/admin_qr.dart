@@ -25,9 +25,6 @@ class _C {
   static const Color danger = Color(0xFFF87171);
 }
 
-// =============================================================================
-// SCREEN  (StatefulWidget only for controller lifecycle — zero setState)
-// =============================================================================
 class AdminQr extends StatefulWidget {
   final String User_Role;
   final String User_JwtToken;

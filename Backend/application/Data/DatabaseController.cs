@@ -36,6 +36,11 @@ namespace application.Data
         public DbSet<ProTaskCompletePaymentInfos> ProTaskCompletePaymentInfos { get; set; }
 
         public DbSet<AdminQRPhotoModel> AdminQRPhotoInfos { get; set; }
+
+        public DbSet<FooterInfoModel> FooterInfos { get; set; }
+
+        public DbSet<ChatInfoModel> ChatInfos { get; set; }
+
         public object AdminQRPhotoModels { get; internal set; }
     }
 }

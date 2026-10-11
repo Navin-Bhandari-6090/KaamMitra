@@ -94,18 +94,36 @@ namespace application.Controllers
 
             try
             {
+
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return StatusCode(404);
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(404, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(404, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
                 if (!ModelState.IsValid)
                 {
                     return StatusCode(502, "Invalid input data.");
                 }
-                // 1. Validate whether the email exists
-                var emailUser = await Database.UserInfos
-                    .FirstOrDefaultAsync(x => x.Email == obj.Email);
-
-                if (emailUser == null)
-                {
-                    return StatusCode(404, "Invalid email.");
-                }
+         
 
 
                 // 2. Email is valid, so get ALL users
@@ -143,17 +161,34 @@ namespace application.Controllers
 
             try
             {
+
                 if (!ModelState.IsValid) { 
                     return StatusCode(502,"Invalid input data.");
                 }
-                // 1. Validate whether the email exists
-                var emailUser = await Database.UserInfos
-                    .FirstOrDefaultAsync(x => x.Email == obj.Email);
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-                if (emailUser == null)
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
                 {
-                    return StatusCode(404, "Invalid email.");
+                    return Forbid();
                 }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(502, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(506, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
 
                 var ServiceInfo = await Database.ProviderServiceInfo
       .Select(x => new ProviderServicesResponseDTO
@@ -161,8 +196,9 @@ namespace application.Controllers
           ProviderServiceId = x.ProviderServiceId,
           ServiceName = x.ServiceName,
           ServiceDocument = x.ServiceDocument,
-          Email = x.Email,
-          UserNumber = x.UserNumber
+
+          UserNumber = x.UserNumber,
+          ProRegServiceDescription=x.ProRegServiceDescription
       })
       .ToListAsync();
 
@@ -298,20 +334,6 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                     );
                 }
 
-                //var ExistingUser = await Database.UserInfos
-                //    .FirstOrDefaultAsync(x => x.Email == obj.CurrentUserEmail);
-
-                //if (ExistingUser == null)
-                //{
-                //    return StatusCode(502, "User not found.");
-                //}
-
-              //  var Provider = await Database.UserInfos
-              //.FirstOrDefaultAsync(x => x.Email == obj.ReceiverEmail);
-              //  if (Provider == null)
-              //  {
-              //      return StatusCode(503, "Provider not found.");
-              //  }
 
                 var Data = new NotificationInfoModel
                 {
@@ -381,25 +403,12 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                     );
                 }
 
-                //var ExistingUser = await Database.UserInfos
-                //    .FirstOrDefaultAsync(x => x.Email == obj.CurrentUserEmail);
-
-                //if (ExistingUser == null)
-                //{
-                //    return StatusCode(502, "User not found.");
-                //}
-
-              //  var Provider = await Database.UserInfos
-              //.FirstOrDefaultAsync(x => x.Email == obj.ReceiverEmail);
-              //  if (Provider == null)
-              //  {
-              //      return StatusCode(503, "Provider not found.");
-              //  }
+       
 
                 var Data = new NewNotificationInfoModel
                 {
                     ReceiverNumber = obj.ReceiverNumber,
-                    Status = obj.Status
+                    Status = true
                 };
 
                 var InsertData = await Database.NewNotificationInfos.FirstOrDefaultAsync(x => x.ReceiverNumber == obj.ReceiverNumber);
@@ -407,7 +416,7 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
                 if (InsertData != null)
                 {
-                    InsertData.Status = obj.Status;
+                    InsertData.Status = true;
                     await Database.SaveChangesAsync();
                     return Ok("New notification updated.");
                 }

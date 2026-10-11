@@ -9,8 +9,7 @@ import 'package:velocity_x/velocity_x.dart';
 import '../../../constant/Server_Database.dart';
 import '../../../constant/variable.dart';
 import '../../../models/ProRegServResourcesModel.dart';
-import '../../../models/Service_Screen_Service_Model.dart';
-import '../../../web/common method/Commmon_Method.dart';
+import '../../../models/ServiceScreenServiceModel.dart';
 
 // =============================================================================
 // One displayable thing (document / photo / video) belonging to a service.

@@ -48,20 +48,43 @@ builder.Services.AddAuthentication(options =>
 {
     options.RequireHttpsMetadata = false;
     options.SaveToken = true;
-    options.TokenValidationParameters = new TokenValidationParameters
+
+
+options.TokenValidationParameters = new TokenValidationParameters
+{
+    ValidateIssuerSigningKey = true,
+    IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
+
+    ValidateIssuer = true,
+    ValidIssuer = jwtSettings["Issuer"],
+
+    ValidateAudience = true,
+    ValidAudience = jwtSettings["Audience"],
+
+    ValidateLifetime = true
+};
+
+    // Allow SignalR WebSocket connections to authenticate using access_token.
+    options.Events = new JwtBearerEvents
     {
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
+        OnMessageReceived = context =>
+        {
+            var AccessToken = context.Request.Query["access_token"];
+            var RequestPath = context.HttpContext.Request.Path;
 
-        ValidateIssuer = true,
-        ValidIssuer = jwtSettings["Issuer"],
+            if (!string.IsNullOrEmpty(AccessToken) &&
+                RequestPath.StartsWithSegments("/chatHub"))
+            {
+                context.Token = AccessToken;
+            }
 
-        ValidateAudience = true,
-        ValidAudience = jwtSettings["Audience"],
-
-        ValidateLifetime = true // Optional: ensure token is not expired
+            return Task.CompletedTask;
+        }
     };
+
+
 });
+
 
 // Authorization Policies
 builder.Services.AddAuthorization(options =>
@@ -86,7 +109,7 @@ builder.Services.AddRateLimiter(o =>
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1) }));
 });
 
-
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -103,4 +126,7 @@ app.UseRateLimiter();
 app.UseAuthentication();     // add this
 app.UseAuthorization();
 app.MapControllers();
+
+app.MapHub<ChatHub>("/chatHub");
+
 app.Run();

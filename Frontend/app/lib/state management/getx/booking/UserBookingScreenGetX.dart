@@ -3,15 +3,14 @@ import 'package:get/get.dart';
 import '../../../models/BookingInfoModel.dart';
 import '../../../models/NotificationsInfoModel.dart';
 
-// Adjust the two model import paths above to match wherever you place this
-// file relative to your models folder.
+
 
 /// UI-only reactive state for UserBookingScreenUser — replaces setState.
 /// Put once with Get.put in initState, deleted in dispose.
 class Userbookingscreengetx extends GetxController {
-  // ============================================================
+
   // LOADING / ERROR STATE
-  // ============================================================
+
 
   RxBool isLoading = false.obs;
   RxBool hasLoadError = false.obs;
@@ -19,12 +18,12 @@ class Userbookingscreengetx extends GetxController {
   void setLoading(bool value) => isLoading.value = value;
   void setLoadError(bool value) => hasLoadError.value = value;
 
-  // ============================================================
+
   // NOTIFICATION BELL STATE
   // hasNewNotification mirrors NewNotificationsModel.status for the
   // current user — true = unread notification exists (red ring bell),
   // false = nothing new (normal bell).
-  // ============================================================
+
 
   RxBool hasNewNotification = false.obs;
 
@@ -112,9 +111,9 @@ class Userbookingscreengetx extends GetxController {
     }
   }
 
-  // ============================================================
+
   // CARD HOVER / PRESS STATE (web + touch feedback, no setState)
-  // ============================================================
+
 
   RxInt hoveredCardIndex = (-1).obs;
   RxInt pressedCardIndex = (-1).obs;

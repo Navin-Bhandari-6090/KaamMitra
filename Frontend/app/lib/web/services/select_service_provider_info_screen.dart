@@ -1,12 +1,3 @@
-// ---------------------------------------------------------------------------
-// Adjust these import paths to match your project structure:
-//   - Backend_Server_Url is assumed to live at '../../constant/Server_Database.dart'
-//     (same depth as the model imports already in this file).
-//   - SelectServiceProviderInfoScreenGetx: point this at wherever you place it.
-//   - ProviderServiceSelect / BookProviderScreen: point these at their real
-//     locations. BookProviderScreen is pushed with no arguments per your
-//     spec — add required params there if that screen actually needs them.
-// ---------------------------------------------------------------------------
 
 import 'dart:convert';
 
@@ -19,7 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:velocity_x/velocity_x.dart';
 
 import '../../constant/Server_Database.dart';
-import '../../models/Service_Screen_Service_Model.dart';
+import '../../models/ServiceScreenServiceModel.dart';
 import '../../models/Service_Screen_User_Info_Model.dart';
 import '../../state management/getx/services/select_service_provider_info_screen_getx.dart';
 import '../authentication/Error_page.dart';
@@ -58,7 +49,9 @@ class SelectServiceProviderInfoScreen extends StatefulWidget {
   final String Provider_Service_Name;
   final num ServiceId;
   final num Providernumber;
-  final String ServiceName;
+  final String ProRegServiceDescription;
+
+
 
 
   final List<ServiceScreenServiceModel> Service_info_List;
@@ -76,7 +69,7 @@ class SelectServiceProviderInfoScreen extends StatefulWidget {
         required this.Provider_info_List,
         required this.Provider_Service_Name,
         required this.Providernumber,
-        required this.ServiceId, required this.ServiceName
+        required this.ServiceId, required this.ProRegServiceDescription
       });
 
   @override
@@ -100,9 +93,10 @@ class _SelectServiceProviderInfoScreenState
   final Toast=Toastget();
 
   @override
-  void initState() {
+  void initState()
+  {
     super.initState();
-    Provider_Jwt_Verify(Jwt_Token: widget.Current_User_JwtToken);
+    Provider_User_Jwt_Verify(Jwt_Token: widget.Current_User_JwtToken, context: context);
     _entranceController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -126,47 +120,109 @@ class _SelectServiceProviderInfoScreenState
     _entranceController.forward();
   }
 
-  Future<void> Provider_Jwt_Verify({required String Jwt_Token}) async {
-    int Result = await UserProviderJwtVerify(Jwt_Token: Jwt_Token);
-    if (Result == 1) {
-      return;
-    } else {
-      await Clear_User_Data();
-      await Random_token_Clear();
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => ErrorPage()),
-            (route) => false,
-      );
-      Toastget().Toastmsg("Session End.Relogin please.");
-      return;
-    }
-  }
+
 
 
   @override
-  void dispose() {
+  void dispose()
+  {
     _entranceController.dispose();
     super.dispose();
   }
 
-  // ============================================================
-  // DATA LOOKUP — pulled from the lists already passed in, matched
-  // on Provider_User_Email. No new network calls.
-  // ============================================================
+
+  Future<bool> _confirmBooking() async {
+    try {
+      final bool? result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return AlertDialog(
+            backgroundColor: _Theme.surface,
+            scrollable: true,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: const BorderSide(color: _Theme.border),
+            ),
+            title: Row(
+              children: [
+                const Icon(Icons.event_available_rounded,
+                    color: _Theme.mint),
+                const SizedBox(width: 10),
+                const Flexible(
+                  child: Text(
+                    "Confirm booking?",
+                    style: TextStyle(
+                      color: _Theme.primaryText,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: Text(
+              "You are about to book \"${widget.Provider_Service_Name}\" "
+                  "from provider #${widget.Providernumber}.\n\n"
+                  "The description you entered cannot be updated later.",
+              style: const TextStyle(
+                color: _Theme.mutedText,
+                height: 1.5,
+                fontSize: 13.5,
+              ),
+            ),
+            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text(
+                  "Cancel",
+                  style: TextStyle(color: _Theme.mutedTextAlt),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _Theme.emerald,
+                  foregroundColor: Colors.black,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text("Confirm"),
+              ),
+            ],
+          );
+        },
+      );
+      return result == true;
+    } catch (obj) {
+      print(obj.toString());
+      return false;
+    }
+  }
+
+
 
   ServiceScreenUserInfoModel? get _provider
   {
-    for (final p in widget.Provider_info_List) {
-      if (p.email == widget.Provider_User_Email) return p;
+
+    for (final p in widget.Provider_info_List)
+    {
+      if (p.userNumber == widget.Providernumber) return p;
     }
     return null;
+
   }
 
-  List<ServiceScreenServiceModel> get _providerServices {
+  List<ServiceScreenServiceModel> get _providerServices
+  {
+
     return widget.Service_info_List
-        .where((s) => s.email == widget.Provider_User_Email)
+        .where((s) => s.userNumber == widget.Providernumber)
         .toList();
+
   }
 
   /// Same pattern as the profile screen's GetPhotoUrl — builds a full
@@ -187,7 +243,8 @@ class _SelectServiceProviderInfoScreenState
   }
 
 
-  Future<int> AddBookingInfo({
+  Future<int> AddBookingInfo(
+      {
     required String Current_User_JwtToken,
     required double Distance,
     required num ProviderNumber,
@@ -198,8 +255,8 @@ class _SelectServiceProviderInfoScreenState
     required bool UserApprovalStatus,
     required String UserBookingDescription,
     required num ServiceId,
-
-  }) async {
+  }
+  ) async {
     try {
       final Map<String, dynamic> userData = {
         "UserBookingDescription": UserBookingDescription,
@@ -423,11 +480,18 @@ class _SelectServiceProviderInfoScreenState
 
                                 SizedBox(height: isMobile ? 22 : 28),
 
+                                Text("Please describe all the details of the service you want to book.You cannot update later on.",style: TextStyle(
+                                  color: Colors.red
+                                ),),
+
+                                SizedBox(height: isMobile ? 22 : 28),
+
                                   GreenField(controller: UserBookingDescriptionTextCont,
-                                      label: "Enter all the requiremnts that you need.",
+                                      label: "Enter all the details that you need.",
                                       icon: Icons.info,
                                     keyboardType: TextInputType.multiline,
                                     obscure: false,
+                                    height: 100,
                                   ),
 
                                 SizedBox(height: isMobile ? 22 : 28),
@@ -738,6 +802,19 @@ class _SelectServiceProviderInfoScreenState
               const SizedBox(height: 12),
               Text(
                 widget.Provider_Service_Name.isEmpty ? "Service provider name not found" : widget.Provider_Service_Name,
+                textAlign: compact ? TextAlign.center : TextAlign.start,
+                style: TextStyle(
+                  color: _Theme.primaryText,
+                  fontSize: isMobile ? 22 : 26,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.6,
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              Text(
+                "Provider Description:${widget.ProRegServiceDescription.isEmpty ? "Service description from provider not found" : widget.ProRegServiceDescription}",
                 textAlign: compact ? TextAlign.center : TextAlign.start,
                 style: TextStyle(
                   color: _Theme.primaryText,
@@ -1090,6 +1167,9 @@ class _SelectServiceProviderInfoScreenState
           return;
         }
 
+        final bool confirmed = await _confirmBooking();
+        if (!confirmed) return;
+
         final AddBookingResult=await AddBookingInfo(
             Current_User_JwtToken: widget.Current_User_JwtToken,
             Distance: widget.Distance,
@@ -1102,10 +1182,6 @@ class _SelectServiceProviderInfoScreenState
           ServiceId:widget.ServiceId,
           ProviderNumber: widget.Providernumber,
         );
-
-
-
-
 
           final AddNotificationsResult=await AddNotifications(
               ReceiverNumber: widget.Providernumber,

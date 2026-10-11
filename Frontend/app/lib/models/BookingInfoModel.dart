@@ -1,39 +1,3 @@
-/// userAddress : "gadgs"
-/// userPhoneNumber : "+5363536645"
-/// userWhatsappPhoneNumber : "+56334535443"
-/// providerAddress : "gadgs"
-/// providerPhoneNumber : "+5363536645"
-/// providerWhatsappPhoneNumber : "+56334535443"
-/// providerNumber : 5
-/// userNumber : 6
-/// userLatitude : 26.740530333333332
-/// userLongitude : 87.54193883333333
-/// providerLatitude : 26.740530333333332
-/// providerLongitude : 87.54193883333333
-/// bookId : 10
-/// startDate : null
-/// endDate : null
-/// providerBookingDescription : ""
-/// userBookingDescription : "gvddsvds"
-/// serviceName : "plumber"
-/// providerServiceId : 7
-/// serviceId : 1
-/// distance : 0
-/// userEmail : "sd1@.com"
-/// providerEmail : "sd2@.com"
-/// providerApprovalStatus : false
-/// userApprovalStatus : true
-/// providerTaskCompleteStatus : false
-/// userTaskCompleteStatus : false
-/// advancePaymentAmount : 0
-/// createdAt : "2026-10-01T12:26:20.549487Z"
-/// ratingValueUser : 5
-/// requiredAdvancePayment : false
-/// domesticPrice : 56
-/// domesticPriceDiscount : 3
-/// internationalPrice : 5445
-/// internationalPriceDiscount : 3
-
 class BookingInfoModel {
   BookingInfoModel({
       String? userAddress, 

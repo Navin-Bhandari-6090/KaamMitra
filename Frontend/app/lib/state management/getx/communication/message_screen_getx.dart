@@ -57,6 +57,11 @@ class MessageScreenGetx extends GetxController {
   final RxString draft = ''.obs;
   final RxString loadError = ''.obs;
 
+  // Prevents overlapping reloads. If a new message arrives while a reload is
+  // running, one more reload is done right after, so nothing is missed.
+  bool _refreshing = false;
+  bool _refreshAgain = false;
+
   // ---------------- PRESENCE ----------------
   final RxBool isOnlineNow = false.obs;
   Worker? _presenceWorker;
@@ -76,6 +81,7 @@ class MessageScreenGetx extends GetxController {
 
   SignalRService? _signal;
   StreamSubscription<Map<String, dynamic>>? _callSub;
+  StreamSubscription<Map<String, dynamic>>? _chatSub;
   MediaStream? _localStream;
   RTCPeerConnection? _pc;
   String? _callId;
@@ -128,6 +134,7 @@ class MessageScreenGetx extends GetxController {
     try {
       endCall();
       _callSub?.cancel();
+      _chatSub?.cancel();
       _presenceWorker?.dispose();
       _callTimer?.cancel();
       _statsTimer?.cancel();
@@ -149,7 +156,7 @@ class MessageScreenGetx extends GetxController {
   }
 
   // ===========================================================================
-  // SIGNALR BINDING (presence + call events)
+  // SIGNALR BINDING (presence + call events + new messages)
   // ===========================================================================
   void _bindSignal() {
     try {
@@ -168,9 +175,36 @@ class MessageScreenGetx extends GetxController {
             (event) => _onCallEvent(event),
         onError: (e) => _log('Call event stream error: $e'),
       );
+
+      _chatSub = _signal!.ChatEvents.stream.listen(
+            (event) => _onChatEvent(event),
+        onError: (e) => print('Chat event stream error: $e'),
+      );
     } catch (e) {
       print('SignalR bind error: $e');
       isOnlineNow.value = false;
+    }
+  }
+
+  // ===========================================================================
+  // REAL-TIME CHAT EVENTS
+  // ===========================================================================
+  void _onChatEvent(Map<String, dynamic> e) {
+    try {
+      final String type = '${e['type']}';
+
+      if (type == 'ReceiveMessage') {
+        // If the payload tells us who sent it, ignore other conversations.
+        final int? from = int.tryParse('${e['senderNumber']}');
+        if (from != null && from != otherNumber && from != myNumber) return;
+
+        refreshMessages(silent: true);
+      } else if (type == 'Reconnected') {
+        // Catch up on anything missed while the connection was down.
+        refreshMessages(silent: true);
+      }
+    } catch (err) {
+      print('_onChatEvent error: $err');
     }
   }
 
@@ -181,54 +215,173 @@ class MessageScreenGetx extends GetxController {
       parseServerTime('${m.storeAt ?? ''}') ??
           DateTime.fromMillisecondsSinceEpoch(0);
 
-  Future<void> refreshMessages() async {
+  // silent = true is used for background updates (no loading flag).
+  Future<void> refreshMessages({bool silent = false}) async {
+    if (_refreshing) {
+      _refreshAgain = true;
+      return;
+    }
+
+    _refreshing = true;
     try {
-      isLoading.value = true;
-      loadError.value = '';
+      if (!silent) {
+        isLoading.value = true;
+        loadError.value = '';
+      }
 
-      await GetChatMessages(
-        UserNumber: otherNumber,
-        User_JwtToken: jwtToken,
-      );
+      do {
+        _refreshAgain = false;
 
-      // Sort by real time so the order always matches the clock.
-      final List<ChatInfoModel> sorted = List<ChatInfoModel>.from(ChatInfos);
-      sorted.sort((a, b) => _timeOf(a).compareTo(_timeOf(b)));
-      messages.assignAll(sorted);
+        await GetChatMessages(
+          UserNumber: otherNumber,
+          User_JwtToken: jwtToken,
+        );
+
+        // Sort by real time so the order always matches the clock.
+        final List<ChatInfoModel> sorted = List<ChatInfoModel>.from(ChatInfos);
+        sorted.sort((a, b) => _timeOf(a).compareTo(_timeOf(b)));
+        messages.assignAll(sorted);
+      } while (_refreshAgain);
     } catch (e) {
-      loadError.value = 'Could not load messages.';
+      if (!silent) loadError.value = 'Could not load messages.';
       print('refreshMessages error: $e');
     } finally {
-      isLoading.value = false;
+      _refreshing = false;
+      if (!silent) isLoading.value = false;
     }
   }
 
   // Sends without confirmation. Clears the input only when the save succeeded.
   // Requires the LastSendSucceeded flag in the chat API file.
+  // Future<void> requestSend() async {
+  //   try {
+  //     final String text = draft.value.trim();
+  //     if (text.isEmpty || isSending.value) return;
+  //
+  //     isSending.value = true;
+  //     LastSendSucceeded = false;
+  //
+  //     await AddChatMessage(
+  //       Message: text,
+  //       ReceiverNumber: otherNumber,
+  //       User_JwtToken: jwtToken,
+  //     );
+  //
+  //     if (LastSendSucceeded) {
+  //       textCont.clear();
+  //       draft.value = '';
+  //     }
+  //
+  //     await refreshMessages(silent: true);
+  //
+  //     // Tell the other user's app to reload, so their screen updates at once.
+  //     if (LastSendSucceeded) {
+  //       await _notifyReceiver(text);
+  //     }
+  //   } catch (e) {
+  //     print('requestSend error: $e');
+  //   } finally {
+  //     isSending.value = false;
+  //   }
+  // }
+
   Future<void> requestSend() async {
+    final String text = draft.value.trim();
+    if (text.isEmpty || isSending.value) return;
+
+    isSending.value = true;
     try {
-      final String text = draft.value.trim();
-      if (text.isEmpty || isSending.value) return;
-
-      isSending.value = true;
-      LastSendSucceeded = false;
-
-      await AddChatMessage(
+      final bool sent = await AddChatMessage(
         Message: text,
         ReceiverNumber: otherNumber,
         User_JwtToken: jwtToken,
       );
 
-      if (LastSendSucceeded) {
+      if (sent) {
         textCont.clear();
         draft.value = '';
+        await refreshMessages(silent: true);
+        await _notifyReceiver(text);
       }
-
-      await refreshMessages();
     } catch (e) {
       print('requestSend error: $e');
     } finally {
       isSending.value = false;
+    }
+  }
+
+  Future<void> _notifyReceiver(String text) async {
+    try {
+      ChatInfoModel? saved;
+      for (int i = messages.length - 1; i >= 0; i--) {
+        final ChatInfoModel m = messages[i];
+        if (m.chatId != null &&
+            m.senderNumber == myNumber &&
+            (m.message ?? '').trim() == text) {
+          saved = m;
+          break;
+        }
+      }
+
+      await _signal?.NotifyNewMessage(
+        ReceiverNumber: otherNumber,
+        ChatId: saved?.chatId?.toInt() ?? 0,
+        Message: text,
+        StoreAt: saved?.storeAt ?? '',
+      );
+    } catch (e) {
+      print('_notifyReceiver error: $e');
+    }
+  }
+
+  // ===========================================================================
+  // PERMISSIONS
+  // Asks every time a call starts or is accepted, until both are granted.
+  // ===========================================================================
+  Future<bool> _ensureCallPermissions() async {
+    try {
+      // On web the browser shows its own prompt inside getUserMedia.
+      if (kIsWeb) return true;
+
+      while (true) {
+        final Map<Permission, PermissionStatus> s =
+        await [Permission.camera, Permission.microphone].request();
+
+        final PermissionStatus? cam = s[Permission.camera];
+        final PermissionStatus? mic = s[Permission.microphone];
+        _log('Permission camera=$cam microphone=$mic');
+
+        if (cam?.isGranted == true && mic?.isGranted == true) return true;
+
+        final bool blocked = cam?.isPermanentlyDenied == true ||
+            mic?.isPermanentlyDenied == true ||
+            cam?.isRestricted == true ||
+            mic?.isRestricted == true;
+
+        if (blocked) {
+          // The system will no longer show its prompt: send the user to
+          // settings instead.
+          final bool open = await confirmAction(
+            title: 'Allow camera and microphone',
+            message: 'Video calls need camera and microphone access. '
+                'Open settings and turn both on.',
+            confirmText: 'Open settings',
+          );
+          if (open) await openAppSettings();
+          return false;
+        }
+
+        // Denied this time only: explain and ask again.
+        final bool retry = await confirmAction(
+          title: 'Permission needed',
+          message: 'Camera and microphone are required for video calls.',
+          confirmText: 'Allow',
+        );
+        if (!retry) return false;
+      }
+    } catch (e) {
+      _log('Permission flow ERROR: $e');
+      return false;
     }
   }
 
@@ -254,22 +407,9 @@ class MessageScreenGetx extends GetxController {
     }
   }
 
+  // Permissions are already checked by _ensureCallPermissions().
   Future<bool> _openLocalMedia() async {
     try {
-      // On web, getUserMedia shows the browser's own permission prompt.
-      // permission_handler is only needed on Android and iOS.
-      if (!kIsWeb) {
-        _log('Requesting camera and microphone permission...');
-        final Map<Permission, PermissionStatus> statuses =
-        await [Permission.camera, Permission.microphone].request();
-
-        final bool camOk = statuses[Permission.camera]?.isGranted == true;
-        final bool micOk = statuses[Permission.microphone]?.isGranted == true;
-        _log('Permission camera=$camOk microphone=$micOk');
-
-        if (!camOk || !micOk) return false;
-      }
-
       _log('Calling getUserMedia (audio + video)...');
       _localStream ??= await navigator.mediaDevices.getUserMedia({
         'audio': true,
@@ -473,7 +613,7 @@ class MessageScreenGetx extends GetxController {
   // CALL ACTIONS
   // ===========================================================================
 
-  // Caller: open camera, create offer, send it.
+  // Caller: ask permission, open camera, create offer, send it.
   Future<void> startCall() async {
     try {
       if (callStage.value != CallStage.idle) return;
@@ -485,6 +625,14 @@ class MessageScreenGetx extends GetxController {
       }
 
       callError.value = '';
+
+      // Asked every time until granted.
+      if (!await _ensureCallPermissions()) {
+        callError.value =
+        'Camera and microphone permission is required for video calls.';
+        return;
+      }
+
       callStage.value = CallStage.calling;
       _callId = '${DateTime.now().millisecondsSinceEpoch}_$myNumber';
       _log('=== START CALL to user $otherNumber, callId=$_callId ===');
@@ -493,10 +641,7 @@ class MessageScreenGetx extends GetxController {
 
       final bool ok = await _openLocalMedia();
       if (!ok) {
-        _fail(
-          'Camera or microphone access was denied. Allow it in your browser '
-              'or device settings.',
-        );
+        _fail('Could not open the camera or microphone.');
         return;
       }
 
@@ -519,10 +664,18 @@ class MessageScreenGetx extends GetxController {
     }
   }
 
-  // Callee: open camera, apply offer, create answer, send it.
+  // Callee: ask permission, open camera, apply offer, create answer, send it.
   Future<void> acceptCall() async {
     try {
       if (callStage.value != CallStage.incoming || _pendingOffer == null) {
+        return;
+      }
+
+      // Asked every time until granted. If refused, the incoming screen stays
+      // so the user can try again or decline.
+      if (!await _ensureCallPermissions()) {
+        callError.value =
+        'Camera and microphone permission is required to accept the call.';
         return;
       }
 
@@ -532,7 +685,7 @@ class MessageScreenGetx extends GetxController {
 
       final bool ok = await _openLocalMedia();
       if (!ok) {
-        _fail('Camera or microphone access was denied.');
+        _fail('Could not open the camera or microphone.');
         return;
       }
 
@@ -786,7 +939,7 @@ class MessageScreenGetx extends GetxController {
 
 // =============================================================================
 // CONFIRMATION (use for every add / update / delete that touches the database)
-// Not used for sending messages. Keep it for future delete and update actions.
+// Also used by the permission flow.
 // =============================================================================
 Future<bool> confirmAction({
   required String title,

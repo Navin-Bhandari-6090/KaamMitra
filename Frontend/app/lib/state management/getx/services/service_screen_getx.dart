@@ -1,19 +1,8 @@
-// ---------------------------------------------------------------------------
-// service_screen_getx.dart
-//
-// Adjust the three model import paths below to match your project structure
-// (these mirror the "../../../models/XYZ.dart" pattern used by
-// add_service_getx.dart — update the number of "../" as needed depending on
-// where you place this file, e.g. state management/getx/services/).
-// ---------------------------------------------------------------------------
-
 import 'dart:math';
-
 import 'package:get/get.dart';
-
 import '../../../models/RatingInfoModel.dart';
 import '../../../models/ServiceScreenServiceModel.dart';
-import '../../../models/Service_Screen_User_Info_Model.dart';
+import '../../../models/ServiceScreenUserInfoModel.dart';
 
 enum ServiceSortMode { distance, rating }
 class CombinedServiceCard
@@ -119,13 +108,6 @@ class ServiceScreenGetx extends GetxController {
         }
       }
 
-      // ----------------------------------------------------------
-      // UPDATED: a rating row now belongs to one specific service
-      // (userEmail + serviceName), not just one provider overall.
-      // Match on both fields so each card gets the correct average
-      // rating for that exact service, instead of whichever rating
-      // row for that provider happened to come first.
-      // ----------------------------------------------------------
       double rating = 0.0;
       for (final r in ratings)
       {
@@ -156,6 +138,8 @@ class ServiceScreenGetx extends GetxController {
         distanceKm: distance,
         hasLocation: hasLocation,
       ));
+
+
 
 
     }

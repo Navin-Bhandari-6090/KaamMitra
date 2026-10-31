@@ -11,4 +11,5 @@ class SelectServiceProviderInfoScreenGetx extends GetxController {
 
   void setGalleryPressed(bool value) => isGalleryPressed.value = value;
   void setBookPressed(bool value) => isBookPressed.value = value;
+
 }

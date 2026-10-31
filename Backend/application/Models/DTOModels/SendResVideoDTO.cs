@@ -11,5 +11,7 @@
 
         public int ProviderServiceId { get; set; }
 
+        public string ServiceTitle { get; set; } = string.Empty;
+
     }
 }

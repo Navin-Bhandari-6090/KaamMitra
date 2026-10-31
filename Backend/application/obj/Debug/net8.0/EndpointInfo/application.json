@@ -607,6 +607,49 @@
         }
       }
     },
+    "/api/Admin/getsharedmedia": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/deletesharedmedia": {
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SharedMediaIDDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SharedMediaIDDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SharedMediaIDDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Authentication/signin": {
       "post": {
         "tags": [
@@ -903,6 +946,37 @@
             "application/*+json": {
               "schema": {
                 "$ref": "#/components/schemas/UserEmailInfoModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Booking/sendfilterbookinginfo": {
+      "post": {
+        "tags": [
+          "Booking"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookIngIdDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookIngIdDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookIngIdDTO"
               }
             }
           }
@@ -1704,17 +1778,22 @@
               "schema": {
                 "required": [
                   "Email",
-                  "PhotoExtension",
                   "ProviderServiceId",
-                  "ServicePhoto",
-                  "ServiceVideo",
-                  "VideoExtension"
+                  "ServiceFile",
+                  "ServiceTitle"
                 ],
                 "type": "object",
                 "properties": {
                   "ProviderServiceResourcesId": {
                     "type": "integer",
                     "format": "int32"
+                  },
+                  "ServiceTitle": {
+                    "type": "string"
+                  },
+                  "ServiceFile": {
+                    "type": "string",
+                    "format": "binary"
                   },
                   "ServicePhoto": {
                     "type": "string",
@@ -1739,11 +1818,20 @@
                   },
                   "VideoExtension": {
                     "type": "string"
+                  },
+                  "FileExtension": {
+                    "type": "string"
                   }
                 }
               },
               "encoding": {
                 "ProviderServiceResourcesId": {
+                  "style": "form"
+                },
+                "ServiceTitle": {
+                  "style": "form"
+                },
+                "ServiceFile": {
                   "style": "form"
                 },
                 "ServicePhoto": {
@@ -1762,6 +1850,9 @@
                   "style": "form"
                 },
                 "VideoExtension": {
+                  "style": "form"
+                },
+                "FileExtension": {
                   "style": "form"
                 }
               }
@@ -1982,6 +2073,37 @@
       }
     },
     "/api/Profile/getservicephotoinfo": {
+      "post": {
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderServiceEmailServiceNameModel"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderServiceEmailServiceNameModel"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderServiceEmailServiceNameModel"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Profile/getserviceresourcesfileinfo": {
       "post": {
         "tags": [
           "Profile"
@@ -2305,6 +2427,238 @@
         }
       }
     },
+    "/api/Profile/updateserviceresourcefile": {
+      "put": {
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "ProviderServiceResourcesId",
+                  "ServiceFile"
+                ],
+                "type": "object",
+                "properties": {
+                  "ProviderServiceResourcesId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "ServiceFile": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "ProviderServiceResourcesId": {
+                  "style": "form"
+                },
+                "ServiceFile": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Profile/updateserviceresourcetitle": {
+      "put": {
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResIdTitleDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResIdTitleDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResIdTitleDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Profile/updatephonenumbers": {
+      "put": {
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneNumberDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneNumberDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhoneNumberDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Profile/addmedia": {
+      "post": {
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "MediaDescription",
+                  "ReceiverNumber"
+                ],
+                "type": "object",
+                "properties": {
+                  "SharedMediaId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "MediaDescription": {
+                    "type": "string"
+                  },
+                  "ServicePhoto": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "ServiceVideo": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "ServiceFile": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "CreatedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "SenderNumber": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "ReceiverNumber": {
+                    "type": "integer",
+                    "format": "int32"
+                  }
+                }
+              },
+              "encoding": {
+                "SharedMediaId": {
+                  "style": "form"
+                },
+                "MediaDescription": {
+                  "style": "form"
+                },
+                "ServicePhoto": {
+                  "style": "form"
+                },
+                "ServiceVideo": {
+                  "style": "form"
+                },
+                "ServiceFile": {
+                  "style": "form"
+                },
+                "CreatedAt": {
+                  "style": "form"
+                },
+                "SenderNumber": {
+                  "style": "form"
+                },
+                "ReceiverNumber": {
+                  "style": "form"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Profile/getsharedmedia": {
+      "get": {
+        "tags": [
+          "Profile"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Profile/deletesharedmedia": {
+      "delete": {
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SharedMediaIDDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SharedMediaIDDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/SharedMediaIDDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Service/getratinginfo": {
       "post": {
         "tags": [
@@ -2405,19 +2759,145 @@
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/BookinInfoModel"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/BookinInfoModel"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/BookinInfoModel"
+                "required": [
+                  "Distance",
+                  "ProviderNumber",
+                  "ServiceId",
+                  "ServiceName",
+                  "UserBookingDescription"
+                ],
+                "type": "object",
+                "properties": {
+                  "StartDate": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "EndDate": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "ProviderBookingDescription": {
+                    "type": "string"
+                  },
+                  "UserBookingDescription": {
+                    "type": "string"
+                  },
+                  "ServiceId": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "ServiceName": {
+                    "type": "string"
+                  },
+                  "Distance": {
+                    "type": "number",
+                    "format": "double"
+                  },
+                  "ProviderApprovalStatus": {
+                    "type": "boolean"
+                  },
+                  "UserApprovalStatus": {
+                    "type": "boolean"
+                  },
+                  "ProviderTaskCompleteStatus": {
+                    "type": "boolean"
+                  },
+                  "UserTaskCompleteStatus": {
+                    "type": "boolean"
+                  },
+                  "AdvancePaymentAmount": {
+                    "type": "number",
+                    "format": "double"
+                  },
+                  "CreatedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "UserNumber": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "ProviderNumber": {
+                    "type": "integer",
+                    "format": "int32"
+                  },
+                  "RequiredAdvancePayment": {
+                    "type": "boolean"
+                  },
+                  "RatingValueUser": {
+                    "type": "number",
+                    "format": "double"
+                  },
+                  "BookingFile": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "BookingVideo": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              },
+              "encoding": {
+                "StartDate": {
+                  "style": "form"
+                },
+                "EndDate": {
+                  "style": "form"
+                },
+                "ProviderBookingDescription": {
+                  "style": "form"
+                },
+                "UserBookingDescription": {
+                  "style": "form"
+                },
+                "ServiceId": {
+                  "style": "form"
+                },
+                "ServiceName": {
+                  "style": "form"
+                },
+                "Distance": {
+                  "style": "form"
+                },
+                "ProviderApprovalStatus": {
+                  "style": "form"
+                },
+                "UserApprovalStatus": {
+                  "style": "form"
+                },
+                "ProviderTaskCompleteStatus": {
+                  "style": "form"
+                },
+                "UserTaskCompleteStatus": {
+                  "style": "form"
+                },
+                "AdvancePaymentAmount": {
+                  "style": "form"
+                },
+                "CreatedAt": {
+                  "style": "form"
+                },
+                "UserNumber": {
+                  "style": "form"
+                },
+                "ProviderNumber": {
+                  "style": "form"
+                },
+                "RequiredAdvancePayment": {
+                  "style": "form"
+                },
+                "RatingValueUser": {
+                  "style": "form"
+                },
+                "BookingFile": {
+                  "style": "form"
+                },
+                "BookingVideo": {
+                  "style": "form"
+                }
               }
             }
           }
@@ -2535,8 +3015,7 @@
       },
       "BookIngIdDTO": {
         "required": [
-          "bookId",
-          "userEmail"
+          "bookId"
         ],
         "type": "object",
         "properties": {
@@ -2548,95 +3027,8 @@
             "maxLength": 200,
             "minLength": 0,
             "type": "string",
-            "format": "email"
-          }
-        },
-        "additionalProperties": false
-      },
-      "BookinInfoModel": {
-        "required": [
-          "createdAt",
-          "distance",
-          "providerApprovalStatus",
-          "providerNumber",
-          "providerTaskCompleteStatus",
-          "requiredAdvancePayment",
-          "serviceId",
-          "serviceName",
-          "userApprovalStatus",
-          "userBookingDescription",
-          "userTaskCompleteStatus"
-        ],
-        "type": "object",
-        "properties": {
-          "bookId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "startDate": {
-            "type": "string",
-            "format": "date-time",
+            "format": "email",
             "nullable": true
-          },
-          "endDate": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          },
-          "providerBookingDescription": {
-            "type": "string",
-            "nullable": true
-          },
-          "userBookingDescription": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "serviceId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "serviceName": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "distance": {
-            "type": "number",
-            "format": "double"
-          },
-          "providerApprovalStatus": {
-            "type": "boolean"
-          },
-          "userApprovalStatus": {
-            "type": "boolean"
-          },
-          "providerTaskCompleteStatus": {
-            "type": "boolean"
-          },
-          "userTaskCompleteStatus": {
-            "type": "boolean"
-          },
-          "advancePaymentAmount": {
-            "type": "number",
-            "format": "double"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "userNumber": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "providerNumber": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "requiredAdvancePayment": {
-            "type": "boolean"
-          },
-          "ratingValueUser": {
-            "type": "number",
-            "format": "double"
           }
         },
         "additionalProperties": false
@@ -2812,6 +3204,26 @@
         },
         "additionalProperties": false
       },
+      "PhoneNumberDTO": {
+        "type": "object",
+        "properties": {
+          "phoneNumber": {
+            "maxLength": 50,
+            "minLength": 0,
+            "pattern": "^\\+\\d+$",
+            "type": "string",
+            "nullable": true
+          },
+          "whatsappPhoneNumber": {
+            "maxLength": 50,
+            "minLength": 0,
+            "pattern": "^\\+\\d+$",
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "ProServDescpDTO": {
         "required": [
           "proRegServiceDescription",
@@ -2958,6 +3370,24 @@
         },
         "additionalProperties": false
       },
+      "ResIdTitleDTO": {
+        "required": [
+          "providerServiceResourcesId",
+          "serviceTitle"
+        ],
+        "type": "object",
+        "properties": {
+          "providerServiceResourcesId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "serviceTitle": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ServiceIdDTO": {
         "required": [
           "serviceId"
@@ -3010,6 +3440,19 @@
           "internationalPriceDiscount": {
             "type": "number",
             "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SharedMediaIDDTO": {
+        "required": [
+          "sharedMediaId"
+        ],
+        "type": "object",
+        "properties": {
+          "sharedMediaId": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false

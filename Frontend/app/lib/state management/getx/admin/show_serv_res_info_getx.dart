@@ -5,34 +5,53 @@ import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:velocity_x/velocity_x.dart';
 
-// Adjust the relative import segment counts if your folder depth differs.
 import '../../../constant/Server_Database.dart';
 import '../../../constant/variable.dart';
 import '../../../models/ProRegServResourcesModel.dart';
 import '../../../models/ServiceScreenServiceModel.dart';
 
-// =============================================================================
-// One displayable thing (document / photo / video) belonging to a service.
-// =============================================================================
-enum MediaKind { file, photo, video }
+enum MediaKind { serviceDocument, resourceFile, photo, video }
 
 class ServiceMediaItem {
   final MediaKind kind;
   final String path;
-  final String label;
+  final String title;
+  final int serviceId;
+  final int? resourceId;
+
   const ServiceMediaItem({
     required this.kind,
     required this.path,
-    required this.label,
+    required this.title,
+    required this.serviceId,
+    this.resourceId,
   });
+
+  String get kindLabel {
+    switch (kind) {
+      case MediaKind.serviceDocument:
+        return 'Service document';
+      case MediaKind.resourceFile:
+        return 'Resource file';
+      case MediaKind.photo:
+        return 'Photo';
+      case MediaKind.video:
+        return 'Video';
+    }
+  }
 }
 
-// =============================================================================
-// CONTROLLER — same three API methods as the original screen (logic kept),
-// only the state writes now go through Rx fields instead of plain lists.
-// =============================================================================
+bool isPdfPath(String path) {
+  final String clean = path.split('?').first.toLowerCase();
+  final int dot = clean.lastIndexOf('.');
+  final int slash = clean.lastIndexOf('/');
+  if (dot < 0 || dot < slash) return true;
+  return clean.substring(dot) == '.pdf';
+}
+
+bool _hasText(String? v) => v != null && v.trim().isNotEmpty;
+
 class ShowServResInfoGetx extends GetxController {
-  // ---------------- reactive state ----------------
   final RxList<ServiceScreenServiceModel> services =
       <ServiceScreenServiceModel>[].obs;
   final RxList<ProRegServResourcesModel> resources =
@@ -42,7 +61,6 @@ class ShowServResInfoGetx extends GetxController {
   final RxSet<int> deletingIds = <int>{}.obs;
   final RxString searchQuery = ''.obs;
 
-  /// serviceId -> index of the item currently shown (Next / Previous).
   final RxMap<int, int> mediaIndex = <int, int>{}.obs;
 
   final TextEditingController serviceIdTextCont = TextEditingController();
@@ -51,7 +69,6 @@ class ShowServResInfoGetx extends GetxController {
   late String _jwtToken;
   late String _email;
 
-  /// Call once from the screen's initState, right after Get.put(...).
   Future<void> init({required String jwtToken, required String email}) async {
     _jwtToken = jwtToken;
     _email = email;
@@ -65,8 +82,6 @@ class ShowServResInfoGetx extends GetxController {
     super.onClose();
   }
 
-  /// Services first, then resources (the services call clears the resource
-  /// list on success, exactly like the original, so order matters).
   Future<void> loadAll() async {
     isLoading.value = true;
     await GetAllProviderServices();
@@ -74,10 +89,30 @@ class ShowServResInfoGetx extends GetxController {
     if (!isClosed) isLoading.value = false;
   }
 
-  // ---------------------------------------------------------------------------
-  // HELPERS
-  // ---------------------------------------------------------------------------
   int idOf(ServiceScreenServiceModel s) => (s.providerServiceId ?? -1).toInt();
+
+  int _serviceIdOfResource(ProRegServResourcesModel r) =>
+      (r.providerServiceId ?? -2).toInt();
+
+  String _titleOf(ProRegServResourcesModel r) {
+    final String? t = r.serviceTitle?.trim();
+    return _hasText(t) ? t! : 'Untitled resource';
+  }
+
+  ServiceMediaItem _resourceItem(
+      MediaKind kind,
+      String path,
+      ProRegServResourcesModel r,
+      int serviceId,
+      ) {
+    return ServiceMediaItem(
+      kind: kind,
+      path: path.trim(),
+      title: _titleOf(r),
+      serviceId: serviceId,
+      resourceId: r.providerServiceResourcesId?.toInt(),
+    );
+  }
 
   List<ServiceScreenServiceModel> get filteredServices {
     final String q = searchQuery.value.trim();
@@ -85,94 +120,47 @@ class ShowServResInfoGetx extends GetxController {
     return services.where((s) => idOf(s).toString().contains(q)).toList();
   }
 
-  /// Order shown one by one: document first, then each resource's photo/video.
+  int resourceCountFor(ServiceScreenServiceModel s) {
+    final int id = idOf(s);
+    return resources.where((r) => _serviceIdOfResource(r) == id).length;
+  }
 
   List<ServiceMediaItem> mediaFor(ServiceScreenServiceModel s) {
     final int id = idOf(s);
     final List<ServiceMediaItem> items = [];
-
-    // =========================================================
-    // 1. SERVICE DOCUMENT
-    // =========================================================
+    final List<ProRegServResourcesModel> related =
+    resources.where((r) => _serviceIdOfResource(r) == id).toList();
 
     final String? doc = s.serviceDocument;
-
-    if (doc != null && doc.trim().isNotEmpty) {
-      items.add(
-        ServiceMediaItem(
-          kind: MediaKind.file,
-          path: doc,
-          label: 'Document',
-        ),
-      );
+    if (_hasText(doc)) {
+      items.add(ServiceMediaItem(
+        kind: MediaKind.serviceDocument,
+        path: doc!.trim(),
+        title: 'Service document',
+        serviceId: id,
+      ));
     }
 
-    // =========================================================
-    // 2. ALL PHOTOS
-    // =========================================================
-
-    for (final r in resources) {
-      if ((r.providerServiceId ?? -2).toInt() != id) {
-        continue;
+    for (final r in related) {
+      final String? file = r.serviceFile;
+      if (_hasText(file)) {
+        items.add(_resourceItem(MediaKind.resourceFile, file!, r, id));
       }
+    }
 
-      final String rid =
-          '${r.providerServiceResourcesId ?? '-'}';
-
+    for (final r in related) {
       final String? photo = r.servicePhoto;
-
-      if (photo != null && photo.trim().isNotEmpty) {
-        items.add(
-          ServiceMediaItem(
-            kind: MediaKind.photo,
-            path: photo,
-            label: 'Photo · Resource $rid',
-          ),
-        );
+      if (_hasText(photo)) {
+        items.add(_resourceItem(MediaKind.photo, photo!, r, id));
       }
     }
 
-    // =========================================================
-    // 3. ALL VIDEOS
-    // =========================================================
-
-    for (final r in resources) {
-      if ((r.providerServiceId ?? -2).toInt() != id) {
-        continue;
-      }
-
-      final String rid =
-          '${r.providerServiceResourcesId ?? '-'}';
-
+    for (final r in related) {
       final String? video = r.serviceVideo;
-
-      if (video != null && video.trim().isNotEmpty) {
-        items.add(
-          ServiceMediaItem(
-            kind: MediaKind.video,
-            path: video,
-            label: 'Video · Resource $rid',
-          ),
-        );
+      if (_hasText(video)) {
+        items.add(_resourceItem(MediaKind.video, video!, r, id));
       }
     }
-
-    // =========================================================
-    // DEBUG
-    // =========================================================
-
-    // print("========== MEDIA FOR SERVICE $id ==========");
-    //
-    // for (int i = 0; i < items.length; i++) {
-    //   print(
-    //     "Media $i | "
-    //         "Kind: ${items[i].kind} | "
-    //         "Path: ${items[i].path} | "
-    //         "Label: ${items[i].label}",
-    //   );
-    // }
-    //
-    // print("Total Media: ${items.length}");
 
     return items;
   }
@@ -198,48 +186,41 @@ class ShowServResInfoGetx extends GetxController {
     searchQuery.value = '';
   }
 
-  /// Same slash-safe joining as GetPhotoUrl.
   String buildUrl(String? photoPath) {
     try {
       if (photoPath == null || photoPath.trim().isEmpty) return "";
+      final String p = photoPath.trim();
+      if (p.startsWith("http://") || p.startsWith("https://")) return p;
 
       final String baseUrl = Backend_Server_Url.endsWith("/")
           ? Backend_Server_Url.substring(0, Backend_Server_Url.length - 1)
           : Backend_Server_Url;
 
-      final String path = photoPath.trim().startsWith("/")
-          ? photoPath.trim()
-          : "/${photoPath.trim()}";
-
+      final String path = p.startsWith("/") ? p : "/$p";
       return "$baseUrl$path";
-    } catch (obj) {
-      print("Exception while creating photo URL.");
-      print(obj.toString());
+    } catch (_) {
       return "";
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // DELETE
-  // ---------------------------------------------------------------------------
-
-  /// From the "Delete by Service ID" panel (original button logic).
   Future<void> deleteFromInput() async {
     try {
-      if (serviceIdTextCont.text.trim().isEmptyOrNull) {
+      final String raw = serviceIdTextCont.text.trim();
+      if (raw.isEmptyOrNull) {
         Toast.Toastmsg("Service id is required.");
         return;
       }
-      int serviceId = int.tryParse(serviceIdTextCont.text.trim())!;
+      final int? serviceId = int.tryParse(raw);
+      if (serviceId == null) {
+        Toast.Toastmsg("Enter a valid service id.");
+        return;
+      }
       await deleteServiceById(serviceId);
-    } catch (obj) {
-      print(obj.toString());
+    } catch (_) {
       return;
     }
   }
 
-  /// Used by both the top panel and every service card.
-  /// On 200 the service and its resources vanish from the UI instantly.
   Future<void> deleteServiceById(int id) async {
     if (deletingIds.contains(id)) return;
     deletingIds.add(id);
@@ -254,7 +235,7 @@ class ShowServResInfoGetx extends GetxController {
 
     if (result == 200) {
       services.removeWhere((s) => idOf(s) == id);
-      resources.removeWhere((r) => (r.providerServiceId ?? -2).toInt() == id);
+      resources.removeWhere((r) => _serviceIdOfResource(r) == id);
       mediaIndex.remove(id);
       if (serviceIdTextCont.text.trim() == id.toString()) {
         serviceIdTextCont.clear();
@@ -262,9 +243,6 @@ class ShowServResInfoGetx extends GetxController {
     }
   }
 
-  // ===========================================================================
-  // ORIGINAL API METHODS — logic unchanged
-  // ===========================================================================
   Future<int> DelProService({
     required String User_JwtToken,
     required String Email,
@@ -308,20 +286,17 @@ class ShowServResInfoGetx extends GetxController {
         Toast.Toastmsg("Something went wrong. Status: ${response.statusCode}");
         return response.statusCode;
       }
-    } catch (obj) {
-      print("Delete Service Error: $obj");
+    } catch (_) {
       Toast.Toastmsg("Something went wrong.");
       return 500;
     }
   }
 
-  /// Get all provider services
   Future<void> GetAllProviderServices() async {
     try {
       services.clear();
 
       const String url = Backend_Server_Url + "api/Admin/getallproviderservices";
-      print("========== GET ALL PROVIDER SERVICES ==========");
 
       final response = await http.get(
         Uri.parse(url),
@@ -331,7 +306,6 @@ class ShowServResInfoGetx extends GetxController {
         },
       );
 
-
       if (response.statusCode == 200) {
         final List<dynamic> responseData = jsonDecode(response.body);
         resources.clear();
@@ -339,8 +313,6 @@ class ShowServResInfoGetx extends GetxController {
         services.assignAll(responseData
             .map((json) => ServiceScreenServiceModel.fromJson(json))
             .toList());
-
-        print("Provider Services Count: ${services.length}");
       } else if (response.statusCode == 400) {
         services.clear();
         Toast.Toastmsg("Invalid request data.");
@@ -360,23 +332,18 @@ class ShowServResInfoGetx extends GetxController {
         services.clear();
         Toast.Toastmsg("Something went wrong.");
       }
-    } catch (e, stackTrace) {
-      print("========== GET ALL PROVIDER SERVICES ERROR ==========");
-      print("Error: $e");
-      print("StackTrace: $stackTrace");
+    } catch (_) {
       services.clear();
       Toast.Toastmsg("Something went wrong.");
     }
   }
 
-  /// Get all provider service resources
   Future<void> GetAllProviderServiceResources() async {
     try {
       resources.clear();
 
       const String url =
           Backend_Server_Url + "api/Admin/getallproviderserviceresources";
-      print("========== GET ALL PROVIDER SERVICE RESOURCES ==========");
 
       final response = await http.get(
         Uri.parse(url),
@@ -386,15 +353,11 @@ class ShowServResInfoGetx extends GetxController {
         },
       );
 
-
-
       if (response.statusCode == 200) {
         final List<dynamic> responseData = jsonDecode(response.body);
         resources.assignAll(responseData
             .map((json) => ProRegServResourcesModel.fromJson(json))
             .toList());
-
-        print("Provider Service Resources Count: ${resources.length}");
       } else if (response.statusCode == 400) {
         resources.clear();
         Toast.Toastmsg("Invalid request data.");
@@ -414,10 +377,7 @@ class ShowServResInfoGetx extends GetxController {
         resources.clear();
         Toast.Toastmsg("Something went wrong.");
       }
-    } catch (e, stackTrace) {
-      print("========== GET ALL PROVIDER SERVICE RESOURCES ERROR ==========");
-      print("Error: $e");
-      print("StackTrace: $stackTrace");
+    } catch (_) {
       resources.clear();
       Toast.Toastmsg("Something went wrong.");
     }

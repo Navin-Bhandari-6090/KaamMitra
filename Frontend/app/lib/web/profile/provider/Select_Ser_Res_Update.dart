@@ -1,9 +1,11 @@
+import 'package:app/web/profile/provider/update_serv_res_file.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../state management/getx/profile/provider/select_ser_res_update_photo_video_getx.dart';
 import 'Pro_Upd_Ser_Res_Video_Screen.dart';
 import 'Pro_Update_Ser_Res_Photo_Screen.dart';
+import 'Upd_ser_res_title.dart';
 
 /// =============================================================================
 /// DARK GREEN PALETTE (kept identical across the app for brand consistency)
@@ -217,6 +219,28 @@ class _SelectSerResUpdateState extends State<SelectSerResUpdate>
     );
   }
 
+  void _goToFile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UpdateServResFile(
+          User_JwtToken: widget.User_JwtToken,
+        ),
+      ),
+    );
+  }
+
+  void _goToTitle() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UpdSerResTitle(
+          Current_User_Jwt_Token: widget.User_JwtToken,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -309,48 +333,105 @@ class _SelectSerResUpdateState extends State<SelectSerResUpdate>
             ? Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+
             Expanded(
               child: _ActionCard(
                 icon: Icons.photo_library_rounded,
-                title: 'Update Service Photos',
+                title: 'Update Service resources Photos',
                 description: 'Replace or refresh the photos shown for a registered service.',
                 hovered: controller.photoCardHovered,
                 onHoverChanged: controller.setPhotoHover,
                 onTap: _goToPhoto,
               ),
             ),
+
             const SizedBox(width: 20),
+
             Expanded(
               child: _ActionCard(
                 icon: Icons.videocam_rounded,
-                title: 'Update Service Videos',
+                title: 'Update Service resources Videos',
                 description: 'Replace or refresh the video uploaded for a registered service.',
                 hovered: controller.videoCardHovered,
                 onHoverChanged: controller.setVideoHover,
                 onTap: _goToVideo,
               ),
             ),
+
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.file_open_sharp,
+                title: 'Update Service resource files',
+                description: 'Replace or refresh the video uploaded for a registered service.',
+                hovered: controller.videoCardHovered,
+                onHoverChanged: controller.setVideoHover,
+                onTap: _goToFile,
+              ),
+            ),
+
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.title,
+                title: 'Update Service resource title',
+                description: 'Replace or refresh the video uploaded for a registered service.',
+                hovered: controller.videoCardHovered,
+                onHoverChanged: controller.setVideoHover,
+                onTap: _goToTitle,
+              ),
+            ),
+
+
           ],
         )
             : Column(
           children: [
-            _ActionCard(
-              icon: Icons.photo_library_rounded,
-              title: 'Update Service Photos',
-              description: 'Replace or refresh the photos shown for a registered service.',
-              hovered: controller.photoCardHovered,
-              onHoverChanged: controller.setPhotoHover,
-              onTap: _goToPhoto,
+
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.photo_library_rounded,
+                title: 'Update Service resources Photos',
+                description: 'Replace or refresh the photos shown for a registered service.',
+                hovered: controller.photoCardHovered,
+                onHoverChanged: controller.setPhotoHover,
+                onTap: _goToPhoto,
+              ),
             ),
-            const SizedBox(height: 18),
-            _ActionCard(
-              icon: Icons.videocam_rounded,
-              title: 'Update Service Videos',
-              description: 'Replace or refresh the video uploaded for a registered service.',
-              hovered: controller.videoCardHovered,
-              onHoverChanged: controller.setVideoHover,
-              onTap: _goToVideo,
+
+            const SizedBox(width: 20),
+
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.videocam_rounded,
+                title: 'Update Service resources Videos',
+                description: 'Replace or refresh the video uploaded for a registered service.',
+                hovered: controller.videoCardHovered,
+                onHoverChanged: controller.setVideoHover,
+                onTap: _goToVideo,
+              ),
             ),
+
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.file_open_sharp,
+                title: 'Update Service resource files',
+                description: 'Replace or refresh the video uploaded for a registered service.',
+                hovered: controller.videoCardHovered,
+                onHoverChanged: controller.setVideoHover,
+                onTap: _goToFile,
+              ),
+            ),
+
+            Expanded(
+              child: _ActionCard(
+                icon: Icons.title,
+                title: 'Update Service resource title',
+                description: 'Replace or refresh the video uploaded for a registered service.',
+                hovered: controller.videoCardHovered,
+                onHoverChanged: controller.setVideoHover,
+                onTap: _goToTitle,
+              ),
+            ),
+
           ],
         ),
 

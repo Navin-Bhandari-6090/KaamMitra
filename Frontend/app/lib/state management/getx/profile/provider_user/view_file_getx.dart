@@ -77,10 +77,7 @@ class ViewFileGetxCont extends GetxController {
     if (!isClosed) screenState.value = ScreenState.loading;
 
     try {
-      print('');
-      print('================================================');
-      print('GET SERVICE FILE METHOD CALLED');
-      print('================================================');
+
 
       print('Email   : $Email');
       print('Service : $_serviceName');

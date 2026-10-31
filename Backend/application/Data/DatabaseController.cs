@@ -41,6 +41,10 @@ namespace application.Data
 
         public DbSet<ChatInfoModel> ChatInfos { get; set; }
 
-        public object AdminQRPhotoModels { get; internal set; }
+        public DbSet<NewMessageInfosModel> NewMessageStatusInfos { get; set; }
+
+        public DbSet<SharedMediaModel> SharedMediaInfos { get; set; }
+
+   
     }
 }

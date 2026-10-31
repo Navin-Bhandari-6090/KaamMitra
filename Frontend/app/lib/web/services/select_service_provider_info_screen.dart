@@ -1,6 +1,4 @@
 
-import 'dart:convert';
-
 import 'package:app/web/common%20widget/GreenTextfield.dart';
 import 'package:app/web/common%20widget/toast.dart';
 import 'package:app/web/services/services_provider_service_select.dart';
@@ -10,8 +8,10 @@ import 'package:http/http.dart' as http;
 import 'package:velocity_x/velocity_x.dart';
 
 import '../../constant/Server_Database.dart';
+import '../../constant/variable.dart';
 import '../../models/ServiceScreenServiceModel.dart';
-import '../../models/Service_Screen_User_Info_Model.dart';
+
+import '../../models/ServiceScreenUserInfoModel.dart';
 import '../../state management/getx/services/select_service_provider_info_screen_getx.dart';
 import '../authentication/Error_page.dart';
 import '../common method/Commmon_Method.dart';
@@ -50,10 +50,6 @@ class SelectServiceProviderInfoScreen extends StatefulWidget {
   final num ServiceId;
   final num Providernumber;
   final String ProRegServiceDescription;
-
-
-
-
   final List<ServiceScreenServiceModel> Service_info_List;
   final List<ServiceScreenUserInfoModel> Provider_info_List;
 
@@ -243,99 +239,180 @@ class _SelectServiceProviderInfoScreenState
   }
 
 
-  Future<int> AddBookingInfo(
-      {
+
+  Future<int> AddBookingInfo({
     required String Current_User_JwtToken,
     required double Distance,
     required num ProviderNumber,
     required String ServiceName,
     required bool ProviderApprovalStatus,
-    required bool  ProviderTaskCompleteStatus,
-    required bool  UserTaskCompleteStatus,
+    required bool ProviderTaskCompleteStatus,
+    required bool UserTaskCompleteStatus,
     required bool UserApprovalStatus,
     required String UserBookingDescription,
     required num ServiceId,
-  }
-  ) async {
+    required List<int>? FileBytes,
+    required List<int>? VideoBytes,
+    required String? FileExtension,
+    required String? VideoExtension,
+  }) async {
     try {
-      final Map<String, dynamic> userData = {
-        "UserBookingDescription": UserBookingDescription,
-        "Distance": Distance,
-        "ServiceName": ServiceName,
-        "ProviderApprovalStatus": ProviderApprovalStatus,
-        "ProviderTaskCompleteStatus": ProviderTaskCompleteStatus,
-        "UserTaskCompleteStatus":UserTaskCompleteStatus,
-        "UserApprovalStatus":UserApprovalStatus,
-        "ServiceId":ServiceId,
-        "ProviderNumber":ProviderNumber
-      };
-      const String url = Backend_Server_Url + "api/Service/addbookinginfo";
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': 'Bearer ${widget.Current_User_JwtToken}'
-        },
-        body: json.encode(userData),
-      );
-      if (response.statusCode == 200)
-      {
-        print("Add booking info success");
-        Toast.Toastmsg("Booking success.");
-        return 1;
-      }
-      else if (response.statusCode == 500)
-      {
-        Toast.Toastmsg("Booking fail.Try again.Server error.");
-        print("Booking fail.Try again.Server error.");
-        return 2;
-      }
-      else if (response.statusCode == 502)
-      {
-        Toast.Toastmsg("Current user doesn't match.");
-        print("Current user doesn't match.");
-        await Clear_User_Data();
-        await Random_token_Clear();
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => ErrorPage()),
-              (route) => false,
-        );
-        Toastget().Toastmsg("Session End.Relogin please.");
-        return 3;
-      }
-      else if (response.statusCode == 503)
-      {
-        Toast.Toastmsg("Provide doesn't match.Choose different provider.");
-        print("Provide doesn't match.Choose different provider.");
+      // 1. API URL
+      const String url =
+          Backend_Server_Url + "api/Service/addbookinginfo";
 
-        return 4;
+      // 2. Create multipart request
+      final request = http.MultipartRequest(
+        "POST",
+        Uri.parse(url),
+      );
+
+      // 3. Authorization
+      request.headers["Authorization"] =
+      "Bearer $Current_User_JwtToken";
+
+      // 4. Booking fields
+      request.fields["Distance"] = Distance.toString();
+      request.fields["ServiceName"] = ServiceName;
+      request.fields["ProviderApprovalStatus"] =
+          ProviderApprovalStatus.toString();
+      request.fields["ProviderTaskCompleteStatus"] =
+          ProviderTaskCompleteStatus.toString();
+      request.fields["UserTaskCompleteStatus"] =
+          UserTaskCompleteStatus.toString();
+      request.fields["UserApprovalStatus"] =
+          UserApprovalStatus.toString();
+      request.fields["UserBookingDescription"] =
+          UserBookingDescription;
+      request.fields["ServiceId"] = ServiceId.toString();
+      request.fields["ProviderNumber"] = ProviderNumber.toString();
+
+      // Required DTO fields
+      request.fields["CreatedAt"] =
+          DateTime.now().toUtc().toIso8601String();
+      request.fields["RequiredAdvancePayment"] = "false";
+
+      // 5. Optional booking file
+      if (FileBytes != null && FileBytes.isNotEmpty) {
+        String extension = (FileExtension ?? "").trim();
+
+        if (extension.startsWith(".")) {
+          extension = extension.substring(1);
+        }
+
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            "BookingFile",
+            FileBytes,
+            filename: extension.isNotEmpty
+                ? "booking_file.$extension"
+                : "booking_file",
+          ),
+        );
       }
-      else if (response.statusCode == 501)
-      {
-        Toast.Toastmsg("Invalid data format.Please provide data in correct format.");
-        print("Invalid data format.Please provide data in correct format.");
-        return 5;
+
+      // 6. Optional booking video
+      if (VideoBytes != null && VideoBytes.isNotEmpty) {
+        String extension = (VideoExtension ?? "").trim();
+
+        if (extension.startsWith(".")) {
+          extension = extension.substring(1);
+        }
+
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            "BookingVideo",
+            VideoBytes,
+            filename: extension.isNotEmpty
+                ? "booking_video.$extension"
+                : "booking_video",
+          ),
+        );
       }
-      else {
-        print("Other status code.Error.");
-        print("Status code = ${response.statusCode}");
-        Toast.Toastmsg("Booking fail.Try again.Server error.");
-        return 6;
+
+      // 7. Send request
+      final streamedResponse = await request.send();
+
+      final response = await http.Response.fromStream(
+        streamedResponse,
+      );
+
+      // 8. Handle response status codes
+      switch (response.statusCode) {
+        case 200:
+          Toast.Toastmsg("Booking success.");
+          return 1;
+
+        case 400:
+          Toast.Toastmsg(
+            "Invalid booking data. Please check your information.",
+          );
+          return 2;
+
+        case 401:
+          Toast.Toastmsg(
+            "Unauthorized. Please log in again.",
+          );
+          return 3;
+
+        case 403:
+          Toast.Toastmsg(
+            "You are not authorized to create this booking.",
+          );
+          return 4;
+
+        case 500:
+          Toast.Toastmsg(
+            "Booking failed. Server error. Please try again.",
+          );
+          return 5;
+
+        case 502:
+          Toast.Toastmsg(
+            "Current user doesn't match.",
+          );
+
+          await Clear_User_Data();
+          await Random_token_Clear();
+
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ErrorPage(),
+            ),
+                (route) => false,
+          );
+
+          Toastget().Toastmsg(
+            "Session ended. Please log in again.",
+          );
+          return 6;
+
+        case 503:
+          Toast.Toastmsg(
+            "Provider not found. Choose a different provider.",
+          );
+          return 7;
+
+        case 506:
+          Toast.Toastmsg(
+            "You have been blocked by the system. Contact KaamMitra support.",
+          );
+          return 8;
+
+        default:
+          Toast.Toastmsg(
+            "Booking failed. Please try again later.",
+          );
+          return 9;
       }
-    } catch (Obj) {
-      print("Exception caught while adding booking info.");
-      print(Obj.toString());
-      Toast.Toastmsg("Booking fail.Try again.Server error.");
-      return 7;
+    } catch (e) {
+      Toast.Toastmsg(
+        "Unable to create booking. Please check your connection and try again.",
+      );
+      return 10;
     }
   }
-
-
-
-  // ============================================================
-  // BUILD
-  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -480,7 +557,7 @@ class _SelectServiceProviderInfoScreenState
 
                                 SizedBox(height: isMobile ? 22 : 28),
 
-                                Text("Please describe all the details of the service you want to book.You cannot update later on.",style: TextStyle(
+                                Text("Please describe all the details of the service you want to book.You cannot update later on.File and video are optional.",style: TextStyle(
                                   color: Colors.red
                                 ),),
 
@@ -493,6 +570,21 @@ class _SelectServiceProviderInfoScreenState
                                     obscure: false,
                                     height: 100,
                                   ),
+
+                                SizedBox(height: isMobile ? 22 : 28),
+
+                                ElevatedButton(onPressed: ()async{
+                                  await PickFile();
+                                }, child: Text("Pick file.")),
+
+
+                                SizedBox(height: isMobile ? 22 : 28),
+
+                                ElevatedButton(onPressed: ()async
+                                {
+                                  await PickVideo();
+                                }, child: Text("Pick video.")),
+
 
                                 SizedBox(height: isMobile ? 22 : 28),
 
@@ -681,8 +773,6 @@ class _SelectServiceProviderInfoScreenState
       child: LayoutBuilder(
         builder: (context, constraints) {
           final bool compact = constraints.maxWidth < 520;
-          print("photo url");
-          print(photoUrl);
           final avatar = Container(
             height: 96,
             width: 96,
@@ -733,7 +823,6 @@ class _SelectServiceProviderInfoScreenState
                       );
                     },
                     errorBuilder: (context, error, stackTrace) {
-                      print("Provider image loading failed: $error");
                       return const Icon(Icons.person_rounded,
                           color: _Theme.mint, size: 34);
                     },
@@ -814,7 +903,7 @@ class _SelectServiceProviderInfoScreenState
               const SizedBox(height: 12),
 
               Text(
-                "Provider Description:${widget.ProRegServiceDescription.isEmpty ? "Service description from provider not found" : widget.ProRegServiceDescription}",
+                "Provider Service Description:${widget.ProRegServiceDescription.isEmpty ? "Service description from provider not found" : widget.ProRegServiceDescription}",
                 textAlign: compact ? TextAlign.center : TextAlign.start,
                 style: TextStyle(
                   color: _Theme.primaryText,
@@ -1170,6 +1259,7 @@ class _SelectServiceProviderInfoScreenState
         final bool confirmed = await _confirmBooking();
         if (!confirmed) return;
 
+
         final AddBookingResult=await AddBookingInfo(
             Current_User_JwtToken: widget.Current_User_JwtToken,
             Distance: widget.Distance,
@@ -1181,7 +1271,14 @@ class _SelectServiceProviderInfoScreenState
           UserBookingDescription: UserBookingDescriptionTextCont.text.trim(),
           ServiceId:widget.ServiceId,
           ProviderNumber: widget.Providernumber,
+          FileBytes: change_file_cont_getx.fileBytes.value!=null?change_file_cont_getx.fileBytes.value:null,
+          VideoBytes: change_video_cont_getx.videoBytes.value!=null?change_video_cont_getx.videoBytes.value:null,
+          FileExtension: change_file_cont_getx.fileExtension.value!=""?change_file_cont_getx.fileExtension.value:'',
+          VideoExtension: change_video_cont_getx.videoExtension.value!=""?change_video_cont_getx.videoExtension.value:'',
         );
+
+
+          await ClearFilesValues();
 
           final AddNotificationsResult=await AddNotifications(
               ReceiverNumber: widget.Providernumber,

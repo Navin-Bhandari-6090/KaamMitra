@@ -129,6 +129,10 @@ namespace application.Models.DTOModels
         [Required]
         public double InternationalPriceDiscount { get; set; }
 
+        public string? BookingFile { get; set; } = string.Empty;
+
+        public string? BookingVideo { get; set; } = string.Empty;
+
 
 
     }

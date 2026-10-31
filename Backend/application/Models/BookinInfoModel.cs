@@ -51,7 +51,7 @@ namespace application.Models
         [Required]
         public DateTime CreatedAt { get; set; }
 
-
+        [Required]
         public int UserNumber { get; set; }
 
         [Required]
@@ -63,11 +63,15 @@ namespace application.Models
        
         public double RatingValueUser { get; set; }
 
+        public string? BookingFile { get; set; } = string.Empty;
 
- 
+        public string? BookingVideo { get; set; } = string.Empty;
 
 
-    
+
+
+
+
 
     }
 }

@@ -172,7 +172,9 @@ namespace application.Controllers
                         DomesticPrice = ServiceData.DomesticPrice,
                         InternationalPrice = ServiceData.InternationalPrice,
                         DomesticPriceDiscount = ServiceData.DomesticPriceDiscount,
-                        InternationalPriceDiscount = ServiceData.InternationalPriceDiscount
+                        InternationalPriceDiscount = ServiceData.InternationalPriceDiscount,
+                        BookingFile= Booking.BookingFile,
+                        BookingVideo = Booking.BookingVideo
 
                     };
 
@@ -342,8 +344,179 @@ namespace application.Controllers
                         DomesticPrice = ServiceData.DomesticPrice,
                         InternationalPrice = ServiceData.InternationalPrice,
                         DomesticPriceDiscount = ServiceData.DomesticPriceDiscount,
-                        InternationalPriceDiscount = ServiceData.InternationalPriceDiscount
+                        InternationalPriceDiscount = ServiceData.InternationalPriceDiscount,
+                        BookingFile = Booking.BookingFile,
+                        BookingVideo = Booking.BookingVideo
 
+
+                    };
+
+                    // 8. Add this booking to final result
+                    Result.Add(BookingDTO);
+                }
+
+                // 9. Return all booking + user + provider information
+                return Ok(Result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        [Authorize(Policy = "RequireProviderUserRole")]
+        [Route("sendfilterbookinginfo")]
+        [HttpPost]
+        public async Task<IActionResult> GetBookingInfoUser(
+            [FromBody] BookIngIdDTO obj)
+        {
+            try
+            {
+
+                var userNumberClaim =
+  User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return Forbid();
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(502, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(506, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
+                // 1. Validate model
+                if (!ModelState.IsValid)
+                {
+                    return StatusCode(
+                        501,
+                        "The provided data is not in correct format."
+                    );
+                }
+
+                //var ExistingUser = await Database.UserInfos
+                //    .FirstOrDefaultAsync(x => x.Email == obj.Email);
+
+
+
+                // 3. Get all bookings of current user
+                var BookingData = await Database.BookingInfos
+                    .Where(x => x.BookId == obj.BookId)
+                    .OrderByDescending(x => x.CreatedAt)
+                    .ToListAsync();
+
+                if (BookingData.Count <= 0)
+                {
+                    return StatusCode(507, "No booking data available for current user");
+                }
+
+
+
+                // 4. Create final DTO list
+                var Result = new List<SendBookingInfoUserDTO>();
+
+                // 5. Process every booking
+                foreach (var Booking in BookingData)
+                {
+                    // 6. Find provider using ProviderEmail
+                    var Provider = await Database.UserInfos
+                        .FirstOrDefaultAsync(
+                            x => x.UserNumber == Booking.ProviderNumber
+                        );
+
+                    // If provider doesn't exist, skip this booking
+                    if (Provider == null)
+                    {
+                        continue;
+                    }
+
+                    var ServiceData = await Database.ServiceInfos.FirstOrDefaultAsync(x => x.ServiceName == Booking.ServiceName);
+
+                    if (ServiceData == null)
+                    {
+                        return StatusCode(508, "No service registered is booked");
+                    }
+
+                    // 7. Attach user + provider + booking information
+                    var BookingDTO = new SendBookingInfoUserDTO
+                    {
+                        //  user information
+                        UserAddress = user.Address,
+                        UserPhoneNumber = user.PhoneNumber,
+                        UserWhatsappPhoneNumber = user.WhatsappPhoneNumber,
+                        UserNumber = user.UserNumber,
+                        UserLatitude = user.Latitude,
+                        UserLongitude = user.Longitude,
+
+                        // Provider information
+                        ProviderAddress = Provider.Address,
+                        ProviderPhoneNumber = Provider.PhoneNumber,
+                        ProviderWhatsappPhoneNumber = Provider.WhatsappPhoneNumber,
+                        ProviderNumber = Provider.UserNumber,
+                        ProviderLatitude = Provider.Latitude,
+                        ProviderLongitude = Provider.Longitude,
+
+                        // Booking information
+                        BookId = Booking.BookId,
+                        StartDate = Booking.StartDate,
+                        EndDate = Booking.EndDate,
+
+                        ProviderBookingDescription =
+                            Booking.ProviderBookingDescription,
+
+                        UserBookingDescription =
+                            Booking.UserBookingDescription,
+
+                        ServiceName = ServiceData.ServiceName,
+
+                        ServiceId = ServiceData.ServiceId,
+
+                        ProviderServiceId = Booking.ServiceId,
+
+                        Distance = Booking.Distance,
+
+                        UserEmail = user.Email,
+                        ProviderEmail = Provider.Email,
+
+                        ProviderApprovalStatus =
+                            Booking.ProviderApprovalStatus,
+
+                        UserApprovalStatus =
+                            Booking.UserApprovalStatus,
+
+                        ProviderTaskCompleteStatus =
+                            Booking.ProviderTaskCompleteStatus,
+
+                        UserTaskCompleteStatus =
+                            Booking.UserTaskCompleteStatus,
+
+                        AdvancePaymentAmount =
+                            Booking.AdvancePaymentAmount,
+
+                        CreatedAt = Booking.CreatedAt,
+
+                        RequiredAdvancePayment = Booking.RequiredAdvancePayment,
+
+                        RatingValueUser = Booking.RatingValueUser,
+
+                        DomesticPrice = ServiceData.DomesticPrice,
+                        InternationalPrice = ServiceData.InternationalPrice,
+                        DomesticPriceDiscount = ServiceData.DomesticPriceDiscount,
+                        InternationalPriceDiscount = ServiceData.InternationalPriceDiscount,
+                        BookingFile = Booking.BookingFile,
+                        BookingVideo = Booking.BookingVideo
 
                     };
 
@@ -567,9 +740,19 @@ namespace application.Controllers
                     .FirstOrDefaultAsync(x => x.ReceiverNumber == currentUserNumber);
                 if (Data != null)
                 {
-                    Data.Status = false;
-                    await Database.SaveChangesAsync();
-                    return Ok();
+                    if (Data.Status==true) {
+                        Data.Status = false;
+                        await Database.SaveChangesAsync();
+                        return Ok();
+
+                    }
+                    else 
+                    {
+                        Data.Status = true;
+                        await Database.SaveChangesAsync();
+                        return Ok();
+                    }
+          
                 }
                 else {
                     return StatusCode(503, "No notification data present of current user wmail.");

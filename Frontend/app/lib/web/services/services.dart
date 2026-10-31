@@ -10,7 +10,7 @@ import '../../constant/Server_Database.dart';
 import '../../models/RatingInfoModel.dart';
 import '../../models/ServiceScreenServiceModel.dart';
 
-import '../../models/Service_Screen_User_Info_Model.dart';
+import '../../models/ServiceScreenUserInfoModel.dart';
 import '../../state management/getx/services/service_screen_getx.dart';
 import '../authentication/Error_page.dart';
 import '../common method/Commmon_Method.dart';
@@ -297,6 +297,7 @@ class _ServicesScreenState extends State<ServicesScreen>
       GetServiceInfo(email: widget.User_Email),
       GetProviderInfo(email: widget.User_Email),
       GetRatingInfo(email: widget.User_Email),
+
     ]
     );
 
@@ -590,7 +591,7 @@ class _ServicesScreenState extends State<ServicesScreen>
           ),
           const SizedBox(height: 10),
           Text(
-            "Search by service or provider number, then sort by distance "
+            "Search by service name or provider ID, then sort by distance "
                 "or rating to find the best match near you.",
             style: TextStyle(
               color: _Theme.mutedText,
@@ -663,7 +664,7 @@ class _ServicesScreenState extends State<ServicesScreen>
                     horizontal: 16,
                     vertical: 14,
                   ),
-                  hintText: "Search by service name or Id(#)",
+                  hintText: "Search by service name or provider Id(#)",
                   hintStyle: const TextStyle(
                     color: _Theme.mutedTextAlt,
                     fontSize: 13,
@@ -917,21 +918,108 @@ class _ServicesScreenState extends State<ServicesScreen>
   // PROVIDER CARD
   // ------------------------------------------------------------
 
+  Widget _providerAvatar(String? photoPath, {double size = 58}) {
+    final String url = _buildPhotoUrl(photoPath);
+
+    return Container(
+      width: size,
+      height: size,
+      padding: const EdgeInsets.all(2.5),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          colors: [_Theme.emerald, _Theme.mint],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _Theme.emerald.withOpacity(0.25),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(2),
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: _Theme.surface,
+        ),
+        child: ClipOval(
+          child: url.isEmpty
+              ? _avatarFallback(size)
+              : Image.network(
+            url,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            loadingBuilder: (ctx, child, progress) => progress == null
+                ? child
+                : _avatarFallback(size, loading: true),
+            errorBuilder: (ctx, e, st) => _avatarFallback(size),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _avatarFallback(double size, {bool loading = false}) {
+    return Container(
+      width: size,
+      height: size,
+      color: _Theme.surfaceBar,
+      alignment: Alignment.center,
+      child: loading
+          ? SizedBox(
+        width: size * 0.35,
+        height: size * 0.35,
+        child: const CircularProgressIndicator(
+          strokeWidth: 2,
+          color: _Theme.mint,
+        ),
+      )
+          : Icon(Icons.person_rounded, color: _Theme.mint, size: size * 0.45),
+    );
+  }
+
+  String _buildPhotoUrl(String? path) {
+    try {
+      final String p = (path ?? '').trim();
+      if (p.isEmpty || p.toLowerCase() == 'null') return '';
+      if (p.startsWith('http://') || p.startsWith('https://')) return p;
+      final String base = Backend_Server_Url.replaceFirst(RegExp(r'/$'), '');
+      return p.startsWith('/') ? '$base$p' : '$base/$p';
+    } catch (_) {
+      return '';
+    }
+  }
+
   Widget _providerCard(CombinedServiceCard card, int index) {
-    final String providerName = card.provider != null
-        ? "${card.provider!.firstName ?? ''} ${card.provider!.lastName ?? ''}"
-        .trim()
-        : "";
-    final String serviceName = card.service.serviceName!;
-    final String ProviderServiceDescription =
-        card.service.proRegServiceDescription ?? '';
+    const String noData = 'No data available';
 
-    final num serviceId = card.service.providerServiceId!;
-    final num? userNumber = card.service.userNumber!;
-    final String userNumberLabel = userNumber != null ? "#$userNumber" : "#--";
-    final String Provider_Email = card.provider!.email!;
+    String clean(String? v) {
+      final String t = (v ?? '').trim();
+      return (t.isEmpty || t.toLowerCase() == 'null') ? '' : t;
+    }
 
-    final bool noDesc = ProviderServiceDescription.trim().isEmpty;
+    final String firstName = clean(card.provider?.firstName);
+    final String lastName = clean(card.provider?.lastName);
+    final String providerName =
+    [firstName, lastName].where((e) => e.isNotEmpty).join(' ');
+
+    final String? providerPhoto = card.provider?.photo;
+    final String serviceName = clean(card.service.serviceName);
+    final String description = clean(card.service.proRegServiceDescription);
+    final num? serviceId = card.service.providerServiceId;
+    final num? userNumber = card.service.userNumber;
+    final String providerEmail = clean(card.provider?.email);
+
+    final bool canOpen = userNumber != null &&
+        serviceId != null &&
+        providerEmail.isNotEmpty;
+
+    final double avatarSize = MediaQuery.sizeOf(context).width >= 700 ? 66 : 58;
 
     return Obx(() {
       final bool hovered = serviceCont.hoveredCardIndex.value == index;
@@ -940,18 +1028,20 @@ class _ServicesScreenState extends State<ServicesScreen>
       return MouseRegion(
         onEnter: (_) => serviceCont.setHoveredCard(index),
         onExit: (_) => serviceCont.clearHoveredCard(),
-        cursor: SystemMouseCursors.click,
+        cursor: canOpen ? SystemMouseCursors.click : SystemMouseCursors.basic,
         child: GestureDetector(
-          onTapDown: (_) => serviceCont.setPressedCard(index),
+          onTapDown: canOpen ? (_) => serviceCont.setPressedCard(index) : null,
           onTapCancel: () => serviceCont.clearPressedCard(),
           onTapUp: (_) => serviceCont.clearPressedCard(),
-          onTap: () => _onCardTap(
+          onTap: (userNumber == null || serviceId == null || !canOpen)
+              ? null
+              : () => _onCardTap(
             card,
             ServiceName: serviceName,
-            ProviderNumber: userNumber!,
+            ProviderNumber: userNumber,
             ServiceId: serviceId,
-            ProRegServiceDescription: ProviderServiceDescription,
-            ProviderEmail: Provider_Email,
+            ProRegServiceDescription: description,
+            ProviderEmail: providerEmail,
           ),
           child: AnimatedScale(
             scale: pressed ? 0.97 : 1.0,
@@ -960,9 +1050,7 @@ class _ServicesScreenState extends State<ServicesScreen>
               duration: const Duration(milliseconds: 180),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: hovered
-                    ? _Theme.surface.withOpacity(0.9)
-                    : _Theme.surface,
+                color: hovered ? _Theme.surface.withOpacity(0.9) : _Theme.surface,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: hovered
@@ -986,7 +1074,6 @@ class _ServicesScreenState extends State<ServicesScreen>
                   ),
                 ],
               ),
-              // mainAxisSize.min + no Spacer = card height follows content
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -995,25 +1082,19 @@ class _ServicesScreenState extends State<ServicesScreen>
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: _Theme.emerald.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        child: const Icon(Icons.engineering_rounded,
-                            color: _Theme.mint, size: 20),
-                      ),
+                      _providerAvatar(providerPhoto, size: avatarSize),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              serviceName,
+                              serviceName.isEmpty ? noData : serviceName,
                               softWrap: true,
-                              style: const TextStyle(
-                                color: _Theme.primaryText,
+                              style: TextStyle(
+                                color: serviceName.isEmpty
+                                    ? _Theme.mutedTextAlt
+                                    : _Theme.primaryText,
                                 fontSize: 15.5,
                                 height: 1.25,
                                 fontWeight: FontWeight.w800,
@@ -1021,9 +1102,9 @@ class _ServicesScreenState extends State<ServicesScreen>
                             ),
                             const SizedBox(height: 3),
                             Text(
-                              providerName.isNotEmpty
-                                  ? providerName
-                                  : "Provider $userNumberLabel",
+                              providerName.isEmpty
+                                  ? "Provider Name = $noData"
+                                  : "Provider Name = $providerName",
                               softWrap: true,
                               style: const TextStyle(
                                 color: _Theme.mutedTextAlt,
@@ -1040,7 +1121,7 @@ class _ServicesScreenState extends State<ServicesScreen>
 
                   const SizedBox(height: 12),
 
-                  // ---------- description: fully visible, wraps freely ----------
+                  // ---------- description ----------
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
@@ -1073,18 +1154,17 @@ class _ServicesScreenState extends State<ServicesScreen>
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          noDesc
-                              ? "No description provided."
-                              : ProviderServiceDescription.trim(),
+                          description.isEmpty ? noData : description,
                           softWrap: true,
                           style: TextStyle(
-                            color: noDesc
+                            color: description.isEmpty
                                 ? _Theme.mutedTextAlt
                                 : _Theme.primaryText,
                             fontSize: 13,
                             height: 1.5,
-                            fontStyle:
-                            noDesc ? FontStyle.italic : FontStyle.normal,
+                            fontStyle: description.isEmpty
+                                ? FontStyle.italic
+                                : FontStyle.normal,
                           ),
                         ),
                       ],
@@ -1099,12 +1179,16 @@ class _ServicesScreenState extends State<ServicesScreen>
                     runSpacing: 8,
                     children: [
                       _statPill(
-                          icon: Icons.badge_rounded, label: userNumberLabel),
+                        icon: Icons.badge_rounded,
+                        label: userNumber == null
+                            ? noData
+                            : "Provider ID #${userNumber.toInt()}",
+                      ),
                       _statPill(
                         icon: Icons.location_on_rounded,
                         label: card.hasLocation
                             ? "${card.distanceKm.toStringAsFixed(1)} km"
-                            : "-- km",
+                            : noData,
                       ),
                       _statPill(
                         icon: Icons.star_rounded,
@@ -1119,25 +1203,26 @@ class _ServicesScreenState extends State<ServicesScreen>
                   const SizedBox(height: 12),
 
                   // ---------- call to action ----------
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(Icons.play_circle_fill_rounded,
-                            color: _Theme.mint, size: 16),
-                        SizedBox(width: 5),
-                        Text(
-                          "Start work",
-                          style: TextStyle(
-                            color: _Theme.mint,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                  if (canOpen)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.play_circle_fill_rounded,
+                              color: _Theme.mint, size: 16),
+                          SizedBox(width: 5),
+                          Text(
+                            "Start work",
+                            style: TextStyle(
+                              color: _Theme.mint,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),

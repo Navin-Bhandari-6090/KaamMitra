@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 
@@ -10,21 +11,23 @@ import '../../../../web/authentication/Error_page.dart';
 import '../../../../web/common method/Commmon_Method.dart';
 import '../../../../web/common widget/toast.dart';
 
-
 // Adjust the relative import segment counts above if your actual folder
-// depth differs — nothing else in this file depends on where it sits.
+// depth differs.
 
 enum ScreenState { checkingSession, loading, empty, error, loaded }
 
 // =============================================================================
-// MAIN SCREEN CONTROLLER — same fields/logic as the original
-// _ProviderSerResVideoScreenState, just reactive instead of setState.
+// MAIN SCREEN CONTROLLER
 // =============================================================================
 class VideoViewGetx extends GetxController {
   final Rx<ScreenState> screenState = ScreenState.checkingSession.obs;
   final RxString screenErrorText = "Something went wrong.".obs;
   final RxList<ProviderSerResVideoModel> ProviderServiceVideoList =
       <ProviderSerResVideoModel>[].obs;
+
+  // ---------------- Search ----------------
+  final RxString query = ''.obs;
+  final TextEditingController searchCtrl = TextEditingController();
 
   late String _email;
   late String _jwtToken;
@@ -49,17 +52,17 @@ class VideoViewGetx extends GetxController {
   }
 
   Future<bool> JwtVerify({required String Jwt_Token}) async {
-    int Result = await UserProviderJwtVerify(Jwt_Token: Jwt_Token);
-    if (Result == 1) {
-      return true;
-    } else {
+    try {
+      final int result = await UserProviderJwtVerify(Jwt_Token: Jwt_Token);
+      if (result == 1) return true;
+
       await Clear_User_Data();
       await Random_token_Clear();
-      // Context-free navigation via GetX (controllers have no
-      // BuildContext) — functionally equivalent to the old
-      // Navigator.pushAndRemoveUntil(..., (route) => false).
       Get.offAll(() => ErrorPage());
       Toastget().Toastmsg("Session End.Relogin please.");
+      return false;
+    } catch (e) {
+      debugPrint('JwtVerify error: $e');
       return false;
     }
   }
@@ -71,23 +74,12 @@ class VideoViewGetx extends GetxController {
     if (!isClosed) screenState.value = ScreenState.loading;
 
     try {
-      print('');
-      print('================================================');
-      print('GET SERVICE RESOURCE VIDEO METHOD CALLED');
-      print('================================================');
-      print('Email   : $Email');
-      print('Service : $_serviceName');
-
       const String url = Backend_Server_Url + "api/Profile/getservicevideoinfo";
-
-      print('API URL: $url');
 
       final Map<String, dynamic> UserDetails = {
         "Email": Email,
         "ServiceName": _serviceName,
       };
-
-      print('Request body: ${jsonEncode(UserDetails)}');
 
       final response = await http.post(
         Uri.parse(url),
@@ -98,12 +90,8 @@ class VideoViewGetx extends GetxController {
         body: jsonEncode(UserDetails),
       );
 
-      print('Status code: ${response.statusCode}');
-
-      // Backend returns 404 (not 200 + []) when there's no service or no
-      // videos uploaded yet — treat that as "empty", not "error".
+      // 404 = nothing uploaded yet, treated as "empty", not "error".
       if (response.statusCode == 404) {
-        print('No videos found for this service (404).');
         if (!isClosed) {
           ProviderServiceVideoList.clear();
           screenState.value = ScreenState.empty;
@@ -112,12 +100,11 @@ class VideoViewGetx extends GetxController {
       }
 
       if (response.statusCode != 200) {
-        print('API FAILED');
-        print('Response: ${response.body}');
+        debugPrint('Video API failed: ${response.statusCode}');
         if (!isClosed) {
           ProviderServiceVideoList.clear();
           screenErrorText.value =
-          "Failed to load videos for \"$_serviceName\" (${response.statusCode}).";
+          "Failed to load videos (${response.statusCode}).";
           screenState.value = ScreenState.error;
         }
         return 0;
@@ -126,7 +113,6 @@ class VideoViewGetx extends GetxController {
       final dynamic responseData = jsonDecode(response.body);
 
       if (responseData is! List) {
-        print('ERROR: Response is not a List.');
         if (!isClosed) {
           screenErrorText.value = "Unexpected response format from server.";
           screenState.value = ScreenState.error;
@@ -134,41 +120,21 @@ class VideoViewGetx extends GetxController {
         return 0;
       }
 
-      print('Number of videos: ${responseData.length}');
-
       final List<ProviderSerResVideoModel> loadedVideos = responseData
           .map((data) => ProviderSerResVideoModel.fromJson(data))
           .toList();
 
-      for (int i = 0; i < loadedVideos.length; i++) {
-        final v = loadedVideos[i];
-        print('');
-        print('--------------- VIDEO $i ---------------');
-        print('Service Name: ${v.serviceName}');
-        print('Service ID: ${v.providerServiceId}');
-        print('Resource ID: ${v.providerServiceResourcesId}');
-        print('Video Path: ${v.serviceVideo}');
-      }
-
       if (isClosed) return 0;
 
       ProviderServiceVideoList.value = loadedVideos;
+      query.value = '';
+      searchCtrl.clear();
       screenState.value =
       loadedVideos.isEmpty ? ScreenState.empty : ScreenState.loaded;
 
-      print('');
-      print('SERVICE VIDEO API PROCESS SUCCESS');
-      print('================================================');
-
       return 1;
     } catch (e, stackTrace) {
-      print('');
-      print('================================================');
-      print('SERVICE VIDEO API EXCEPTION');
-      print('================================================');
-      print('Error: $e');
-      print('StackTrace: $stackTrace');
-      print('================================================');
+      debugPrint('Video API exception: $e\n$stackTrace');
 
       if (!isClosed) {
         ProviderServiceVideoList.clear();
@@ -179,36 +145,87 @@ class VideoViewGetx extends GetxController {
     }
   }
 
+  // ==================================================================
+  // HELPERS (null-safe, never displayed raw)
+  // ==================================================================
+  String _clean(String? v) {
+    final String t = (v ?? '').trim();
+    return (t.isEmpty || t.toLowerCase() == 'null') ? '' : t;
+  }
+
+  String displayOr(String? v) {
+    final String t = _clean(v);
+    return t.isEmpty ? 'No data available' : t;
+  }
+
+  String idOf(ProviderSerResVideoModel v) =>
+      _clean(v.providerServiceResourcesId?.toString());
+
+  String serviceIdOf(ProviderSerResVideoModel v) =>
+      _clean(v.providerServiceId?.toString());
+
+  String titleOf(ProviderSerResVideoModel v) => _clean(v.serviceTitle);
+
+  /// Internal only. Used by the player. Never displayed.
+  String videoUrlOf(ProviderSerResVideoModel v) {
+    try {
+      final String p = _clean(v.serviceVideo);
+      if (p.isEmpty) return '';
+      if (p.startsWith('http://') || p.startsWith('https://')) return p;
+      return resolveUrl(p);
+    } catch (_) {
+      return '';
+    }
+  }
+
   String resolveUrl(String relativePath) {
     String base = Backend_Server_Url;
     if (base.endsWith('/')) base = base.substring(0, base.length - 1);
-    String rel = relativePath.startsWith('/') ? relativePath : '/$relativePath';
+    final String rel =
+    relativePath.startsWith('/') ? relativePath : '/$relativePath';
     return '$base$rel';
+  }
+
+  // ==================================================================
+  // SEARCH (resource ID or title)
+  // ==================================================================
+  List<ProviderSerResVideoModel> get filteredVideos {
+    try {
+      final String q = query.value.trim().toLowerCase();
+      final List<ProviderSerResVideoModel> all =
+      ProviderServiceVideoList.toList();
+      if (q.isEmpty) return all;
+      return all.where((v) {
+        return idOf(v).toLowerCase().contains(q) ||
+            titleOf(v).toLowerCase().contains(q);
+      }).toList();
+    } catch (_) {
+      return const <ProviderSerResVideoModel>[];
+    }
+  }
+
+  @override
+  void onClose() {
+    try {
+      searchCtrl.dispose();
+    } catch (_) {}
+    super.onClose();
   }
 }
 
 // =============================================================================
-// PER-CARD CONTROLLER — replaces the single setState() that lived in
-// _VideoResourceCardState (playback error text + retry). One instance per
-// visible card via a unique Get.put tag.
+// PER-CARD CONTROLLER — playback error text + retry.
 // =============================================================================
 class VideoCardController extends GetxController {
   final Rxn<String> errorText = Rxn<String>();
 
-  void setError(String? text) {
-    errorText.value = text;
-  }
+  void setError(String? text) => errorText.value = text;
 
-  void clearError() {
-    errorText.value = null;
-  }
+  void clearError() => errorText.value = null;
 }
 
 // =============================================================================
-// PER-PLAYER-SURFACE CONTROLLER — replaces the setState() that lived in
-// _PlayerSurfaceState (controls visibility + auto-hide timer). One instance
-// per _PlayerSurface widget (inline card and fullscreen page each get their
-// own, exactly like the original independent State objects did).
+// PER-PLAYER-SURFACE CONTROLLER — controls visibility + auto-hide timer.
 // =============================================================================
 class PlayerControlsController extends GetxController {
   final RxBool controlsVisible = true.obs;

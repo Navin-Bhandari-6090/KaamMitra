@@ -10,5 +10,10 @@
         public string ServicePhoto { get; set; } = string.Empty;
 
         public int ProviderServiceId { get; set; }
+
+        public string ServiceTitle { get; set; } = string.Empty;
+
+
+
     }
 }

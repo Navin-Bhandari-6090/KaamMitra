@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:app/web/footer/Footer.dart';
 import 'package:app/web/profile/provider/Provider_add_Sevice_Resources.dart';
 import 'package:app/web/profile/provider/update_pro_reg_ser_descp.dart';
+import 'package:app/web/profile/provider_user/select_shared_media.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
@@ -17,6 +18,7 @@ import '../../common widget/getx_cont_pick_single_photo_int.dart';
 import '../../common widget/toast.dart';
 import '../../header/Header.dart';
 import '../provider_user/Update_Location.dart';
+import '../provider_user/upd_contact_info.dart';
 import '../provider_user/update_address.dart';
 import '../provider_user/update_user_name.dart';
 import 'ProviderAddService.dart';
@@ -526,6 +528,34 @@ class _ProviderProfileState extends State<ProviderProfile>
           }
       ),
 
+      _ActionItem(
+        icon: Icons.location_city_rounded,
+        label: "Update Contact Info.",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => UpdContactInfo(
+              Current_User_Jwt_Token: widget.User_JwtToken,
+            ),
+          ),
+        ),
+      ),
+
+      _ActionItem(
+        icon: Icons.location_city_rounded,
+        label: "Shared media.",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SelectSharedMedia(
+              Current_User_Jwt_Token: widget.User_JwtToken,
+            ),
+          ),
+        ),
+      ),
+
+
+
 
 
 
@@ -731,9 +761,7 @@ class _ProviderProfileState extends State<ProviderProfile>
                                                           error,
                                                           stackTrace,
                                                           ) {
-                                                        print(
-                                                          "Profile image loading failed: $error",
-                                                        );
+
                                                         return Image.asset(
                                                           'assets/images/profile/u_p_p_1.jpg',
                                                           fit: BoxFit.cover,

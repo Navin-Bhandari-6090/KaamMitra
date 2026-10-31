@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:app/web/bookings/pro_task_complete_status.dart';
+import 'package:app/web/bookings/view_book_file.dart';
+import 'package:app/web/bookings/view_book_video.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -1033,6 +1035,49 @@ class _ProviderbookinginfodetailsscreenState
             ),
           ],
         ),
+
+        SizedBox(height: 10,),
+        ElevatedButton(onPressed: (){
+          try{
+            if(b.bookingFile==null || b.bookingFile!.isEmpty)
+            {
+              Toast.Toastmsg("No file available.");
+              return;
+            }
+            Navigator.push(context, MaterialPageRoute(builder: (context) {
+              return ViewBookFile(Current_User_JwtToken: widget.Current_User_JwtToken, FilePath: b.bookingFile!,);
+            },
+            )
+            );
+
+          }catch(obj){
+            return;
+          }
+
+        }, child: Text("View file.")),
+
+        SizedBox(height: 10,),
+        ElevatedButton(onPressed: (){
+          try{
+
+            if(
+            b.bookingVideo==null || b.bookingVideo!.isEmpty){
+              Toast.Toastmsg("No video available.");
+              return;
+            }
+
+            Navigator.push(context, MaterialPageRoute(builder: (context) {
+              return ViewBookVideo(Current_User_JwtToken: widget.Current_User_JwtToken, VideoPath: b.bookingVideo!,);
+          },
+          )
+          );
+
+          }catch(obj){
+            return;
+          }
+        }, child: Text("View video.")),
+        SizedBox(height: 10,),
+
       ],
     );
   }

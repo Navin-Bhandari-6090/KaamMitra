@@ -19,6 +19,11 @@ class SignalRService extends GetxService {
   final StreamController<Map<String, dynamic>> CallEvents =
   StreamController<Map<String, dynamic>>.broadcast();
 
+  // Chat events (new message, reconnected) are pushed here so
+  // MessageScreenGetx can update the open chat in real time.
+  final StreamController<Map<String, dynamic>> ChatEvents =
+  StreamController<Map<String, dynamic>>.broadcast();
+
   void _emitCall(String type, dynamic payload) {
     try {
       if (payload is Map) {
@@ -26,6 +31,17 @@ class SignalRService extends GetxService {
       }
     } catch (e) {
       print('Emit call event error: $e');
+    }
+  }
+
+  void _emitChat(String type, dynamic payload) {
+    try {
+      final Map<String, dynamic> data = payload is Map
+          ? Map<String, dynamic>.from(payload)
+          : <String, dynamic>{};
+      ChatEvents.add({...data, 'type': type});
+    } catch (e) {
+      print('Emit chat event error: $e');
     }
   }
 
@@ -45,11 +61,11 @@ class SignalRService extends GetxService {
 
       connection = HubConnectionBuilder()
           .withUrl(
-            Backend_Server_Url+'chatHub',
-            options: HttpConnectionOptions(
-              accessTokenFactory: () async => User_JwtToken,
-            ),
-          )
+        Backend_Server_Url+'chatHub',
+        options: HttpConnectionOptions(
+          accessTokenFactory: () async => User_JwtToken,
+        ),
+      )
           .withAutomaticReconnect()
           .build();
 
@@ -85,7 +101,9 @@ class SignalRService extends GetxService {
           IsSignalRConnecting = false;
 
           print('SignalR reconnected: $connectionId');
-          // The server runs OnConnectedAsync again for the new connection.
+          // Messages may have arrived while disconnected: tell open chats
+          // to reload.
+          _emitChat('Reconnected', null);
         } catch (e) {
           print('SignalR reconnected callback error: $e');
         }
@@ -182,11 +200,13 @@ class SignalRService extends GetxService {
     try {
       connection?.on('ReceiveMessage', (arguments) {
         try {
-          if (arguments == null || arguments.isEmpty) return;
+          print('Real-time message received: $arguments');
 
-          print('Real-time message received: ${arguments[0]}');
-
-          // ChatMessageScreen will consume this event later.
+          // Pass it to the open chat screen (if any). Payload may be missing
+          // or in any shape, the screen simply reloads from the server.
+          final dynamic payload =
+          (arguments != null && arguments.isNotEmpty) ? arguments[0] : null;
+          _emitChat('ReceiveMessage', payload);
         } catch (e) {
           print('ReceiveMessage event error: $e');
         }
@@ -239,8 +259,6 @@ class SignalRService extends GetxService {
       print('Video call listener setup error: $e');
     }
   }
-
-
 
   // Send a real-time notification AFTER your REST API saves the message.
   Future<void> NotifyNewMessage({

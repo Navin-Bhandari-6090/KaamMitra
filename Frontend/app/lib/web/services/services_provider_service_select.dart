@@ -207,39 +207,47 @@ class _ServicesScreenProviderServiceSelectState extends State<ServicesScreenProv
   }
 
   Widget _buildServiceGrid(double contentWidth) {
-    final int columns = contentWidth >= 760 ? 3 : (contentWidth >= 480 ? 2 : 1);
-    const double spacing = 18.0;
-    final double cardWidth =
-    columns == 1 ? contentWidth : (contentWidth - spacing * (columns - 1)) / columns;
+    final int columns =
+    contentWidth >= 1000 ? 3 : (contentWidth >= 560 ? 2 : 1);
 
-    return Wrap(
-      spacing: spacing,
-      runSpacing: spacing,
-      children: List.generate(controller.serviceList.length, (index) {
-        final service = controller.serviceList[index];
-        return SizedBox(
-          width: cardWidth,
-          child: _ServiceCard(
-            index: index,
-            label: service.serviceName ?? "Unknown Service",
-            controller: controller,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ServiceScreenMyGalleryScreen(
-                    User_Email: widget.User_Email,
-                    User_JwtToken: widget.User_JwtToken,
-                    User_Role: widget.User_Role,
-                    Service_Name: service.serviceName ?? "",
-                    Provider_Email: widget.Provider_Email,
+    const double spacing = 18.0;
+
+    final double cardWidth = columns == 1
+        ? contentWidth
+        : (contentWidth - spacing * (columns - 1)) / columns;
+
+    return SizedBox(
+      width: double.infinity,
+      child: Wrap(
+        spacing: spacing,
+        runSpacing: spacing,
+        children: List.generate(controller.serviceList.length, (index) {
+          final service = controller.serviceList[index];
+
+          return SizedBox(
+            width: cardWidth,
+            child: _ServiceCard(
+              index: index,
+              label: service.serviceName ?? "Unknown Service",
+              controller: controller,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ServiceScreenMyGalleryScreen(
+                      User_Email: widget.User_Email,
+                      User_JwtToken: widget.User_JwtToken,
+                      User_Role: widget.User_Role,
+                      Service_Name: service.serviceName!,
+                      Provider_Email: widget.Provider_Email,
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
-        );
-      }),
+                );
+              }, Descp: service.proRegServiceDescription!,
+            ),
+          );
+        }),
+      ),
     );
   }
 
@@ -358,45 +366,64 @@ class _ServicesScreenProviderServiceSelectState extends State<ServicesScreenProv
               );
             }
 
-            // =========================
-            // SERVICES (scrollable — background grows with content)
-            // =========================
+
+// SERVICES
+
             return SafeArea(
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final double width = constraints.maxWidth;
                   final double horizontalPadding = _horizontalPadding(width);
-                  final double contentWidth = width - horizontalPadding * 2;
+                  final double contentWidth =
+                  (width - horizontalPadding * 2).clamp(0.0, width);
 
                   return SingleChildScrollView(
                     child: ConstrainedBox(
-                      constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
                       child: Stack(
                         children: [
-                          Positioned.fill(child: _buildBackground()),
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: horizontalPadding, vertical: 26),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Your Registered Services',
-                                  style: TextStyle(
-                                    color: textPrimary,
-                                    fontSize: width < 480 ? 20 : 26,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: -0.4,
+                          Positioned.fill(
+                            child: _buildBackground(),
+                          ),
+                          SizedBox(
+                            width: double.infinity,
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: horizontalPadding,
+                                vertical: 26,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Your Registered Services',
+                                    style: TextStyle(
+                                      color: textPrimary,
+                                      fontSize: width < 480 ? 20 : 26,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: -0.4,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Tap a service to manage its gallery',
-                                  style: TextStyle(color: textMuted, fontSize: width < 480 ? 12.5 : 14),
-                                ),
-                                const SizedBox(height: 26),
-                                _buildServiceGrid(contentWidth),
-                                const SizedBox(height: 32),
-                              ],
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Tap a service to manage its gallery',
+                                    style: TextStyle(
+                                      color: textMuted,
+                                      fontSize: width < 480 ? 12.5 : 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 26),
+
+                                  SizedBox(
+                                    width: contentWidth,
+                                    child: _buildServiceGrid(contentWidth),
+                                  ),
+
+                                  const SizedBox(height: 32),
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -406,6 +433,9 @@ class _ServicesScreenProviderServiceSelectState extends State<ServicesScreenProv
                 },
               ),
             );
+
+
+
           });
         },
       ),
@@ -418,12 +448,14 @@ class _ServiceCard extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
   final ProviderSerSelectGetx controller;
+  final String Descp;
 
   const _ServiceCard({
     required this.index,
     required this.label,
     required this.onTap,
     required this.controller,
+    required this.Descp,
   });
 
   @override
@@ -499,6 +531,19 @@ class _ServiceCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: _ServicesScreenProviderServiceSelectState.textPrimary,
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        "Service Description = $Descp",
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(

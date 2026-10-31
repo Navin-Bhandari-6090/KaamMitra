@@ -17,6 +17,8 @@ import '../../header/Header.dart';
 import '../provider_user/Update_Location.dart';
 
 import '../provider_user/Update_Password.dart';
+import '../provider_user/select_shared_media.dart';
+import '../provider_user/upd_contact_info.dart';
 import '../provider_user/update_address.dart';
 import '../provider_user/update_user_name.dart';
 
@@ -432,6 +434,32 @@ class _UserProfileState extends State<UserProfile>
               User_Email: widget.User_Email,
               User_JwtToken: widget.User_JwtToken,
               User_Role: widget.User_Role,
+            ),
+          ),
+        ),
+      ),
+
+      _ActionItem(
+        icon: Icons.location_city_rounded,
+        label: "Update Contact Info.",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => UpdContactInfo(
+              Current_User_Jwt_Token: widget.User_JwtToken,
+            ),
+          ),
+        ),
+      ),
+
+      _ActionItem(
+        icon: Icons.location_city_rounded,
+        label: "Shared media.",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SelectSharedMedia(
+              Current_User_Jwt_Token: widget.User_JwtToken,
             ),
           ),
         ),

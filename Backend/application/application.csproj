@@ -31,6 +31,7 @@
     <Folder Include="wwwroot\uploads\advertisements\videos\" />
     <Folder Include="wwwroot\uploads\provider-task-complete-payment\international\" />
     <Folder Include="wwwroot\uploads\service-resources\photos\" />
+    <Folder Include="wwwroot\uploads\service-resources\videos\" />
   </ItemGroup>
 
 </Project>

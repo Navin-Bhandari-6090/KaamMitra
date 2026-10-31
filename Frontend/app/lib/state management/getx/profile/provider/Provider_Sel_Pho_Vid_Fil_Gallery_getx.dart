@@ -3,16 +3,23 @@ import 'package:get/get.dart';
 import '../../../../web/common method/Commmon_Method.dart';
 import '../../../../web/common widget/toast.dart';
 
-
-
 class ProviderSelPhoVidFilGalleryGetx extends GetxController {
   // Session state
   final RxBool isVerifying = true.obs;
   final RxBool isSessionValid = false.obs;
 
-  // UI animation state (replaces setState-driven UI updates)
-  final RxList<bool> cardVisible = <bool>[false, false, false].obs;
-  final RxList<bool> cardHover = <bool>[false, false, false].obs;
+  // UI animation state (replaces setState-driven UI updates).
+  // NOT fixed to 3 any more: the screen calls setCardCount(n) with the real
+  // number of actions, so you can add / remove actions freely.
+  final RxList<bool> cardVisible = <bool>[].obs;
+  final RxList<bool> cardHover = <bool>[].obs;
+
+  /// Resize the animation lists to match the number of cards shown.
+  void setCardCount(int count) {
+    final int n = count < 0 ? 0 : count;
+    cardVisible.assignAll(List<bool>.filled(n, false));
+    cardHover.assignAll(List<bool>.filled(n, false));
+  }
 
   Future<void> verifyJwt({required String jwtToken}) async {
     isVerifying.value = true;

@@ -1139,13 +1139,12 @@ namespace application.Controllers
         [HttpPost]
         [Route("deleteservice")]
         public async Task<IActionResult> DeleteService(
-    [FromBody] ProviderServiceIdDTO? obj)
+     [FromBody] ProviderServiceIdDTO? obj)
         {
             try
             {
-
                 var userNumberClaim =
-     User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                    User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
                 if (!int.TryParse(userNumberClaim, out int userNumber))
                     return Forbid();
@@ -1154,326 +1153,173 @@ namespace application.Controllers
                     .FirstOrDefaultAsync(x => x.UserNumber == userNumber);
 
                 if (user == null)
-                {
-
-                    return StatusCode(505,"User not found");
-                }
-
+                    return StatusCode(505, "User not found.");
 
                 if (user.LoginAccess == false)
-                {
-                    return StatusCode(506, "You have been blocked by System.Contact to KaamMitra community.");
-                }
-
-
-                // =========================================================
-                // 1. Check request object
-                // =========================================================
+                    return StatusCode(
+                        506,
+                        "You have been blocked by System. Contact the KaamMitra community.");
 
                 if (obj == null)
-                {
-                    return StatusCode(
-                        400,
-                        "Request data is required."
-                    );
-                }
-
-
-                // =========================================================
-                // 2. Validate ModelState
-                // =========================================================
+                    return StatusCode(400, "Request data is required.");
 
                 if (!ModelState.IsValid)
-                {
-                    return StatusCode(
-                        400,
-                        "Data are not in correct format."
-                    );
-                }
-
-
-                // =========================================================
-                // 3. Validate ProviderServiceId
-                // =========================================================
+                    return StatusCode(400, "Data are not in the correct format.");
 
                 if (obj.ProviderServiceId <= 0)
-                {
-                    return StatusCode(
-                        400,
-                        "ProviderServiceId is required."
-                    );
-                }
+                    return StatusCode(400, "ProviderServiceId is required.");
 
+                var serviceData = await Database.ProviderServiceInfo
+                    .FirstOrDefaultAsync(x =>
+                        x.ProviderServiceId == obj.ProviderServiceId);
 
-                // =========================================================
-                // 4. Get wwwroot path
-                // =========================================================
+                if (serviceData == null)
+                    return StatusCode(404, "Registered service is not present.");
+
+                var serviceResources = await Database.ProviderServiceResourcesInfo
+                    .Where(x => x.ProviderServiceId == obj.ProviderServiceId)
+                    .ToListAsync();
 
                 var webRootPath = _environment.WebRootPath;
 
-
                 if (string.IsNullOrWhiteSpace(webRootPath))
                 {
-                    return StatusCode(
-                        500,
-                        "Server wwwroot folder is not configured."
-                    );
+                    webRootPath = Path.Combine(
+                        Directory.GetCurrentDirectory(),
+                        "wwwroot");
                 }
 
+                webRootPath = Path.GetFullPath(webRootPath);
 
-                // =========================================================
-                // 5. Find registered service using Service ID ONLY
-                // =========================================================
+                var rootPrefix = Path.TrimEndingDirectorySeparator(webRootPath)
+                    + Path.DirectorySeparatorChar;
 
-                var serviceData =
-                    await Database.ProviderServiceInfo
-                        .FirstOrDefaultAsync(x =>
-                            x.ProviderServiceId ==
-                            obj.ProviderServiceId);
+                var pathComparison = OperatingSystem.IsWindows()
+                    ? StringComparison.OrdinalIgnoreCase
+                    : StringComparison.Ordinal;
 
+                var storedFilePaths = new List<string?>();
 
-                // =========================================================
-                // 6. Service not found
-                // =========================================================
+                // Collect the service document path.
+                storedFilePaths.Add(serviceData.ServiceDocument);
 
-                if (serviceData == null)
+                // Collect every resource photo, video, and service file path.
+                foreach (var resource in serviceResources)
                 {
-                    return StatusCode(
-                        404,
-                        "Registered service is not present."
-                    );
+                    if (resource == null)
+                        continue;
+
+                    storedFilePaths.Add(resource.ServicePhoto);
+                    storedFilePaths.Add(resource.ServiceVideo);
+                    storedFilePaths.Add(resource.ServiceFile);
                 }
 
-
-                // =========================================================
-                // 7. Get all resources for this service
-                // =========================================================
-
-                var serviceResources =
-                    await Database.ProviderServiceResourcesInfo
-                        .Where(x =>
-                            x.ProviderServiceId ==
-                            obj.ProviderServiceId)
-                        .ToListAsync();
-
-
-                // =========================================================
-                // 8. Delete service document
-                // =========================================================
-
-                if (!string.IsNullOrWhiteSpace(
-                        serviceData.ServiceDocument))
+                // Resolve only paths that remain safely inside wwwroot.
+                string? ResolvePhysicalPath(string? storedPath)
                 {
-                    try
+                    if (string.IsNullOrWhiteSpace(storedPath))
+                        return null;
+
+                    var normalizedPath = storedPath.Trim()
+                        .Replace('\\', Path.DirectorySeparatorChar)
+                        .Replace('/', Path.DirectorySeparatorChar)
+                        .TrimStart(Path.DirectorySeparatorChar);
+
+                    if (string.IsNullOrWhiteSpace(normalizedPath) ||
+                        Path.IsPathRooted(normalizedPath))
                     {
-                        var documentPath =
-                            serviceData.ServiceDocument.Trim();
-
-
-                        // Remove starting / or \
-                        documentPath =
-                            documentPath.TrimStart(
-                                '/',
-                                '\\'
-                            );
-
-
-                        if (!string.IsNullOrWhiteSpace(
-                                documentPath))
-                        {
-                            var physicalDocumentPath =
-                                Path.Combine(
-                                    webRootPath,
-                                    documentPath.Replace(
-                                        '/',
-                                        Path.DirectorySeparatorChar
-                                    )
-                                );
-
-
-                            // Delete only if file exists
-                            if (System.IO.File.Exists(
-                                    physicalDocumentPath))
-                            {
-                                System.IO.File.Delete(
-                                    physicalDocumentPath
-                                );
-                            }
-                        }
+                        return null;
                     }
-                    catch
+
+                    var physicalPath = Path.GetFullPath(
+                        Path.Combine(webRootPath, normalizedPath));
+
+                    if (!physicalPath.StartsWith(
+                            rootPrefix,
+                            pathComparison))
                     {
-                        // File deletion failed.
-                        // Do not crash the system.
+                        return null;
                     }
+
+                    return physicalPath;
                 }
 
+                var physicalFilePaths = new HashSet<string>(
+                    OperatingSystem.IsWindows()
+                        ? StringComparer.OrdinalIgnoreCase
+                        : StringComparer.Ordinal);
 
-                // =========================================================
-                // 9. Delete service resources files
-                // =========================================================
-
-                if (serviceResources != null &&
-                    serviceResources.Count > 0)
+                foreach (var storedPath in storedFilePaths)
                 {
-                    foreach (var resource in serviceResources)
-                    {
-                        // =================================================
-                        // Delete Photo
-                        // =================================================
+                    var physicalPath = ResolvePhysicalPath(storedPath);
 
-                        if (resource != null &&
-                            !string.IsNullOrWhiteSpace(
-                                resource.ServicePhoto))
-                        {
-                            try
-                            {
-                                var photoPath =
-                                    resource.ServicePhoto.Trim();
-
-
-                                photoPath =
-                                    photoPath.TrimStart(
-                                        '/',
-                                        '\\'
-                                    );
-
-
-                                if (!string.IsNullOrWhiteSpace(
-                                        photoPath))
-                                {
-                                    var physicalPhotoPath =
-                                        Path.Combine(
-                                            webRootPath,
-                                            photoPath.Replace(
-                                                '/',
-                                                Path.DirectorySeparatorChar
-                                            )
-                                        );
-
-
-                                    if (System.IO.File.Exists(
-                                            physicalPhotoPath))
-                                    {
-                                        System.IO.File.Delete(
-                                            physicalPhotoPath
-                                        );
-                                    }
-                                }
-                            }
-                            catch
-                            {
-                                // Ignore photo deletion failure.
-                                // Continue deleting other files/resources.
-                            }
-                        }
-
-
-                        // =================================================
-                        // Delete Video
-                        // =================================================
-
-                        if (resource != null &&
-                            !string.IsNullOrWhiteSpace(
-                                resource.ServiceVideo))
-                        {
-                            try
-                            {
-                                var videoPath =
-                                    resource.ServiceVideo.Trim();
-
-
-                                videoPath =
-                                    videoPath.TrimStart(
-                                        '/',
-                                        '\\'
-                                    );
-
-
-                                if (!string.IsNullOrWhiteSpace(
-                                        videoPath))
-                                {
-                                    var physicalVideoPath =
-                                        Path.Combine(
-                                            webRootPath,
-                                            videoPath.Replace(
-                                                '/',
-                                                Path.DirectorySeparatorChar
-                                            )
-                                        );
-
-
-                                    if (System.IO.File.Exists(
-                                            physicalVideoPath))
-                                    {
-                                        System.IO.File.Delete(
-                                            physicalVideoPath
-                                        );
-                                    }
-                                }
-                            }
-                            catch
-                            {
-                                // Ignore video deletion failure.
-                                // Continue deleting other files/resources.
-                            }
-                        }
-                    }
+                    if (physicalPath != null)
+                        physicalFilePaths.Add(physicalPath);
                 }
 
-
-                // =========================================================
-                // 10. Delete resource database records
-                // =========================================================
-
-                if (serviceResources != null &&
-                    serviceResources.Count > 0)
+                // Delete resource records and the registered service in one database save.
+                if (serviceResources.Count > 0)
                 {
                     Database.ProviderServiceResourcesInfo
                         .RemoveRange(serviceResources);
                 }
 
-
-                // =========================================================
-                // 11. Delete registered service database record
-                // =========================================================
-
-                Database.ProviderServiceInfo
-                    .Remove(serviceData);
-
-
-                // =========================================================
-                // 12. Save database changes
-                // =========================================================
+                Database.ProviderServiceInfo.Remove(serviceData);
 
                 await Database.SaveChangesAsync();
 
+                // Delete the physical files only after the database deletion succeeds.
+                bool fileCleanupIncomplete = false;
 
-                // =========================================================
-                // 13. Success
-                // =========================================================
+                foreach (var physicalPath in physicalFilePaths)
+                {
+                    try
+                    {
+                        if (System.IO.File.Exists(physicalPath))
+                        {
+                            System.IO.File.Delete(physicalPath);
+                        }
+                    }
+                    catch (IOException)
+                    {
+                        fileCleanupIncomplete = true;
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        fileCleanupIncomplete = true;
+                    }
+                    catch (Exception)
+                    {
+                        fileCleanupIncomplete = true;
+                    }
+                }
+
+                if (fileCleanupIncomplete)
+                {
+                    return Ok(new
+                    {
+                        Message = "Service and resource records were deleted, but some physical files could not be removed.",
+              
+                        FileCleanupIncomplete = true
+                    });
+                }
 
                 return Ok(new
                 {
-                    Message =
-                        "Registered service and all associated resources deleted successfully.",
-
-                    ProviderServiceId =
-                        obj.ProviderServiceId
+                    Message = "Registered service and all associated resources deleted successfully.",
+             
+                    FileCleanupIncomplete = false
                 });
-            }
-            catch (Exception ex)
-            {
-                // =========================================================
-                // 14. Unexpected error
-                // =========================================================
 
+            }
+            catch (Exception)
+            {
                 return StatusCode(
                     500,
-                    $"An error occurred while deleting the registered service: {ex.Message}"
-                );
+                    "An error occurred while deleting the registered service and its resources.");
             }
         }
+
 
         [Authorize(Policy = "RequireAdminRole")]
         [HttpGet]
@@ -3293,55 +3139,40 @@ public async Task<IActionResult> DeleteAdvancePaymentInfo(
         [HttpDelete]
         [Route("deletebooking")]
         public async Task<IActionResult> DeleteBooking(
-    [FromBody] OnlyBookingIDDTO model)
+         [FromBody] OnlyBookingIDDTO model)
         {
             try
             {
-                
-
-                // --------------------------------------------------
+          
                 // Validate DTO
-                // --------------------------------------------------
+             
                 if (model == null)
                 {
-                    Console.WriteLine("ERROR: Request body is null.");
-
                     return StatusCode(
                         400,
                         "Booking information is required."
                     );
                 }
 
-        
-
                 if (model.BookId <= 0)
                 {
-                    Console.WriteLine("ERROR: Invalid BookId.");
-
                     return StatusCode(
                         400,
                         "Invalid BookId."
                     );
                 }
 
-                // --------------------------------------------------
                 // Get admin number from JWT
-                // --------------------------------------------------
+       
                 var adminNumberClaim =
                     User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-             
 
                 if (!int.TryParse(
                     adminNumberClaim,
                     out int currentAdminNumber))
                 {
-                 
-
                     return Forbid();
                 }
-
-            
 
                 // --------------------------------------------------
                 // Check admin exists
@@ -3353,30 +3184,25 @@ public async Task<IActionResult> DeleteAdvancePaymentInfo(
 
                 if (adminUser == null)
                 {
-                    
-
                     return StatusCode(
                         404,
                         "Admin user not found."
                     );
                 }
 
-                // --------------------------------------------------
+            
                 // Check admin login access
-                // --------------------------------------------------
+      
                 if (adminUser.LoginAccess == false)
                 {
-                
-
                     return StatusCode(
                         506,
                         "You have been blocked by System. Contact KaamMitra community."
                     );
                 }
 
-                // --------------------------------------------------
                 // Find booking
-                // --------------------------------------------------
+  
                 var booking = await Database.BookingInfos
                     .FirstOrDefaultAsync(
                         x => x.BookId == model.BookId
@@ -3384,35 +3210,76 @@ public async Task<IActionResult> DeleteAdvancePaymentInfo(
 
                 if (booking == null)
                 {
-                   
                     return StatusCode(
                         404,
                         "Booking information not found."
                     );
                 }
 
-                // --------------------------------------------------
-                // Delete booking
-                // --------------------------------------------------
+  
+                // Get wwwroot path
+
+                var webRootPath = _environment.WebRootPath;
+
+                if (string.IsNullOrWhiteSpace(webRootPath))
+                {
+                    webRootPath = Path.Combine(
+                        Directory.GetCurrentDirectory(),
+                        "wwwroot"
+                    );
+                }
+
+
+                // Delete booking file if present
+
+                if (!string.IsNullOrWhiteSpace(booking.BookingFile))
+                {
+                    var fileRelativePath = booking.BookingFile.TrimStart('/')
+                        .Replace('/', Path.DirectorySeparatorChar);
+
+                    var physicalFilePath = Path.Combine(
+                        webRootPath,
+                        fileRelativePath
+                    );
+
+                    if (System.IO.File.Exists(physicalFilePath))
+                    {
+                        System.IO.File.Delete(physicalFilePath);
+                    }
+                }
+
+
+                // Delete booking video if present
+
+                if (!string.IsNullOrWhiteSpace(booking.BookingVideo))
+                {
+                    var videoRelativePath = booking.BookingVideo.TrimStart('/')
+                        .Replace('/', Path.DirectorySeparatorChar);
+
+                    var physicalVideoPath = Path.Combine(
+                        webRootPath,
+                        videoRelativePath
+                    );
+
+                    if (System.IO.File.Exists(physicalVideoPath))
+                    {
+                        System.IO.File.Delete(physicalVideoPath);
+                    }
+                }
+
+                // Delete booking from database
+
                 Database.BookingInfos.Remove(booking);
 
-          
-
-                // --------------------------------------------------
-                // Save changes
-                // --------------------------------------------------
                 await Database.SaveChangesAsync();
-
 
                 return StatusCode(
                     200,
-                    "Booking information deleted successfully."
+                    "Booking information and its attached files deleted successfully."
                 );
             }
             catch (Exception ex)
             {
-                
-
                 return StatusCode(
                     500,
                     $"An error occurred while deleting booking information: {ex.Message}"
@@ -4151,6 +4018,215 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 return StatusCode(
                     500,
                     $"An error occurred while deleting user data: {ex.Message}"
+                );
+            }
+        }
+
+
+        [Authorize(Policy = "RequireAdminRole")]
+        [HttpGet]
+        [Route("getsharedmedia")]
+        public async Task<IActionResult> GetSharedMedia()
+        {
+            try
+            {
+                // 1. Extract UserNumber from JWT token
+                var userNumberClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (string.IsNullOrEmpty(userNumberClaim) ||
+                    !int.TryParse(userNumberClaim, out int UserNumber))
+                {
+                    return StatusCode(401, "Invalid user authentication.");
+                }
+
+                // 2. Check whether the logged-in user exists
+                var userExists = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == UserNumber);
+
+                if (userExists == null)
+                {
+                    return StatusCode(520, "User account not found.");
+                }
+
+
+                if (userExists.LoginAccess == false)
+                {
+                    return StatusCode(
+                        506,
+                        "You have been blocked by System. Contact the KaamMitra community."
+                    );
+                }
+
+                // 3. Retrieve media where the user is sender or receiver
+                var SharedMediaList = await Database.SharedMediaInfos
+                    .OrderByDescending(x => x.CreatedAt)
+                    .Select(x => new SendSharedMediaDTO
+                    {
+                        SharedMediaId = x.SharedMediaId,
+                        MediaDescription = x.MediaDescription,
+                        ServicePhoto = x.ServicePhoto,
+                        ServiceVideo = x.ServiceVideo,
+                        ServiceFile = x.ServiceFile,
+                        CreatedAt = x.CreatedAt,
+                        SenderNumber = x.SenderNumber,
+                        ReceiverNumber = x.ReceiverNumber,
+                        SenderName = Database.UserInfos
+    .Where(u => u.UserNumber == x.SenderNumber)
+    .Select(u => (u.FirstName + " " + u.LastName).Trim())
+    .FirstOrDefault() ?? string.Empty,
+
+                        ReceiverName = Database.UserInfos
+    .Where(u => u.UserNumber == x.ReceiverNumber)
+    .Select(u => (u.FirstName + " " + u.LastName).Trim())
+    .FirstOrDefault() ?? string.Empty
+                    })
+                    .ToListAsync();
+
+                // 4. Return shared media
+                return StatusCode(200, SharedMediaList);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500,
+                    "An error occurred while retrieving shared media: " + ex.Message);
+            }
+        }
+
+        [Authorize(Policy = "RequireAdminRole")]
+        [HttpDelete]
+        [Route("deletesharedmedia")]
+        public async Task<IActionResult> DeleteSharedMedia(
+  [FromBody] SharedMediaIDDTO obj)
+        {
+            List<string> PhysicalFilePaths = new List<string>();
+
+            try
+            {
+                // 1. Validate ModelState
+                if (!ModelState.IsValid)
+                {
+                    return StatusCode(
+                        400,
+                        "Invalid shared media information."
+                    );
+                }
+
+                // 2. Extract UserNumber from JWT token
+                var userNumberClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (string.IsNullOrEmpty(userNumberClaim) ||
+                    !int.TryParse(userNumberClaim, out int UserNumber))
+                {
+                    return StatusCode(401, "Invalid user authentication.");
+                }
+
+                // 3. Check current user
+                var CurrentUser = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == UserNumber);
+
+                if (CurrentUser == null)
+                {
+                    return StatusCode(520, "User account not found.");
+                }
+
+                // 4. Check whether current user is blocked
+                if (CurrentUser.LoginAccess == false)
+                {
+                    return StatusCode(
+                        506,
+                        "You have been blocked by System. Contact the KaamMitra community."
+                    );
+                }
+
+                // 5. Find shared media
+                var SharedMedia = await Database.SharedMediaInfos
+                    .FirstOrDefaultAsync(x =>
+                        x.SharedMediaId == obj.SharedMediaId);
+
+                if (SharedMedia == null)
+                {
+                    return StatusCode(404, "Shared media not found.");
+                }
+
+          
+
+                // 7. Get wwwroot directory
+                string WebRootPath = _environment.WebRootPath;
+
+                if (string.IsNullOrEmpty(WebRootPath))
+                {
+                    WebRootPath = Path.Combine(
+                        Directory.GetCurrentDirectory(),
+                        "wwwroot"
+                    );
+                }
+
+                if (!Directory.Exists(WebRootPath))
+                {
+                    return StatusCode(
+                        500,
+                        "Server wwwroot folder is not configured."
+                    );
+                }
+
+                // 8. Collect physical file paths
+                if (!string.IsNullOrWhiteSpace(SharedMedia.ServicePhoto))
+                {
+                    string PhotoPath = Path.Combine(
+                        WebRootPath,
+                        SharedMedia.ServicePhoto.TrimStart('/')
+                            .Replace('/', Path.DirectorySeparatorChar)
+                    );
+
+                    PhysicalFilePaths.Add(PhotoPath);
+                }
+
+                if (!string.IsNullOrWhiteSpace(SharedMedia.ServiceVideo))
+                {
+                    string VideoPath = Path.Combine(
+                        WebRootPath,
+                        SharedMedia.ServiceVideo.TrimStart('/')
+                            .Replace('/', Path.DirectorySeparatorChar)
+                    );
+
+                    PhysicalFilePaths.Add(VideoPath);
+                }
+
+                if (!string.IsNullOrWhiteSpace(SharedMedia.ServiceFile))
+                {
+                    string FilePath = Path.Combine(
+                        WebRootPath,
+                        SharedMedia.ServiceFile.TrimStart('/')
+                            .Replace('/', Path.DirectorySeparatorChar)
+                    );
+
+                    PhysicalFilePaths.Add(FilePath);
+                }
+
+                // 9. Delete physical files
+                foreach (string PhysicalPath in PhysicalFilePaths)
+                {
+                    if (System.IO.File.Exists(PhysicalPath))
+                    {
+                        System.IO.File.Delete(PhysicalPath);
+                    }
+                }
+
+                // 10. Delete database record after successful file deletion
+                Database.SharedMediaInfos.Remove(SharedMedia);
+
+                await Database.SaveChangesAsync();
+
+                return StatusCode(
+                    200,
+                    "Shared media deleted successfully."
+                );
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(
+                    500,
+                    "An error occurred while deleting shared media: " + ex.Message
                 );
             }
         }

@@ -1,10 +1,29 @@
+import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../models/ServicePhotoModel.dart';
 import '../../../state management/getx/profile/provider_user/view_photo_getx.dart';
+import '../../models/ServicePhotoModel.dart';
 
+// ===========================================================================
+// PALETTE
+// ===========================================================================
+class _C {
+  static const Color bg = Color(0xFF0F1F17);
+  static const Color surface = Color(0xFF162E22);
+  static const Color text = Color(0xFFE6F4EA);
+  static const Color muted = Color(0xFF8A9A90);
+  static const Color accent = Color(0xFF22C55E);
+  static const Color mint = Color(0xFF34D399);
+  static const Color border = Color(0xFF234232);
+  static const Color borderStrong = Color(0xFF2F5A43);
+}
 
+// ===========================================================================
+// SCREEN
+// ===========================================================================
 class ServiceScreenProviderServicePhoto extends StatefulWidget {
   final String User_Email;
   final String User_JwtToken;
@@ -22,445 +41,488 @@ class ServiceScreenProviderServicePhoto extends StatefulWidget {
   });
 
   @override
-  State<ServiceScreenProviderServicePhoto> createState() => _ServiceScreenProviderServicePhotoState();
+  State<ServiceScreenProviderServicePhoto> createState() =>
+      _ServiceScreenProviderServicePhotoState();
 }
 
-class _ServiceScreenProviderServicePhotoState extends State<ServiceScreenProviderServicePhoto>
-    with TickerProviderStateMixin {
-  // ============================================================
-  // COLORS
-  // ============================================================
-
-  static const Color _green = Color(0xFF00E676);
-  static const Color _darkGreen = Color(0xFF00A86B);
-  static const Color _black = Color(0xFF080B09);
-  static const Color _card = Color(0xFF111713);
-  static const Color _card2 = Color(0xFF161D18);
-  static const Color _grey = Color(0xFF9AA59D);
-
-  // ============================================================
-  // VARIABLES
-  // ============================================================
-
+class _ServiceScreenProviderServicePhotoState
+    extends State<ServiceScreenProviderServicePhoto> {
   late final ViewPhotoGetx controller;
   final String _tag = UniqueKey().toString();
-
-  late AnimationController _pageAnimationController;
-  late Animation<double> _fadeAnimation;
-
   Worker? _errorWorker;
-
-  // ============================================================
-  // INIT
-  // ============================================================
 
   @override
   void initState() {
     super.initState();
-
     controller = Get.put(ViewPhotoGetx(), tag: _tag);
 
-    _pageAnimationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    );
-
-    _fadeAnimation = CurvedAnimation(
-      parent: _pageAnimationController,
-      curve: Curves.easeOutCubic,
-    );
-
-    // The original showed a SnackBar for every genuine failure result
-    // (via _showErrorToast) — that behavior lives here now, since the
-    // controller has no BuildContext to call ScaffoldMessenger with.
-    _errorWorker = ever<PhotoFetchResult?>(controller.result, (result) {
-      if (result != null && result.status == FetchStatus.failure && result.message.isNotEmpty) {
-        _showErrorToast(result.message);
+    // Show a snackbar for genuine failures (the controller has no context).
+    _errorWorker = ever<PhotoFetchResult?>(controller.result, (r) {
+      try {
+        if (r != null &&
+            r.status == FetchStatus.failure &&
+            r.message.isNotEmpty) {
+          _showErrorToast(r.message);
+        }
+      } catch (e) {
+        debugPrint('toast error: $e');
       }
     });
 
+    // Photos belong to the PROVIDER, so the provider's email is used here.
     controller.init(
       email: widget.Provider_Email,
       jwtToken: widget.User_JwtToken,
       serviceName: widget.Service_Name,
     );
-
-    _pageAnimationController.forward();
   }
 
   @override
   void dispose() {
-    _pageAnimationController.dispose();
     _errorWorker?.dispose();
     Get.delete<ViewPhotoGetx>(tag: _tag);
     super.dispose();
   }
 
-  // ============================================================
-  // REFRESH
-  // ============================================================
-
-  Future<void> _refreshPhotos() async {
-    await controller.refreshPhotos();
-  }
-
-  // ============================================================
-  // TOAST / SNACKBAR
-  // ============================================================
-
   void _showErrorToast(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline_rounded, color: Colors.white),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(message, maxLines: 3, overflow: TextOverflow.ellipsis),
-              ),
-            ],
+    try {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline_rounded, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(message,
+                      maxLines: 3, overflow: TextOverflow.ellipsis),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14)),
           ),
-          backgroundColor: Colors.red.shade700,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-      );
+        );
+    } catch (e) {
+      debugPrint('showErrorToast error: $e');
+    }
   }
-
-  // ============================================================
-  // OPEN FULL SCREEN IMAGE
-  // ============================================================
-
-  void _openImage(BuildContext context, ServicePhotoModel photo) {
-    final String imageUrl = controller.buildImageUrl(photo.servicePhoto);
-    if (imageUrl.isEmpty) return;
-
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        opaque: false,
-        transitionDuration: const Duration(milliseconds: 350),
-        reverseTransitionDuration: const Duration(milliseconds: 250),
-        pageBuilder: (context, animation, secondaryAnimation) {
-          return _FullScreenPhoto(
-            imageUrl: imageUrl,
-            serviceName: photo.serviceName ?? widget.Service_Name,
-          );
-        },
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-            child: child,
-          );
-        },
-      ),
-    );
-  }
-
-  // ============================================================
-  // RESPONSIVE COLUMNS
-  // ============================================================
-
-  int _getColumns(double width) {
-    if (width >= 1400) return 5;
-    if (width >= 1100) return 4;
-    if (width >= 750) return 3;
-    if (width >= 500) return 2;
-    return 1;
-  }
-
-  // ============================================================
-  // BUILD
-  // ============================================================
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _black,
-
-      // ========================================================
-      // APP BAR
-      // ========================================================
+      backgroundColor: _C.bg,
       appBar: AppBar(
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        backgroundColor: _black,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
+        scrolledUnderElevation: 0,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        leadingWidth: 64,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16, top: 8, bottom: 8),
+          child: _BorderIconButton(
+            tooltip: 'Back',
+            icon: Icons.arrow_back_ios_new_rounded,
+            onTap: () => Navigator.of(context).maybePop(),
+          ),
         ),
-        titleSpacing: 0,
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(9),
-              decoration: BoxDecoration(
-                color: _green.withOpacity(.12),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _green.withOpacity(.25)),
-              ),
-              child: const Icon(Icons.photo_library_rounded, color: _green, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Service Photos",
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+        title: const Text(
+          'Service Photos',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+              color: _C.text, fontSize: 17, fontWeight: FontWeight.w700),
+        ),
+      ),
+      body: _ForestBackdrop(
+        child: SafeArea(
+          top: false,
+          child: LayoutBuilder(builder: (context, box) {
+            final double w = box.maxWidth.isFinite ? box.maxWidth : 900;
+            final double pad = w >= 900 ? 32 : (w < 600 ? 12 : 20);
+
+            return RefreshIndicator(
+              color: _C.accent,
+              backgroundColor: _C.surface,
+              onRefresh: () => controller.refreshPhotos(),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(pad, 8, pad, 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _Reveal(child: _HeaderCard(c: controller)),
+                          const SizedBox(height: 12),
+                          _Reveal(
+                              delayMs: 80,
+                              child: _SearchField(c: controller)),
+                        ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.Service_Name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: _grey, fontSize: 12),
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(pad, 0, pad, 24),
+                    sliver: _PhotoSliver(c: controller),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            tooltip: "Refresh",
-            onPressed: _refreshPhotos,
-            icon: const Icon(Icons.refresh_rounded, color: _green),
-          ),
-          const SizedBox(width: 6),
-        ],
-      ),
-
-      // ========================================================
-      // BODY — header container removed; grid starts right away.
-      // ========================================================
-      body: SafeArea(
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final double width = constraints.maxWidth;
-              final double horizontalPadding = width >= 900 ? 40 : 18;
-
-              return RefreshIndicator(
-                color: _green,
-                backgroundColor: _card,
-                onRefresh: _refreshPhotos,
-                child: CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
-                    SliverPadding(
-                      padding: EdgeInsets.fromLTRB(
-                        horizontalPadding,
-                        16,
-                        horizontalPadding,
-                        30,
-                      ),
-                      sliver: Obx(() {
-                        // ==============================
-                        // LOADING
-                        // ==============================
-                        if (controller.isLoading.value) {
-                          return SliverGrid(
-                            delegate: SliverChildBuilderDelegate(
-                                  (context, index) => _buildSkeletonCard(),
-                              childCount: width >= 750 ? 6 : 4,
-                            ),
-                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: _getColumns(width),
-                              crossAxisSpacing: 16,
-                              mainAxisSpacing: 16,
-                              childAspectRatio: width < 500 ? .80 : .82,
-                            ),
-                          );
-                        }
-
-                        final result = controller.result.value;
-
-                        // ==============================
-                        // REAL SERVER/NETWORK ERROR
-                        // ==============================
-                        if (result == null || result.status == FetchStatus.failure) {
-                          return SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: _buildErrorState(
-                              result?.message.isNotEmpty == true
-                                  ? result!.message
-                                  : "Something went wrong while loading your service photos.",
-                            ),
-                          );
-                        }
-
-                        // ==============================
-                        // NOTHING UPLOADED YET (404 / empty list)
-                        // ==============================
-                        if (result.status == FetchStatus.notFound || result.photos.isEmpty) {
-                          return SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: _buildEmptyState(
-                              result.message.isNotEmpty
-                                  ? result.message
-                                  : "No photos have been uploaded for \"${widget.Service_Name}\" yet.",
-                            ),
-                          );
-                        }
-
-                        // ==============================
-                        // GRID
-                        // ==============================
-                        final photos = result.photos;
-                        return SliverGrid(
-                          delegate: SliverChildBuilderDelegate(
-                                (context, index) => _AnimatedPhotoCard(
-                              index: index,
-                              child: _buildPhotoCard(photos[index], index),
-                            ),
-                            childCount: photos.length,
-                          ),
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: _getColumns(width),
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                            childAspectRatio: width < 500 ? .80 : .82,
-                          ),
-                        );
-                      }),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+            );
+          }),
         ),
       ),
     );
   }
+}
 
-  // ============================================================
-  // PHOTO CARD
-  // ============================================================
+// ===========================================================================
+// HEADER
+// ===========================================================================
+class _HeaderCard extends StatelessWidget {
+  final ViewPhotoGetx c;
+  const _HeaderCard({required this.c});
 
-  Widget _buildPhotoCard(ServicePhotoModel photo, int index) {
-    final String imageUrl = controller.buildImageUrl(photo.servicePhoto);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(22),
-        onTap: () => _openImage(context, photo),
-        child: Container(
-          decoration: BoxDecoration(
-            color: _card,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: Colors.white.withOpacity(.06)),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(.25), blurRadius: 15, offset: const Offset(0, 7)),
-            ],
+  @override
+  Widget build(BuildContext context) {
+    return _Glass(
+      radius: 18,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [
+                _C.accent.withOpacity(0.28),
+                _C.mint.withOpacity(0.10),
+              ]),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _C.accent.withOpacity(0.45)),
+            ),
+            child: const Icon(Icons.photo_library_rounded,
+                color: _C.mint, size: 22),
           ),
-          clipBehavior: Clip.antiAlias,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Photo Gallery',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        color: _C.text,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                Obx(() => Text(
+                  c.isLoading.value
+                      ? 'Loading photos...'
+                      : 'Showing ${c.filteredPhotos.length} of ${c.allPhotos.length}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      color: _C.mint.withOpacity(0.85),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500),
+                )),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Obx(() => _BorderIconButton(
+            tooltip: 'Refresh',
+            icon: Icons.refresh_rounded,
+            onTap: c.isLoading.value ? null : () => c.refreshPhotos(),
+          )),
+        ],
+      ),
+    );
+  }
+}
+
+// ===========================================================================
+// SEARCH (resource ID or title)
+// ===========================================================================
+class _SearchField extends StatelessWidget {
+  final ViewPhotoGetx c;
+  const _SearchField({required this.c});
+
+  @override
+  Widget build(BuildContext context) {
+    return _Glass(
+      radius: 14,
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      child: TextField(
+        controller: c.searchCtrl,
+        onChanged: (v) => c.query.value = v,
+        cursorColor: _C.accent,
+        style: const TextStyle(color: _C.text, fontSize: 14),
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          hintText: 'Search by resource ID or title',
+          hintStyle: const TextStyle(color: _C.muted, fontSize: 13.5),
+          prefixIcon: const Icon(Icons.search_rounded, color: _C.mint),
+          suffixIcon: Obx(() => c.query.value.isEmpty
+              ? const SizedBox.shrink()
+              : IconButton(
+            tooltip: 'Clear',
+            icon: const Icon(Icons.close_rounded, color: _C.muted),
+            onPressed: () {
+              c.searchCtrl.clear();
+              c.query.value = '';
+            },
+          )),
+        ),
+      ),
+    );
+  }
+}
+
+// ===========================================================================
+// GRID / STATES
+// ===========================================================================
+class _PhotoSliver extends StatelessWidget {
+  final ViewPhotoGetx c;
+  const _PhotoSliver({required this.c});
+
+  SliverGridDelegate _delegate() =>
+      const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 260,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 14,
+        mainAxisExtent: 340,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      // LOADING
+      if (c.isLoading.value) {
+        return SliverGrid(
+          gridDelegate: _delegate(),
+          delegate: SliverChildBuilderDelegate(
+                (_, __) => const _SkeletonCard(),
+            childCount: 6,
+          ),
+        );
+      }
+
+      final PhotoFetchResult? r = c.result.value;
+
+      // REAL ERROR
+      if (r == null || r.status == FetchStatus.failure) {
+        return SliverFillRemaining(
+          hasScrollBody: false,
+          child: _Placeholder(
+            icon: Icons.cloud_off_rounded,
+            title: 'Unable to Load Photos',
+            message: (r != null && r.message.isNotEmpty)
+                ? r.message
+                : 'Something went wrong while loading service photos.',
+            action: _retryButton('Try Again'),
+          ),
+        );
+      }
+
+      // NOTHING UPLOADED
+      if (c.allPhotos.isEmpty) {
+        return SliverFillRemaining(
+          hasScrollBody: false,
+          child: _Placeholder(
+            icon: Icons.photo_library_outlined,
+            title: 'No Photos Yet',
+            message: r.message.isNotEmpty
+                ? r.message
+                : 'No photos have been uploaded for this service yet.',
+            action: _retryButton('Refresh'),
+          ),
+        );
+      }
+
+      final List<ServicePhotoModel> list = c.filteredPhotos;
+
+      // SEARCH HAS NO MATCH
+      if (list.isEmpty) {
+        return const SliverFillRemaining(
+          hasScrollBody: false,
+          child: _Placeholder(
+            icon: Icons.search_off_rounded,
+            title: 'No Match Found',
+            message: 'No photo matches your search.',
+          ),
+        );
+      }
+
+      // GRID
+      return SliverGrid(
+        gridDelegate: _delegate(),
+        delegate: SliverChildBuilderDelegate(
+              (context, i) => _Reveal(
+            delayMs: math.min(i, 6) * 60,
+            child: _PhotoCard(c: c, p: list[i], index: i),
+          ),
+          childCount: list.length,
+        ),
+      );
+    });
+  }
+
+  Widget _retryButton(String label) {
+    return ElevatedButton.icon(
+      onPressed: () => c.refreshPhotos(),
+      icon: const Icon(Icons.refresh_rounded, size: 18),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: _C.accent,
+        foregroundColor: _C.bg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+}
+
+// ===========================================================================
+// PHOTO CARD (no path, no service name)
+// ===========================================================================
+class _PhotoCard extends StatelessWidget {
+  final ViewPhotoGetx c;
+  final ServicePhotoModel p;
+  final int index;
+
+  const _PhotoCard({required this.c, required this.p, required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    final String imageUrl = c.imageUrlOf(p);
+    final String title = c.displayOr(c.titleOf(p));
+
+    return Container(
+      decoration: BoxDecoration(
+        color: _C.surface.withOpacity(0.92),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _C.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.25),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: imageUrl.isEmpty
+              ? null
+              : () => _openFullScreen(context, imageUrl, title),
           child: Column(
             children: [
               Expanded(
-                flex: 7,
+                flex: 6,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    if (imageUrl.isNotEmpty)
-                      Hero(
-                        tag: "service_photo_${photo.providerServiceResourcesId}",
-                        child: Image.network(
-                          imageUrl,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return _buildImageLoading();
-                          },
-                          errorBuilder: (context, error, stackTrace) => _buildImageError(),
-                        ),
-                      )
-                    else
-                      _buildImageError(),
+                    imageUrl.isEmpty
+                        ? const _ImageFallback()
+                        : Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (ctx, child, progress) =>
+                      progress == null
+                          ? child
+                          : const _ImageLoading(),
+                      errorBuilder: (ctx, e, st) =>
+                      const _ImageFallback(),
+                    ),
                     Positioned(
-                      top: 12,
-                      left: 12,
+                      top: 10,
+                      left: 10,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(.65),
+                          color: Colors.black.withOpacity(0.55),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.white.withOpacity(.10)),
+                          border:
+                          Border.all(color: Colors.white.withOpacity(0.1)),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.photo_rounded, color: _green, size: 14),
-                            const SizedBox(width: 5),
-                            Text(
-                              "#${index + 1}",
-                              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
-                            ),
-                          ],
+                        child: Text(
+                          '#${index + 1}',
+                          style: const TextStyle(
+                              color: _C.text,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700),
                         ),
                       ),
                     ),
                     Positioned(
-                      right: 12,
-                      bottom: 12,
+                      right: 10,
+                      bottom: 10,
                       child: Container(
-                        width: 38,
-                        height: 38,
+                        width: 34,
+                        height: 34,
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(.65),
+                          color: Colors.black.withOpacity(0.55),
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withOpacity(.12)),
+                          border: Border.all(
+                              color: Colors.white.withOpacity(0.12)),
                         ),
-                        child: const Icon(Icons.fullscreen_rounded, color: Colors.white, size: 20),
+                        child: const Icon(Icons.fullscreen_rounded,
+                            color: _C.text, size: 18),
                       ),
                     ),
                   ],
                 ),
               ),
               Expanded(
-                flex: 3,
+                flex: 4,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              photo.serviceName ?? widget.Service_Name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                          const Icon(Icons.arrow_forward_ios_rounded, color: _green, size: 13),
-                        ],
+                      const Text('Title',
+                          style: TextStyle(
+                              color: _C.muted,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 2),
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: _C.text,
+                            fontSize: 14,
+                            height: 1.25,
+                            fontWeight: FontWeight.w700),
                       ),
+                      const Spacer(),
                       Row(
                         children: [
                           Expanded(
-                            child: _buildInfoItem(
-                              Icons.layers_rounded,
-                              "Service Id",
-                              "${photo.providerServiceId ?? '-'}",
+                            child: _InfoChip(
+                              label: 'Resource ID',
+                              value: c.displayOr(c.idOf(p)),
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           Expanded(
-                            child: _buildInfoItem(
-                              Icons.photo_library_rounded,
-                              "Resource Id",
-                              "${photo.providerServiceResourcesId ?? '-'}",
+                            child: _InfoChip(
+                              label: 'Service ID',
+                              value: c.displayOr(c.serviceIdOf(p)),
                             ),
                           ),
                         ],
@@ -476,124 +538,143 @@ class _ServiceScreenProviderServicePhotoState extends State<ServiceScreenProvide
     );
   }
 
-  // ============================================================
-  // INFO ITEM
-  // ============================================================
-
-  Widget _buildInfoItem(IconData icon, String title, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-      decoration: BoxDecoration(color: _card2, borderRadius: BorderRadius.circular(10)),
-      child: Row(
-        children: [
-          Icon(icon, color: _green, size: 13),
-          const SizedBox(width: 5),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _grey, fontSize: 8)),
-                const SizedBox(height: 1),
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
-                ),
-              ],
-            ),
+  void _openFullScreen(BuildContext context, String imageUrl, String title) {
+    try {
+      Navigator.of(context).push(
+        PageRouteBuilder(
+          opaque: false,
+          transitionDuration: const Duration(milliseconds: 300),
+          reverseTransitionDuration: const Duration(milliseconds: 220),
+          pageBuilder: (_, __, ___) =>
+              _FullScreenPhoto(imageUrl: imageUrl, title: title),
+          transitionsBuilder: (_, animation, __, child) => FadeTransition(
+            opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+            child: child,
           ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('openFullScreen error: $e');
+    }
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  final String label;
+  final String value;
+  const _InfoChip({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _C.accent.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  color: _C.muted, fontSize: 9.5, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 1),
+          Text(value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  color: _C.text, fontSize: 11.5, fontWeight: FontWeight.w700)),
         ],
       ),
     );
   }
+}
 
-  // ============================================================
-  // IMAGE LOADING
-  // ============================================================
+class _ImageLoading extends StatelessWidget {
+  const _ImageLoading();
+  @override
+  Widget build(BuildContext context) => Container(
+    color: _C.bg,
+    alignment: Alignment.center,
+    child: const SizedBox(
+      width: 26,
+      height: 26,
+      child: CircularProgressIndicator(
+          strokeWidth: 2.4,
+          valueColor: AlwaysStoppedAnimation<Color>(_C.accent)),
+    ),
+  );
+}
 
-  Widget _buildImageLoading() {
-    return Container(
-      color: _card2,
-      child: const Center(
-        child: SizedBox(width: 30, height: 30, child: CircularProgressIndicator(strokeWidth: 2.5, color: _green)),
-      ),
-    );
-  }
+class _ImageFallback extends StatelessWidget {
+  const _ImageFallback();
+  @override
+  Widget build(BuildContext context) => Container(
+    color: _C.bg,
+    alignment: Alignment.center,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: const [
+        Icon(Icons.broken_image_outlined, color: _C.muted, size: 32),
+        SizedBox(height: 6),
+        Text('Image unavailable',
+            style: TextStyle(color: _C.muted, fontSize: 11)),
+      ],
+    ),
+  );
+}
 
-  // ============================================================
-  // IMAGE ERROR
-  // ============================================================
-
-  Widget _buildImageError() {
-    return Container(
-      color: _card2,
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: Colors.red.withOpacity(.08), shape: BoxShape.circle),
-              child: const Icon(Icons.broken_image_outlined, color: Colors.white54, size: 32),
-            ),
-            const SizedBox(height: 10),
-            const Text("Image unavailable", style: TextStyle(color: Colors.white54, fontSize: 11)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // SKELETON
-  // ============================================================
-
-  Widget _buildSkeletonCard() {
+class _SkeletonCard extends StatelessWidget {
+  const _SkeletonCard();
+  @override
+  Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Colors.white.withOpacity(.05)),
+        color: _C.surface.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _C.border),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
           Expanded(
-            flex: 7,
+            flex: 6,
             child: Container(
-              color: _card2,
-              child: const Center(child: CircularProgressIndicator(strokeWidth: 2, color: _green)),
+              color: _C.bg,
+              alignment: Alignment.center,
+              child: const SizedBox(
+                width: 24,
+                height: 24,
+                child:
+                CircularProgressIndicator(strokeWidth: 2, color: _C.accent),
+              ),
             ),
           ),
           Expanded(
-            flex: 3,
+            flex: 4,
             child: Padding(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    height: 13,
-                    width: 100,
-                    decoration: BoxDecoration(color: Colors.white.withOpacity(.06), borderRadius: BorderRadius.circular(5)),
+                    height: 12,
+                    width: 110,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
                   ),
                   const Spacer(),
                   Row(
                     children: [
-                      Expanded(
-                        child: Container(
-                          height: 28,
-                          decoration: BoxDecoration(color: Colors.white.withOpacity(.04), borderRadius: BorderRadius.circular(8)),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Container(
-                          height: 28,
-                          decoration: BoxDecoration(color: Colors.white.withOpacity(.04), borderRadius: BorderRadius.circular(8)),
-                        ),
-                      ),
+                      Expanded(child: _bar()),
+                      const SizedBox(width: 6),
+                      Expanded(child: _bar()),
                     ],
                   ),
                 ],
@@ -605,193 +686,48 @@ class _ServiceScreenProviderServicePhotoState extends State<ServiceScreenProvide
     );
   }
 
-  // ============================================================
-  // EMPTY STATE — "nothing uploaded yet", shows the real server
-  // message when the backend provided one.
-  // ============================================================
-
-  Widget _buildEmptyState(String message) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(30),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _green.withOpacity(.08),
-                border: Border.all(color: _green.withOpacity(.15)),
-              ),
-              child: const Icon(Icons.photo_library_outlined, color: _green, size: 42),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              "No Photos Yet",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: _grey, fontSize: 14, height: 1.5),
-            ),
-            const SizedBox(height: 22),
-            ElevatedButton.icon(
-              onPressed: _refreshPhotos,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text("Refresh"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _green,
-                foregroundColor: Colors.black,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // ERROR STATE — genuine failure, shows the real server/network
-  // message instead of a generic one.
-  // ============================================================
-
-  Widget _buildErrorState(String message) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(30),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 90,
-              height: 90,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.red.withOpacity(.08)),
-              child: const Icon(Icons.cloud_off_rounded, color: Colors.white54, size: 42),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              "Unable to Load Photos",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: _grey, fontSize: 14, height: 1.5),
-            ),
-            const SizedBox(height: 22),
-            ElevatedButton.icon(
-              onPressed: _refreshPhotos,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text("Try Again"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _green,
-                foregroundColor: Colors.black,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget _bar() => Container(
+    height: 28,
+    decoration: BoxDecoration(
+      color: Colors.white.withOpacity(0.04),
+      borderRadius: BorderRadius.circular(8),
+    ),
+  );
 }
 
-// ==================================================================
-// ANIMATED PHOTO CARD
-// ==================================================================
-
-class _AnimatedPhotoCard extends StatefulWidget {
-  final int index;
-  final Widget child;
-
-  const _AnimatedPhotoCard({required this.index, required this.child});
-
-  @override
-  State<_AnimatedPhotoCard> createState() => _AnimatedPhotoCardState();
-}
-
-class _AnimatedPhotoCardState extends State<_AnimatedPhotoCard> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _opacity;
-  late Animation<Offset> _slide;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
-    _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
-    _slide = Tween<Offset>(begin: const Offset(0, .12), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
-
-    Future.delayed(Duration(milliseconds: 60 * widget.index), () {
-      if (mounted) _controller.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _opacity,
-      child: SlideTransition(position: _slide, child: widget.child),
-    );
-  }
-}
-
-// ==================================================================
-// FULL SCREEN PHOTO
-// ==================================================================
-
+// ===========================================================================
+// FULLSCREEN (title only, never the path)
+// ===========================================================================
 class _FullScreenPhoto extends StatelessWidget {
   final String imageUrl;
-  final String serviceName;
+  final String title;
 
-  const _FullScreenPhoto({required this.imageUrl, required this.serviceName});
-
-  static const Color green = Color(0xFF00E676);
+  const _FullScreenPhoto({required this.imageUrl, required this.title});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black.withOpacity(.97),
+      backgroundColor: Colors.black,
       body: SafeArea(
         child: Stack(
           children: [
-            Center(
-              child: Hero(
-                tag: "fullscreen_$imageUrl",
-                child: InteractiveViewer(
-                  minScale: .8,
-                  maxScale: 4.0,
+            Positioned.fill(
+              child: InteractiveViewer(
+                minScale: 1,
+                maxScale: 4,
+                child: Center(
                   child: Image.network(
                     imageUrl,
                     fit: BoxFit.contain,
-                    loadingBuilder: (context, child, progress) {
-                      if (progress == null) return child;
-                      return const Center(child: CircularProgressIndicator(color: green));
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Center(
-                        child: Icon(Icons.broken_image_outlined, color: Colors.white54, size: 60),
-                      );
-                    },
+                    loadingBuilder: (ctx, child, progress) => progress == null
+                        ? child
+                        : const Center(
+                        child:
+                        CircularProgressIndicator(color: _C.accent)),
+                    errorBuilder: (ctx, e, st) => const Center(
+                      child: Icon(Icons.broken_image_outlined,
+                          color: _C.muted, size: 60),
+                    ),
                   ),
                 ),
               ),
@@ -802,43 +738,46 @@ class _FullScreenPhoto extends StatelessWidget {
               right: 10,
               child: Row(
                 children: [
-                  Container(
-                    decoration: BoxDecoration(color: Colors.black.withOpacity(.60), shape: BoxShape.circle),
-                    child: IconButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close_rounded, color: Colors.white),
-                    ),
+                  _BorderIconButton(
+                    tooltip: 'Close',
+                    icon: Icons.close_rounded,
+                    onTap: () => Navigator.of(context).maybePop(),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                      decoration: BoxDecoration(color: Colors.black.withOpacity(.60), borderRadius: BorderRadius.circular(14)),
+                    child: _Glass(
+                      radius: 14,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
                       child: Text(
-                        serviceName,
+                        title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                            color: _C.text,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            Positioned(
+            const Positioned(
               bottom: 20,
               left: 0,
               right: 0,
               child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(color: Colors.black.withOpacity(.60), borderRadius: BorderRadius.circular(20)),
-                  child: const Row(
+                child: _Glass(
+                  radius: 20,
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.zoom_in_rounded, color: green, size: 17),
+                      Icon(Icons.zoom_in_rounded, color: _C.mint, size: 17),
                       SizedBox(width: 7),
-                      Text("Pinch to zoom", style: TextStyle(color: Colors.white70, fontSize: 11)),
+                      Text('Pinch to zoom',
+                          style: TextStyle(color: _C.muted, fontSize: 11.5)),
                     ],
                   ),
                 ),
@@ -849,4 +788,311 @@ class _FullScreenPhoto extends StatelessWidget {
       ),
     );
   }
+}
+
+// ===========================================================================
+// REUSABLE PIECES
+// ===========================================================================
+
+/// Fade + slide-up entrance.
+class _Reveal extends StatelessWidget {
+  final Widget child;
+  final int delayMs;
+  const _Reveal({required this.child, this.delayMs = 0});
+
+  @override
+  Widget build(BuildContext context) {
+    final int total = 480 + delayMs;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: total),
+      curve: Interval(delayMs / total, 1.0, curve: Curves.easeOutCubic),
+      builder: (context, v, child) => Opacity(
+        opacity: v.clamp(0.0, 1.0).toDouble(),
+        child: Transform.translate(
+          offset: Offset(0, (1 - v) * 16),
+          child: child,
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Frosted-glass container.
+class _Glass extends StatelessWidget {
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final double radius;
+  const _Glass({
+    required this.child,
+    this.padding = const EdgeInsets.all(14),
+    this.radius = 18,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+        child: Container(
+          padding: padding,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius),
+            border: Border.all(color: Colors.white.withOpacity(0.09)),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withOpacity(0.08),
+                Colors.white.withOpacity(0.03),
+              ],
+            ),
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+/// Bordered square icon button.
+class _BorderIconButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onTap;
+  const _BorderIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool enabled = onTap != null;
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: enabled ? _C.borderStrong : _C.border,
+                width: 1.3,
+              ),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: enabled ? _C.text : _C.text.withOpacity(0.35),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Empty / null / error state.
+class _Placeholder extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String message;
+  final Widget? action;
+
+  const _Placeholder({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.action,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: _Reveal(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: _Glass(
+              radius: 22,
+              padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _C.accent.withOpacity(0.09),
+                      border: Border.all(color: _C.accent.withOpacity(0.4)),
+                    ),
+                    child: Icon(icon,
+                        size: 32, color: _C.accent.withOpacity(0.9)),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        color: _C.text,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        color: _C.muted, fontSize: 13.5, height: 1.4),
+                  ),
+                  if (action != null) ...[
+                    const SizedBox(height: 16),
+                    action!,
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ===========================================================================
+// BACKGROUND (private to this file, so no extra import is needed)
+// ===========================================================================
+class _ForestBackdrop extends StatefulWidget {
+  final Widget child;
+  const _ForestBackdrop({required this.child});
+
+  @override
+  State<_ForestBackdrop> createState() => _ForestBackdropState();
+}
+
+class _ForestBackdropState extends State<_ForestBackdrop>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl =
+    AnimationController(vsync: this, duration: const Duration(seconds: 26))
+      ..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        const ColoredBox(color: Color(0xFF0F1F17)),
+        IgnorePointer(
+          child: RepaintBoundary(
+            child: CustomPaint(
+                painter: _ForestBackdropPainter(_ctrl), size: Size.infinite),
+          ),
+        ),
+        widget.child,
+      ],
+    );
+  }
+}
+
+class _ForestBackdropPainter extends CustomPainter {
+  final Animation<double> t;
+  _ForestBackdropPainter(this.t) : super(repaint: t);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty || !size.width.isFinite || !size.height.isFinite) return;
+
+    final double v = Curves.easeInOut.transform(t.value);
+    final double rb = math.max(size.shortestSide, 360);
+
+    void blob(double fx, double fy, double radius, Color c, double alpha,
+        double dx, double dy) {
+      final Offset center = Offset(
+        size.width * fx + dx * v * rb * 0.08,
+        size.height * fy + dy * v * rb * 0.08,
+      );
+      final Rect rect = Rect.fromCircle(center: center, radius: radius);
+      final Paint p = Paint()
+        ..shader = RadialGradient(
+          colors: [
+            c.withOpacity(alpha),
+            c.withOpacity(alpha * 0.45),
+            c.withOpacity(0),
+          ],
+          stops: const [0.0, 0.5, 1.0],
+        ).createShader(rect);
+      canvas.drawCircle(center, radius, p);
+    }
+
+    blob(-0.04, 0.04, rb * 0.80, const Color(0xFF22C55E), 0.22, 1.0, 0.7);
+    blob(1.06, 0.32, rb * 0.70, const Color(0xFF34D399), 0.15, -1.0, 0.9);
+    blob(0.08, 1.02, rb * 0.85, const Color(0xFF0F766E), 0.26, 0.8, -1.0);
+    blob(0.96, 0.96, rb * 0.65, const Color(0xFF22C55E), 0.17, -0.9, -0.6);
+    blob(0.50, 0.52, rb * 0.55, const Color(0xFF34D399), 0.05, 0.5, -0.5);
+
+    void bubble(double fx, double fy, double r, double dy, double phase) {
+      final double wave = math.sin((v + phase) * math.pi);
+      final Offset c = Offset(size.width * fx, size.height * fy + wave * dy);
+      final Rect rect = Rect.fromCircle(center: c, radius: r);
+
+      final Paint fill = Paint()
+        ..shader = RadialGradient(
+          center: const Alignment(-0.35, -0.4),
+          colors: [
+            Colors.white.withOpacity(0.12),
+            const Color(0xFF34D399).withOpacity(0.05),
+            Colors.white.withOpacity(0.015),
+          ],
+          stops: const [0.0, 0.6, 1.0],
+        ).createShader(rect)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.8);
+      canvas.drawCircle(c, r, fill);
+
+      final Paint ring = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2
+        ..color = Colors.white.withOpacity(0.09)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2);
+      canvas.drawCircle(c, r, ring);
+
+      final Paint glint = Paint()
+        ..color = Colors.white.withOpacity(0.10)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
+      canvas.drawCircle(c.translate(-r * 0.35, -r * 0.38), r * 0.14, glint);
+    }
+
+    final double u = math.max(size.shortestSide, 320) / 400;
+    bubble(0.12, 0.30, 46 * u, 18 * u, 0.0);
+    bubble(0.86, 0.14, 30 * u, 14 * u, 0.3);
+    bubble(0.92, 0.66, 64 * u, 22 * u, 0.55);
+    bubble(0.20, 0.82, 36 * u, 16 * u, 0.8);
+    bubble(0.62, 0.92, 22 * u, 10 * u, 0.15);
+    bubble(0.05, 0.58, 18 * u, 10 * u, 0.65);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ForestBackdropPainter old) => false;
 }

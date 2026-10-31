@@ -312,32 +312,19 @@ class _RegisterScreenState extends State<RegisterScreen>
       const String url =
           Backend_Server_Url + "api/Authentication/signin";
 
-      print('----------------------------------------');
-      print('Creating account...');
-      print('URL: $url');
-      print('First Name: $firstName');
-      print('Last Name: $lastName');
-      print('Email: $email');
-      print('Phone: $phone');
-      print('WhatsApp: $whatsapp');
-      print('Latitude: $latitudeValue');
-      print('Longitude: $longitudeValue');
-      print('Role: $role');
-      print('Photo: Not selected');
-      print('----------------------------------------');
 
-      // ---------------------------------------------------------
+
       // Create Multipart Request
-      // ---------------------------------------------------------
+
 
       final request = http.MultipartRequest(
         'POST',
         Uri.parse(url),
       );
 
-      // ---------------------------------------------------------
+
       // Authorization
-      // ---------------------------------------------------------
+
 
       request.headers['Authorization'] =
       'Bearer ${widget.User_JwtToken}';

@@ -410,6 +410,7 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
                 onTap: () {
                   try {
                     c.requestSend();
+                    c.textCont.clear();
                   } catch (e) {
                     print('Send tap error: $e');
                   }

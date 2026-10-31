@@ -15,6 +15,7 @@ import 'advance_pay_qr_info.dart';
 import 'booking_pro_task_pay_summary.dart';
 import 'del_pro_reg_service_res.dart';
 import 'delete_user.dart';
+import 'manage_media.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   final String User_Role;
@@ -248,6 +249,23 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             }, child: Text("Filtered booking details.")),
 
             SizedBox(height: 10,),
+
+            SizedBox(height: 10,),
+
+            SizedBox(height: 10,),
+
+            ElevatedButton(onPressed: (){
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ManageMedia(
+                  Jwt_Token: widget.User_JwtToken,
+                )
+
+                ),
+              );
+
+            }, child: Text("Manage Share Media.")),
 
             SizedBox(height: 10,),
 

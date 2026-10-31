@@ -1,21 +1,17 @@
 import 'dart:convert';
+
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+
 import '../../../../constant/Server_Database.dart';
 import '../../../../models/ServicePhotoModel.dart';
 import '../../../../web/authentication/Error_page.dart';
 import '../../../../web/common method/Commmon_Method.dart';
 import '../../../../web/common widget/toast.dart';
 
-// Adjust the relative import segment counts above if your actual folder
-// depth differs — nothing else in this file depends on where it sits.
-
 // ==================================================================
-// FETCH RESULT — distinguishes "nothing uploaded" (404) from a real
-// failure (network / 400 / 401 / 403 / 500 / other), each carrying
-// the actual server-provided message instead of a generic one.
-// Moved verbatim from the original widget file so the controller can
-// expose it too.
+// FETCH RESULT
 // ==================================================================
 enum FetchStatus { success, notFound, failure }
 
@@ -32,18 +28,15 @@ class PhotoFetchResult {
 }
 
 class ViewPhotoGetx extends GetxController {
-  // ---------------------------------------------------------------------
-  // REACTIVE STATE (replaces _servicePhotoFuture + FutureBuilder + the
-  // one setState() that used to live in _refreshPhotos)
-  // ---------------------------------------------------------------------
+  // ---------------- Reactive state ----------------
   final RxBool isLoading = true.obs;
   final Rxn<PhotoFetchResult> result = Rxn<PhotoFetchResult>();
+  final RxString query = ''.obs;
+  final TextEditingController searchCtrl = TextEditingController();
 
   late String _email;
   late String _jwtToken;
   late String _serviceName;
-
-  String get serviceName => _serviceName;
 
   /// Call once from the screen's initState, right after Get.put(...).
   Future<void> init({
@@ -60,34 +53,37 @@ class ViewPhotoGetx extends GetxController {
   }
 
   Future<void> jwtVerify({required String jwtToken}) async {
-    int Result = await UserProviderJwtVerify(Jwt_Token: jwtToken);
-    if (Result == 1) {
-      return;
-    } else {
+    try {
+      final int result = await UserProviderJwtVerify(Jwt_Token: jwtToken);
+      if (result == 1) return;
+
       await Clear_User_Data();
       await Random_token_Clear();
-      // Context-free navigation via GetX (controllers have no
-      // BuildContext) — functionally equivalent to the old
-      // Navigator.pushReplacement(...).
       Get.off(() => ErrorPage());
       Toastget().Toastmsg("Session End.Relogin please.");
-      return;
+    } catch (e) {
+      debugPrint('jwtVerify error: $e');
     }
   }
 
-  // ============================================================
-  // GET SERVICE PHOTOS — same logic/status branches as the original
-  // GetServicePhotoInfo, only the state writes now go through Rx
-  // fields instead of setState().
-  // ============================================================
   Future<void> fetchPhotos() async {
-    if (!isClosed) isLoading.value = true;
-
-    final PhotoFetchResult fetched = await _getServicePhotoInfo(_email, _jwtToken);
-
-    if (isClosed) return;
-    result.value = fetched;
-    isLoading.value = false;
+    try {
+      if (!isClosed) isLoading.value = true;
+      final PhotoFetchResult fetched =
+      await _getServicePhotoInfo(_email, _jwtToken);
+      if (isClosed) return;
+      result.value = fetched;
+    } catch (e) {
+      debugPrint('fetchPhotos error: $e');
+      if (!isClosed) {
+        result.value = PhotoFetchResult(
+          status: FetchStatus.failure,
+          message: 'Something went wrong while loading service photos.',
+        );
+      }
+    } finally {
+      if (!isClosed) isLoading.value = false;
+    }
   }
 
   Future<void> refreshPhotos() async {
@@ -99,12 +95,6 @@ class ViewPhotoGetx extends GetxController {
       String JwtToken,
       ) async {
     try {
-      print("======================================");
-      print("GET SERVICE PHOTO METHOD CALLED");
-      print("Email: $Email");
-      print("Service Name: $_serviceName");
-      print("======================================");
-
       const String url = Backend_Server_Url + "api/Profile/getservicephotoinfo";
 
       final Map<String, dynamic> UserDetails = {
@@ -121,13 +111,6 @@ class ViewPhotoGetx extends GetxController {
         body: jsonEncode(UserDetails),
       );
 
-      print("Get service photo status: ${response.statusCode}");
-      print("Response length: ${response.body.length}");
-
-      // ========================================================
-      // SUCCESS
-      // ========================================================
-
       if (response.statusCode == 200) {
         final dynamic decodedData = jsonDecode(response.body);
 
@@ -142,8 +125,6 @@ class ViewPhotoGetx extends GetxController {
             .map((item) => ServicePhotoModel.fromJson(item))
             .toList();
 
-        print("Number of service photos: ${servicePhotos.length}");
-
         if (servicePhotos.isEmpty) {
           return const PhotoFetchResult(status: FetchStatus.notFound);
         }
@@ -154,25 +135,14 @@ class ViewPhotoGetx extends GetxController {
         );
       }
 
-      // ========================================================
-      // 404 — nothing uploaded yet, NOT an error.
-      // ========================================================
-
       if (response.statusCode == 404) {
         String message = "No service photos found.";
         try {
           final dynamic body = jsonDecode(response.body);
-          if (body is String && body.trim().isNotEmpty) {
-            message = body;
-          }
+          if (body is String && body.trim().isNotEmpty) message = body;
         } catch (_) {}
-
         return PhotoFetchResult(status: FetchStatus.notFound, message: message);
       }
-
-      // ========================================================
-      // 400
-      // ========================================================
 
       if (response.statusCode == 400) {
         String message = "Invalid request.";
@@ -180,35 +150,22 @@ class ViewPhotoGetx extends GetxController {
           final dynamic body = jsonDecode(response.body);
           if (body is String) message = body;
         } catch (_) {}
-        // NOTE: the original showed this via a ScaffoldMessenger SnackBar
-        // (_showErrorToast), which needs a BuildContext the controller
-        // doesn't have. The widget listens to `result` and shows the same
-        // SnackBar whenever status == failure — see `ever(...)` in
-        // ProviderServicePhoto's initState.
         return PhotoFetchResult(status: FetchStatus.failure, message: message);
       }
 
-      // ========================================================
-      // 401
-      // ========================================================
-
       if (response.statusCode == 401) {
-        const String message = "Your session has expired. Please login again.";
-        return const PhotoFetchResult(status: FetchStatus.failure, message: message);
+        return const PhotoFetchResult(
+          status: FetchStatus.failure,
+          message: "Your session has expired. Please login again.",
+        );
       }
-
-      // ========================================================
-      // 403
-      // ========================================================
 
       if (response.statusCode == 403) {
-        const String message = "You do not have permission to view these photos.";
-        return const PhotoFetchResult(status: FetchStatus.failure, message: message);
+        return const PhotoFetchResult(
+          status: FetchStatus.failure,
+          message: "You do not have permission to view these photos.",
+        );
       }
-
-      // ========================================================
-      // 500
-      // ========================================================
 
       if (response.statusCode == 500) {
         String message = "Server error. Please try again later.";
@@ -219,28 +176,87 @@ class ViewPhotoGetx extends GetxController {
         return PhotoFetchResult(status: FetchStatus.failure, message: message);
       }
 
-      // ========================================================
-      // OTHER STATUS
-      // ========================================================
-
-      final String message = "Request failed. Status code: ${response.statusCode}";
-      return PhotoFetchResult(status: FetchStatus.failure, message: message);
+      return PhotoFetchResult(
+        status: FetchStatus.failure,
+        message: "Request failed. Status code: ${response.statusCode}",
+      );
     } catch (e) {
-      print("GetServicePhotoInfo error: $e");
-      final String message = "Network error: ${e.toString()}";
-      return PhotoFetchResult(status: FetchStatus.failure, message: message);
+      debugPrint("GetServicePhotoInfo error: $e");
+      return PhotoFetchResult(
+        status: FetchStatus.failure,
+        message: "Network error. Please check your connection.",
+      );
     }
   }
 
-  // ============================================================
-  // URL BUILDER — pure function, no state involved.
-  // ============================================================
-  String buildImageUrl(String? photoPath) {
-    if (photoPath == null || photoPath.trim().isEmpty) {
-      return "";
+  // ==================================================================
+  // HELPERS (null-safe, never displayed raw)
+  // ==================================================================
+  String _clean(String? v) {
+    final String t = (v ?? '').trim();
+    return (t.isEmpty || t.toLowerCase() == 'null') ? '' : t;
+  }
+
+  String displayOr(String? v) {
+    final String t = _clean(v);
+    return t.isEmpty ? 'No data available' : t;
+  }
+
+  String idOf(ServicePhotoModel p) =>
+      _clean(p.providerServiceResourcesId?.toString());
+
+  String serviceIdOf(ServicePhotoModel p) =>
+      _clean(p.providerServiceId?.toString());
+
+  String titleOf(ServicePhotoModel p) => _clean(p.serviceTitle?.toString());
+
+  /// Internal only. Used for Image.network. Never displayed.
+  String imageUrlOf(ServicePhotoModel p) {
+    try {
+      return buildImageUrl(p.servicePhoto?.toString());
+    } catch (_) {
+      return '';
     }
+  }
+
+  /// URL builder, pure function.
+  String buildImageUrl(String? photoPath) {
+    if (photoPath == null || photoPath.trim().isEmpty) return "";
     final String baseUrl = Backend_Server_Url.replaceFirst(RegExp(r'/$'), '');
     final String path = photoPath.startsWith("/") ? photoPath : "/$photoPath";
     return "$baseUrl$path";
+  }
+
+  // ==================================================================
+  // SEARCH (resource ID or title)
+  // ==================================================================
+  List<ServicePhotoModel> get allPhotos {
+    try {
+      return result.value?.photos ?? const <ServicePhotoModel>[];
+    } catch (_) {
+      return const <ServicePhotoModel>[];
+    }
+  }
+
+  List<ServicePhotoModel> get filteredPhotos {
+    try {
+      final String q = query.value.trim().toLowerCase();
+      final List<ServicePhotoModel> all = allPhotos;
+      if (q.isEmpty) return all;
+      return all.where((p) {
+        return idOf(p).toLowerCase().contains(q) ||
+            titleOf(p).toLowerCase().contains(q);
+      }).toList();
+    } catch (_) {
+      return const <ServicePhotoModel>[];
+    }
+  }
+
+  @override
+  void onClose() {
+    try {
+      searchCtrl.dispose();
+    } catch (_) {}
+    super.onClose();
   }
 }

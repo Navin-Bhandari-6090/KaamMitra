@@ -5,8 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 // Adjust the relative import segment counts / folder names to your project.
+import '../../constant/variable.dart';
 import '../../models/AdminTaskCompletePaymentModel.dart';
 import '../../state management/getx/admin/book_pro_task_comp_getx.dart';
+import '../bookings/view_book_file.dart';
+import '../bookings/view_book_video.dart';
 import '../common method/Commmon_Method.dart';
 
 // =============================================================================
@@ -166,7 +169,7 @@ class _BookingProTaskCompletePayState extends State<BookingProTaskCompletePay> {
                       ),
                       SliverPadding(
                         padding: EdgeInsets.fromLTRB(hPad, 18, hPad, 40),
-                        sliver: SliverToBoxAdapter(child: _Content(c: c)),
+                        sliver: SliverToBoxAdapter(child: _Content(c: c, Current_User_JwtToken: widget.User_JwtToken,)),
                       ),
                     ],
                   ),
@@ -825,8 +828,9 @@ class _Toolbar extends StatelessWidget {
 // CONTENT — responsive grid of cards (reactive)
 // =============================================================================
 class _Content extends StatelessWidget {
+  final String Current_User_JwtToken;
   final BookProTaskCompGetx c;
-  const _Content({required this.c});
+  const _Content({required this.c, required this.Current_User_JwtToken});
 
   @override
   Widget build(BuildContext context) {
@@ -884,7 +888,7 @@ class _Content extends StatelessWidget {
                       : 'p_${items[i].paymentInfo?.taskCompletePaymentId}_$i'),
                   index: i,
                   child: tab == 0
-                      ? _BookingCard(c: c, m: items[i])
+                      ? _BookingCard(c: c, m: items[i], Current_User_JwtToken: Current_User_JwtToken,)
                       : _PaymentCard(c: c, m: items[i]),
                 ),
               ),
@@ -922,9 +926,10 @@ class _EmptyState extends StatelessWidget {
 // BOOKING CARD
 // =============================================================================
 class _BookingCard extends StatelessWidget {
+  final String Current_User_JwtToken;
   final BookProTaskCompGetx c;
   final AdminTaskCompletePaymentModel m;
-  const _BookingCard({required this.c, required this.m});
+  const _BookingCard({required this.c, required this.m, required this.Current_User_JwtToken});
 
   Widget _status(String label, bool? v) {
     final bool on = v == true;
@@ -1074,6 +1079,46 @@ class _BookingCard extends StatelessWidget {
           const _SectionTitle(icon: Icons.bolt_rounded, text: "Actions"),
           const SizedBox(height: 12),
 
+          SizedBox(height: 10,),
+
+          ElevatedButton(onPressed: (){
+            try{
+              if(b!.bookingFile==null || b!.bookingFile!.isEmpty)
+              {
+                Toast.Toastmsg("No file available.");
+                return;
+              }
+
+              Navigator.push(context, MaterialPageRoute(builder: (context) {
+                return ViewBookFile(Current_User_JwtToken:Current_User_JwtToken, FilePath: b.bookingFile!,);
+              },
+              )
+              );
+
+            }catch(obj){
+              return;
+            }
+
+          }, child: Text("View file.")),
+
+          SizedBox(height: 10,),
+          ElevatedButton(onPressed: (){
+            try{
+              if(b!.bookingVideo==null || b!.bookingVideo!.isEmpty){
+                Toast.Toastmsg("No video available.");
+                return;
+              }
+              Navigator.push(context, MaterialPageRoute(builder: (context) {
+                return ViewBookVideo(Current_User_JwtToken:Current_User_JwtToken, VideoPath: b.bookingVideo!,);
+              },
+              )
+              );
+
+            }catch(obj){
+              return;
+            }
+          }, child: Text("View video.")),
+          SizedBox(height: 10,),
           // -- change provider task complete (inputs ABOVE button) --
           _ActionGroup(
             title: "Change provider task complete",

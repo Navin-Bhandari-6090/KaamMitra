@@ -165,6 +165,22 @@
   },
   {
     "ContainingType": "application.Controllers.AdminController",
+    "Method": "DeleteSharedMedia",
+    "RelativePath": "api/Admin/deletesharedmedia",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.SharedMediaIDDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
     "Method": "DeleteTaskCompletePayment",
     "RelativePath": "api/Admin/deletetaskcompletepayment",
     "HttpMethod": "DELETE",
@@ -269,6 +285,16 @@
     "ContainingType": "application.Controllers.AdminController",
     "Method": "GetServiceInfo",
     "RelativePath": "api/Admin/getservicenormal",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "GetSharedMedia",
+    "RelativePath": "api/Admin/getsharedmedia",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
@@ -634,6 +660,22 @@
   },
   {
     "ContainingType": "application.Controllers.BookingController",
+    "Method": "GetBookingInfoUser",
+    "RelativePath": "api/Booking/sendfilterbookinginfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.BookIngIdDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
     "Method": "GetNewNotification",
     "RelativePath": "api/Booking/sendnewnotification",
     "HttpMethod": "POST",
@@ -878,6 +920,57 @@
   },
   {
     "ContainingType": "application.Controllers.ProfileController",
+    "Method": "AddMedia",
+    "RelativePath": "api/Profile/addmedia",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "SharedMediaId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "MediaDescription",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ServicePhoto",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "ServiceVideo",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "ServiceFile",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "CreatedAt",
+        "Type": "System.DateTime",
+        "IsRequired": false
+      },
+      {
+        "Name": "SenderNumber",
+        "Type": "System.Nullable\u00601[[System.Int32, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "ReceiverNumber",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
     "Method": "AddService",
     "RelativePath": "api/Profile/addservice",
     "HttpMethod": "POST",
@@ -926,6 +1019,16 @@
         "IsRequired": false
       },
       {
+        "Name": "ServiceTitle",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ServiceFile",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
         "Name": "ServicePhoto",
         "Type": "Microsoft.AspNetCore.Http.IFormFile",
         "IsRequired": false
@@ -954,6 +1057,27 @@
         "Name": "VideoExtension",
         "Type": "System.String",
         "IsRequired": false
+      },
+      {
+        "Name": "FileExtension",
+        "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "DeleteSharedMedia",
+    "RelativePath": "api/Profile/deletesharedmedia",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.SharedMediaIDDTO",
+        "IsRequired": true
       }
     ],
     "ReturnTypes": []
@@ -1024,6 +1148,22 @@
   },
   {
     "ContainingType": "application.Controllers.ProfileController",
+    "Method": "GetServiceResourcesFileInfo",
+    "RelativePath": "api/Profile/getserviceresourcesfileinfo",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.ProviderServiceEmailServiceNameModel",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
     "Method": "GetServiceVideoInfo",
     "RelativePath": "api/Profile/getservicevideoinfo",
     "HttpMethod": "POST",
@@ -1036,6 +1176,16 @@
         "IsRequired": true
       }
     ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "GetSharedMedia",
+    "RelativePath": "api/Profile/getsharedmedia",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
     "ReturnTypes": []
   },
   {
@@ -1136,6 +1286,22 @@
   },
   {
     "ContainingType": "application.Controllers.ProfileController",
+    "Method": "UpdatePhoneNumbers",
+    "RelativePath": "api/Profile/updatephonenumbers",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.PhoneNumberDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
     "Method": "UpdateProfilePhoto",
     "RelativePath": "api/Profile/updateprofilephoto",
     "HttpMethod": "PUT",
@@ -1181,6 +1347,27 @@
       {
         "Name": "Email",
         "Type": "System.String",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "UpdateServiceResourceFile",
+    "RelativePath": "api/Profile/updateserviceresourcefile",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "ProviderServiceResourcesId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "ServiceFile",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
         "IsRequired": false
       }
     ],
@@ -1250,6 +1437,22 @@
   },
   {
     "ContainingType": "application.Controllers.ProfileController",
+    "Method": "UpdateServiceResourceTitle",
+    "RelativePath": "api/Profile/updateserviceresourcetitle",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.ResIdTitleDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
     "Method": "UpdateUserName",
     "RelativePath": "api/Profile/updateusername",
     "HttpMethod": "PUT",
@@ -1273,9 +1476,99 @@
     "Order": 0,
     "Parameters": [
       {
-        "Name": "obj",
-        "Type": "application.Models.BookinInfoModel",
-        "IsRequired": true
+        "Name": "StartDate",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "EndDate",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
+        "IsRequired": false
+      },
+      {
+        "Name": "ProviderBookingDescription",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "UserBookingDescription",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "ServiceId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "ServiceName",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "Distance",
+        "Type": "System.Double",
+        "IsRequired": false
+      },
+      {
+        "Name": "ProviderApprovalStatus",
+        "Type": "System.Boolean",
+        "IsRequired": false
+      },
+      {
+        "Name": "UserApprovalStatus",
+        "Type": "System.Boolean",
+        "IsRequired": false
+      },
+      {
+        "Name": "ProviderTaskCompleteStatus",
+        "Type": "System.Boolean",
+        "IsRequired": false
+      },
+      {
+        "Name": "UserTaskCompleteStatus",
+        "Type": "System.Boolean",
+        "IsRequired": false
+      },
+      {
+        "Name": "AdvancePaymentAmount",
+        "Type": "System.Double",
+        "IsRequired": false
+      },
+      {
+        "Name": "CreatedAt",
+        "Type": "System.DateTime",
+        "IsRequired": false
+      },
+      {
+        "Name": "UserNumber",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "ProviderNumber",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "RequiredAdvancePayment",
+        "Type": "System.Boolean",
+        "IsRequired": false
+      },
+      {
+        "Name": "RatingValueUser",
+        "Type": "System.Double",
+        "IsRequired": false
+      },
+      {
+        "Name": "BookingFile",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
+      },
+      {
+        "Name": "BookingVideo",
+        "Type": "Microsoft.AspNetCore.Http.IFormFile",
+        "IsRequired": false
       }
     ],
     "ReturnTypes": []

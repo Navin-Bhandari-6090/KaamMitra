@@ -52,7 +52,7 @@ class ProviderSerSelectGetx extends GetxController {
     loadFailed.value = false;
 
     try {
-      print("Profile service photo method called");
+
 
       const String url = Backend_Server_Url + "api/Profile/getproviderregisterserviceinfo";
 

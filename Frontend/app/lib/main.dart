@@ -8,10 +8,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:media_kit/media_kit.dart';
 
 void main() async {
   try{
   WidgetsFlutterBinding.ensureInitialized();
+  MediaKit.ensureInitialized();
   // await Hive.initFlutter();
   // await Clear_User_Data();
   // await Random_token_Clear();
@@ -31,6 +33,8 @@ void main() async {
    print("all user jwt verify result = ${AllUserVerify}");
    if(AllUserVerify==1)
    {
+     print("Verified token");
+     print(Jwt_Token);
      runApp(MyApp(Result: 1,UserLogin: true, User_JwtToken: Jwt_Token!, User_Role:User_Role!, User_Email:User_Email!, User_Number: User_Number!,));
    }
    else
@@ -41,6 +45,8 @@ void main() async {
      print("Random token result = ${Result}");
      final box = await Hive.openBox('Random_Token');
      String? Jwt_Token = box.get('random_token');
+     print("Random token");
+     print(Jwt_Token);
      runApp(MyApp(Result: 1,UserLogin: false, User_JwtToken:Jwt_Token!, User_Role:"", User_Email: '',User_Number: 0));
    }
  }
@@ -52,6 +58,8 @@ void main() async {
    print("Random token result = ${Result}");
      final box = await Hive.openBox('Random_Token');
      String? Jwt_Token = box.get('random_token');
+   print("Random token");
+   print(Jwt_Token);
      runApp(MyApp(Result: 1,UserLogin: false, User_JwtToken:Jwt_Token!, User_Role:"", User_Email: '',User_Number: 0));
  }
  }catch(e){

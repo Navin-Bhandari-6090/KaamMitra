@@ -10,6 +10,7 @@ import '../../constant/Server_Database.dart';
 import '../../models/AdminUserInfosModel.dart';
 import '../../models/AdvancePaymentPhotoModel.dart';
 import '../../models/AdvancePaymentQRPhoto.dart';
+import '../../models/BookingInfoModel.dart';
 import '../../models/ChatInfoModel.dart';
 import '../authentication/Error_page.dart';
 import '../common widget/toast.dart';
@@ -171,7 +172,7 @@ Future<int> ProviderJwtVerify({required String Jwt_Token})async{
 }
 
 Future<int> UserJwtVerify({required String Jwt_Token})async{
-  const String url = Backend_Server_Url + "api/Authentication/jwtverify";
+  const String url = Backend_Server_Url + "api/Authentication/jwtverifyuser";
   // verification
   final response = await http.get(
     Uri.parse(url),
@@ -186,7 +187,7 @@ Future<int> UserJwtVerify({required String Jwt_Token})async{
 
 
 Future<int> AdminJwtVerify({required String Jwt_Token})async{
-  const String url = Backend_Server_Url + "api/Authentication/jwtverify";
+  const String url = Backend_Server_Url + "api/Authentication/jwtverifyadmin";
   // verification
   final response = await http.get(
     Uri.parse(url),
@@ -291,6 +292,16 @@ Future<void> Provider_Jwt_Verify({required String Jwt_Token,required BuildContex
 
 Future<void> Provider_User_Jwt_Verify({required String Jwt_Token,required BuildContext context}) async {
   int Result = await UserProviderJwtVerify(Jwt_Token: Jwt_Token);
+  if (Result == 1) {
+    return;
+  } else {
+    await Logout(context: context);
+    return;
+  }
+}
+
+Future<void> All_User_Jwt_Verify({required String Jwt_Token,required BuildContext context}) async {
+  int Result = await AllUserJwtVerify(Jwt_Token: Jwt_Token);
   if (Result == 1) {
     return;
   } else {
@@ -686,17 +697,14 @@ Future<void> GetUserInfo({
 
 bool LastSendSucceeded = false;
 
-Future<void> AddChatMessage({
+Future<bool> AddChatMessage({
   required String Message,
   required int ReceiverNumber,
   required String User_JwtToken,
 }) async {
   try {
-    const String url =
-        "${Backend_Server_Url}api/Home/addchatmessage";
-
     final response = await http.post(
-      Uri.parse(url),
+      Uri.parse("${Backend_Server_Url}api/Home/addchatmessage"),
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer $User_JwtToken",
@@ -708,61 +716,36 @@ Future<void> AddChatMessage({
     );
 
     if (response.statusCode == 200) {
-      // print("Chat message added successfully.");
-
       Toast.Toastmsg("Message sent successfully.");
+      return true;
     } else if (response.statusCode == 400) {
-      // print("Invalid chat message data.");
-
       Toast.Toastmsg("Invalid chat message data.");
     } else if (response.statusCode == 401) {
-      // print("Unauthorized: JWT token is invalid or expired.");
-
       Toast.Toastmsg("Please login again.");
     } else if (response.statusCode == 403) {
-      // print("Forbidden: Access denied.");
-
       Toast.Toastmsg("You do not have permission.");
     } else if (response.statusCode == 404) {
-      // print("API endpoint not found.");
-
       Toast.Toastmsg("Requested endpoint not found.");
     } else if (response.statusCode == 500) {
-      // print("Internal server error.");
-
       Toast.Toastmsg("Something went wrong on the server.");
     } else if (response.statusCode == 506) {
-      // print("Current user JWT claim is invalid.");
-
       Toast.Toastmsg("Invalid user authentication.");
     } else if (response.statusCode == 507) {
-      // print("Current user not found.");
-
       Toast.Toastmsg("User not found.");
     } else if (response.statusCode == 508) {
-      // print("Current user is blocked or receiver not found.");
-
-      Toast.Toastmsg(
-        "Your account is blocked or the receiver was not found.",
-      );
+      Toast.Toastmsg("Your account is blocked or the receiver was not found.");
     } else if (response.statusCode == 509) {
-      // print("Receiver user is blocked.");
-
       Toast.Toastmsg("The receiver's account has been blocked.");
     } else {
-      // print("Unexpected status code: ${response.statusCode}");
-      // print("Response Body: ${response.body}");
-
       Toast.Toastmsg("Failed to send message.");
     }
-  } catch (e, stackTrace) {
-    // print("========== ADD CHAT MESSAGE ERROR ==========");
-    // print(e);
-    // print(stackTrace);
-
+    return false;
+  } catch (e) {
     Toast.Toastmsg("Something went wrong.");
+    return false;
   }
 }
+
 
 List<ChatInfoModel> ChatInfos=[];
 
@@ -771,8 +754,7 @@ Future<void> GetChatMessages({
   required String User_JwtToken,
 }) async {
   try {
-    const String url =
-        "${Backend_Server_Url}api/Home/getchatmessage";
+    const String url = "${Backend_Server_Url}api/Home/getchatmessage";
 
     final response = await http.post(
       Uri.parse(url),
@@ -780,89 +762,232 @@ Future<void> GetChatMessages({
         "Content-Type": "application/json",
         "Authorization": "Bearer $User_JwtToken",
       },
+      body: jsonEncode({"UserNumber": UserNumber}),
+    );
+
+    print('[CHAT API] status=${response.statusCode} '
+        'bytes=${response.bodyBytes.length}');
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
+      final List<ChatInfoModel> parsed = data
+          .map((item) => ChatInfoModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+
+      // Replace only after parsing fully succeeded.
+      ChatInfos
+        ..clear()
+        ..addAll(parsed);
+
+      print('[CHAT API] parsed=${ChatInfos.length} '
+          'last="${ChatInfos.isEmpty ? null : ChatInfos.last.message}"');
+    } else {
+      print('[CHAT API] FAILED ${response.statusCode}: ${response.body}');
+    }
+  } catch (e, st) {
+    print('[CHAT API] ERROR: $e\n$st');
+  }
+}
+
+List<BookingInfoModel> ReactiveBookingInfos=[];
+
+Future<int> GetBookingInfoUser({
+  required int BookId,
+  required String JwtToken,
+  required BuildContext context,
+}) async {
+  try {
+    const String url =
+        Backend_Server_Url + "api/Booking/sendfilterbookinginfo";
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $JwtToken",
+      },
       body: jsonEncode({
-        "UserNumber": UserNumber,
+        "BookId": BookId,
       }),
     );
 
+    final int statusCode = response.statusCode;
+    final String responseBody = response.body.trim();
 
+    if (statusCode == 200) {
+      final List<dynamic> jsonData = jsonDecode(responseBody);
 
-    if (response.statusCode == 200) {
-      final List<dynamic> ResponseData =
-      jsonDecode(response.body) as List<dynamic>;
+      // Clear previous booking data before adding new data
+      ReactiveBookingInfos.clear();
 
-      ChatInfos.clear();
+      ReactiveBookingInfos = jsonData
+          .map((data) => BookingInfoModel.fromJson(data))
+          .toList();
 
-      ChatInfos.addAll(
-        ResponseData.map(
-              (item) => ChatInfoModel.fromJson(
-            item as Map<String, dynamic>,
-          ),
-        ),
-      );
-
-      // print("Messages retrieved successfully.");
-      // print("Total Messages: ${ChatInfos.length}");
-
-      // for (final item in ChatInfos) {
-      //   print("ChatId: ${item.chatId}");
-      //   print("Message: ${item.message}");
-      //   print("SenderNumber: ${item.senderNumber}");
-      //   print("ReceiverNumber: ${item.receiverNumber}");
-      //   print("StoreAt: ${item.storeAt}");
-      // }
-
-      // Toast.Toastmsg("Messages retrieved successfully.");
-    } else if (response.statusCode == 400) {
-      // print("Invalid request data.");
-
-      // Toast.Toastmsg("Invalid request data.");
-    } else if (response.statusCode == 401) {
-      // print("Unauthorized: JWT token is invalid or expired.");
-
-      // Toast.Toastmsg("Please login again.");
-    } else if (response.statusCode == 403) {
-      // print("Forbidden: Access denied.");
-
-      // Toast.Toastmsg("You do not have permission.");
-    } else if (response.statusCode == 404) {
-      // print("API endpoint not found.");
-
-      // Toast.Toastmsg("Requested endpoint not found.");
-    } else if (response.statusCode == 500) {
-      // print("Internal server error.");
-
-      // Toast.Toastmsg("Something went wrong on the server.");
-    } else if (response.statusCode == 506) {
-      // print("Current user JWT claim is invalid.");
-
-      // Toast.Toastmsg("Invalid user authentication.");
-    } else if (response.statusCode == 507) {
-      // print("Invalid other user number or same user number.");
-
-      // Toast.Toastmsg("Invalid user number.");
-    } else if (response.statusCode == 510) {
-      // print("Current user not found.");
-
-      // Toast.Toastmsg("Current user not found.");
-    } else if (response.statusCode == 511) {
-      // print("Current user has been blocked.");
-
-      // Toast.Toastmsg("Your account has been blocked.");
-    } else {
-      // print("Unexpected status code: ${response.statusCode}");
-      // print("Response Body: ${response.body}");
-
-      // Toast.Toastmsg("Something went wrong.");
+      return 1;
     }
-  } catch (e, stackTrace) {
-    // print("========== GET CHAT MESSAGES ERROR ==========");
-    // print(e);
-    // print(stackTrace);
-
-    // Toast.Toastmsg("Something went wrong.");
+    else if (statusCode == 400 || statusCode == 501) {
+      Toast.Toastmsg(
+      "Booking data not found.",
+      );
+      return 2;
+    }
+    else if (statusCode == 401) {
+      Toast.Toastmsg("Please log in again. Your session is invalid.");
+      await Logout(context: context);
+      return 3;
+    }
+    else if (statusCode == 403) {
+      Toast.Toastmsg("You are not authorized to access this booking.");
+      await Logout(context: context);
+      return 4;
+    }
+    else if (statusCode == 404) {
+      Toast.Toastmsg("Booking information not found.");
+      return 5;
+    }
+    else if (statusCode == 500) {
+      Toast.Toastmsg(
+   "Server error occurred while retrieving booking information.",
+      );
+      return 6;
+    }
+    else if (statusCode == 502) {
+      Toast.Toastmsg("User account not found.");
+      await Logout(context: context);
+      return 7;
+    }
+    else if (statusCode == 506) {
+      Toast.Toastmsg(
+        "You have been blocked by System. Contact the KaamMitra community.",
+      );
+      await Logout(context: context);
+      return 8;
+    }
+    else if (statusCode == 507) {
+      Toast.Toastmsg("No booking data available.");
+      return 9;
+    }
+    else if (statusCode == 508) {
+      Toast.Toastmsg("The service associated with this booking was not found.");
+      return 10;
+    }
+    else {
+      Toast.Toastmsg("Unable to retrieve booking information. Please try again.",
+      );
+      return 11;
+    }
+  } catch (e) {
+    Toast.Toastmsg(
+      "Something went wrong while retrieving booking information.",
+    );
+    return 12;
   }
 }
+
+
+
+Future<void> PickPhoto()async{
+  try{
+    int Result = await change_photo_cont_getx.pickImage();
+    if (Result == 1)
+    {
+      Toast.Toastmsg("Photo pick success.");
+      return;
+    }
+    else if(Result==2){
+      Toast.Toastmsg("Only ${PhotoExtension} format accepted.");
+      return;
+    }
+    else if(Result==5){
+      Toast.Toastmsg("Video is larger then ${PhotoSize}.Please compressed and upload..");
+      return;
+    }
+    else {
+      Toast.Toastmsg("Photo pick  fail.");
+      return;
+    }
+  }catch(obj){
+    Toast.Toastmsg("Photo pick  fail.");
+    return;
+  }
+}
+
+Future<void> PickVideo()async{
+  try{
+    int Result = await change_video_cont_getx.pickVideo();
+    if (Result == 1)
+    {
+      Toast.Toastmsg("Video pick success.");
+      return;
+    }
+    else if(Result==2){
+      Toast.Toastmsg("Only ${VideoExtension} format accepted.");
+      return;
+    }
+    else if(Result==5){
+      Toast.Toastmsg("Video is larger then ${VideoSize}.Please compressed and upload..");
+      return;
+    }
+    else {
+      Toast.Toastmsg("Video pick  fail.");
+      return;
+    }
+  }catch(obj){
+    Toast.Toastmsg("Video pick  fail.");
+    return;
+  }
+}
+
+Future<void> PickFile()async{
+  try{
+    int Result = await change_file_cont_getx.pickFile();
+    if (Result == 1)
+    {
+      Toast.Toastmsg("File pick success.");
+      return;
+    }
+    else if(Result==2){
+      Toast.Toastmsg("Only ${FileExtension} format accepted.");
+      return;
+    }
+    else if(Result==5){
+      Toast.Toastmsg("File is larger then ${FileSize}.Please compressed and upload..");
+      return;
+    }
+    else {
+      Toast.Toastmsg("File pick  fail.");
+      return;
+    }
+  }catch(obj){
+    Toast.Toastmsg("File pick  fail.");
+    return;
+  }
+}
+
+Future<void> ClearFilesValues()async
+{
+
+  try{
+    change_video_cont_getx.videoExtension.value="";
+    change_video_cont_getx.videoBytes.value=null;
+    change_video_cont_getx.videoPath.value="";
+    change_photo_cont_getx.imageExtension.value="";
+    change_photo_cont_getx.imageBytes.value=null;
+    change_photo_cont_getx.imagePath.value="";
+    change_file_cont_getx.fileExtension.value="";
+    change_file_cont_getx.fileBytes.value=null;
+    change_file_cont_getx.filePath.value="";
+    return;
+  }
+      catch(obj)
+      {
+        return;
+      }
+
+
+}
+
 
 
 

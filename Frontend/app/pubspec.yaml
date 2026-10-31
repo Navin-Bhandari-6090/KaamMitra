@@ -36,6 +36,7 @@ dependencies:
   signalr_netcore: ^1.4.4
   permission_handler: ^13.0.2
   flutter_webrtc: ^1.6.2+hotfix.4
+  file_saver: ^0.7.0
 
 
 

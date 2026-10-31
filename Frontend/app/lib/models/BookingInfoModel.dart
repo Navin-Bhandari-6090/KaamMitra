@@ -1,3 +1,41 @@
+/// userAddress : "gadgs"
+/// userPhoneNumber : "+5363536645"
+/// userWhatsappPhoneNumber : "+56334535443"
+/// providerAddress : "gadgs"
+/// providerPhoneNumber : "+5363536645"
+/// providerWhatsappPhoneNumber : "+56334535443"
+/// providerNumber : 5
+/// userNumber : 6
+/// userLatitude : 26.740530333333332
+/// userLongitude : 87.54193883333333
+/// providerLatitude : 26.740530333333332
+/// providerLongitude : 87.54193883333333
+/// bookId : 29
+/// startDate : null
+/// endDate : null
+/// providerBookingDescription : ""
+/// userBookingDescription : "gdgfdfgfgddd"
+/// serviceName : "driver"
+/// providerServiceId : 0
+/// serviceId : 7
+/// distance : 0
+/// userEmail : "sd1@.com"
+/// providerEmail : "sd2@.com"
+/// providerApprovalStatus : false
+/// userApprovalStatus : true
+/// providerTaskCompleteStatus : false
+/// userTaskCompleteStatus : false
+/// advancePaymentAmount : 0
+/// createdAt : "2026-10-19T07:40:31.852281Z"
+/// ratingValueUser : 0
+/// requiredAdvancePayment : false
+/// domesticPrice : 70
+/// domesticPriceDiscount : 0
+/// internationalPrice : 7
+/// internationalPriceDiscount : 0
+/// bookingFile : "/uploads/booking/file/c4639848c1164f57a2c24981ae6e33f2.pdf"
+/// bookingVideo : "/uploads/booking/video/1c2fb47e45534ce1a61c96ed3381c661.mp4"
+
 class BookingInfoModel {
   BookingInfoModel({
       String? userAddress, 
@@ -34,7 +72,9 @@ class BookingInfoModel {
       num? domesticPrice, 
       num? domesticPriceDiscount, 
       num? internationalPrice, 
-      num? internationalPriceDiscount,}){
+      num? internationalPriceDiscount, 
+      String? bookingFile, 
+      String? bookingVideo,}){
     _userAddress = userAddress;
     _userPhoneNumber = userPhoneNumber;
     _userWhatsappPhoneNumber = userWhatsappPhoneNumber;
@@ -70,6 +110,8 @@ class BookingInfoModel {
     _domesticPriceDiscount = domesticPriceDiscount;
     _internationalPrice = internationalPrice;
     _internationalPriceDiscount = internationalPriceDiscount;
+    _bookingFile = bookingFile;
+    _bookingVideo = bookingVideo;
 }
 
   BookingInfoModel.fromJson(dynamic json) {
@@ -108,6 +150,8 @@ class BookingInfoModel {
     _domesticPriceDiscount = json['domesticPriceDiscount'];
     _internationalPrice = json['internationalPrice'];
     _internationalPriceDiscount = json['internationalPriceDiscount'];
+    _bookingFile = json['bookingFile'];
+    _bookingVideo = json['bookingVideo'];
   }
   String? _userAddress;
   String? _userPhoneNumber;
@@ -144,6 +188,8 @@ class BookingInfoModel {
   num? _domesticPriceDiscount;
   num? _internationalPrice;
   num? _internationalPriceDiscount;
+  String? _bookingFile;
+  String? _bookingVideo;
 BookingInfoModel copyWith({  String? userAddress,
   String? userPhoneNumber,
   String? userWhatsappPhoneNumber,
@@ -179,6 +225,8 @@ BookingInfoModel copyWith({  String? userAddress,
   num? domesticPriceDiscount,
   num? internationalPrice,
   num? internationalPriceDiscount,
+  String? bookingFile,
+  String? bookingVideo,
 }) => BookingInfoModel(  userAddress: userAddress ?? _userAddress,
   userPhoneNumber: userPhoneNumber ?? _userPhoneNumber,
   userWhatsappPhoneNumber: userWhatsappPhoneNumber ?? _userWhatsappPhoneNumber,
@@ -214,6 +262,8 @@ BookingInfoModel copyWith({  String? userAddress,
   domesticPriceDiscount: domesticPriceDiscount ?? _domesticPriceDiscount,
   internationalPrice: internationalPrice ?? _internationalPrice,
   internationalPriceDiscount: internationalPriceDiscount ?? _internationalPriceDiscount,
+  bookingFile: bookingFile ?? _bookingFile,
+  bookingVideo: bookingVideo ?? _bookingVideo,
 );
   String? get userAddress => _userAddress;
   String? get userPhoneNumber => _userPhoneNumber;
@@ -250,6 +300,8 @@ BookingInfoModel copyWith({  String? userAddress,
   num? get domesticPriceDiscount => _domesticPriceDiscount;
   num? get internationalPrice => _internationalPrice;
   num? get internationalPriceDiscount => _internationalPriceDiscount;
+  String? get bookingFile => _bookingFile;
+  String? get bookingVideo => _bookingVideo;
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
@@ -288,6 +340,8 @@ BookingInfoModel copyWith({  String? userAddress,
     map['domesticPriceDiscount'] = _domesticPriceDiscount;
     map['internationalPrice'] = _internationalPrice;
     map['internationalPriceDiscount'] = _internationalPriceDiscount;
+    map['bookingFile'] = _bookingFile;
+    map['bookingVideo'] = _bookingVideo;
     return map;
   }
 

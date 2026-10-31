@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
@@ -7,7 +8,6 @@ import 'package:get/get.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
-
 
 import '../../models/ServiceScreenServiceModel.dart';
 import '../../state management/getx/admin/show_serv_res_info_getx.dart';
@@ -26,6 +26,26 @@ class _C {
   static const Color mint = Color(0xFF34D399);
   static const Color border = Color(0xFF234232);
   static const Color danger = Color(0xFFF87171);
+}
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+/// Clamps [v] into [lo, hi] without throwing when hi < lo.
+double _fit(double v, double lo, double hi) =>
+    math.min(math.max(v, lo), math.max(lo, hi));
+
+IconData _kindIcon(MediaKind kind) {
+  switch (kind) {
+    case MediaKind.serviceDocument:
+    case MediaKind.resourceFile:
+      return Icons.picture_as_pdf_outlined;
+    case MediaKind.photo:
+      return Icons.photo_outlined;
+    case MediaKind.video:
+      return Icons.play_circle_outline_rounded;
+  }
 }
 
 // =============================================================================
@@ -86,7 +106,8 @@ class _DelProRegServiceResState extends State<DelProRegServiceRes> {
                 height: 40,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: _C.text.withOpacity(.55), width: 1.2),
+                  border:
+                  Border.all(color: _C.text.withOpacity(.55), width: 1.2),
                 ),
                 child: const Icon(Icons.arrow_back_ios_new_rounded,
                     color: _C.text, size: 18),
@@ -129,7 +150,8 @@ class _DelProRegServiceResState extends State<DelProRegServiceRes> {
       ),
       body: Stack(
         children: [
-          const Positioned.fill(child: IgnorePointer(child: _AmbientBackground())),
+          const Positioned.fill(
+              child: IgnorePointer(child: _AmbientBackground())),
           SafeArea(
             child: LayoutBuilder(
               builder: (context, box) {
@@ -154,7 +176,8 @@ class _DelProRegServiceResState extends State<DelProRegServiceRes> {
                       ),
                       SliverPadding(
                         padding: EdgeInsets.fromLTRB(hPad, 22, hPad, 8),
-                        sliver: SliverToBoxAdapter(child: _DetailsHeader(c: c)),
+                        sliver:
+                        SliverToBoxAdapter(child: _DetailsHeader(c: c)),
                       ),
                       SliverPadding(
                         padding: EdgeInsets.fromLTRB(hPad, 6, hPad, 40),
@@ -236,7 +259,8 @@ Future<bool> _confirmDelete(int id, String? name) async {
       ),
       content: Text(
         "Service ID $id${name != null && name.isNotEmpty ? ' ($name)' : ''} and all of its "
-            "files, photos and videos will be permanently deleted. This can't be undone.",
+            "documents, resource files, photos and videos will be permanently deleted. "
+            "This can't be undone.",
         style: const TextStyle(color: _C.muted, height: 1.5),
       ),
       actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
@@ -251,7 +275,8 @@ Future<bool> _confirmDelete(int id, String? name) async {
             backgroundColor: const Color(0xFFEF4444),
             foregroundColor: Colors.white,
             elevation: 0,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
           child: const Text("Delete"),
         ),
@@ -350,7 +375,7 @@ class _Entrance extends StatelessWidget {
 }
 
 // =============================================================================
-// DELETE PANEL (top) — delete by service id
+// DELETE PANEL (top): delete by service id
 // =============================================================================
 class _DeletePanel extends StatelessWidget {
   final ShowServResInfoGetx c;
@@ -359,13 +384,12 @@ class _DeletePanel extends StatelessWidget {
   Future<void> _submit() async {
     final int? id = int.tryParse(c.serviceIdTextCont.text.trim());
     if (id == null) {
-      // Lets the controller show the original "Service id is required." toast.
+      // Lets the controller show the "Service id is required." toast.
       await c.deleteFromInput();
       return;
     }
-    final String? name = c.services
-        .firstWhereOrNull((s) => c.idOf(s) == id)
-        ?.serviceName;
+    final String? name =
+        c.services.firstWhereOrNull((s) => c.idOf(s) == id)?.serviceName;
     if (await _confirmDelete(id, name)) {
       await c.deleteFromInput();
     }
@@ -384,14 +408,15 @@ class _DeletePanel extends StatelessWidget {
     );
 
     final button = Obx(() {
-      final busy = c.deletingIds.isNotEmpty;
+      final bool busy = c.deletingIds.isNotEmpty;
       return ElevatedButton.icon(
         onPressed: busy ? null : _submit,
         icon: busy
             ? const SizedBox(
           width: 16,
           height: 16,
-          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+          child: CircularProgressIndicator(
+              strokeWidth: 2, color: Colors.white),
         )
             : const Icon(Icons.delete_outline_rounded, size: 19),
         label: const Text("Delete service"),
@@ -404,7 +429,8 @@ class _DeletePanel extends StatelessWidget {
           minimumSize: const Size(0, 50),
           padding: const EdgeInsets.symmetric(horizontal: 22),
           textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
       );
     });
@@ -472,7 +498,7 @@ class _DeletePanel extends StatelessWidget {
 }
 
 // =============================================================================
-// SEARCH PANEL — filter by service id
+// SEARCH PANEL: filter by service id
 // =============================================================================
 class _SearchPanel extends StatelessWidget {
   final ShowServResInfoGetx c;
@@ -499,7 +525,8 @@ class _SearchPanel extends StatelessWidget {
                 ? IconButton(
               tooltip: "Clear",
               onPressed: c.clearSearch,
-              icon: const Icon(Icons.close_rounded, color: _C.muted, size: 20),
+              icon: const Icon(Icons.close_rounded,
+                  color: _C.muted, size: 20),
             )
                 : null,
           ),
@@ -540,9 +567,6 @@ class _DetailsHeader extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// SERVICE CARD — header + delete + one-by-one media viewer
-// =============================================================================
 class _ServiceCard extends StatelessWidget {
   final ShowServResInfoGetx c;
   final ServiceScreenServiceModel s;
@@ -552,6 +576,7 @@ class _ServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final int id = c.idOf(s);
+    final String userNo = s.userNumber?.toInt().toString() ?? '-';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
@@ -560,7 +585,6 @@ class _ServiceCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ---------------- header ----------------
           Container(
             padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
             color: _C.bar,
@@ -594,20 +618,41 @@ class _ServiceCard extends StatelessWidget {
                       const SizedBox(height: 8),
                       Obx(() {
                         final items = c.mediaFor(s);
-                        final files =
-                            items.where((e) => e.kind == MediaKind.file).length;
-                        final photos =
+                        final int resCount = c.resourceCountFor(s);
+                        final int files = items
+                            .where((e) =>
+                        e.kind == MediaKind.serviceDocument ||
+                            e.kind == MediaKind.resourceFile)
+                            .length;
+                        final int photos =
                             items.where((e) => e.kind == MediaKind.photo).length;
-                        final videos =
+                        final int videos =
                             items.where((e) => e.kind == MediaKind.video).length;
+
                         return Wrap(
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            _Chip(icon: Icons.tag_rounded, text: "ID $id", color: _C.accent),
-                            _Chip(icon: Icons.picture_as_pdf_outlined, text: "$files file"),
-                            _Chip(icon: Icons.photo_outlined, text: "$photos photo${photos == 1 ? '' : 's'}"),
-                            _Chip(icon: Icons.videocam_outlined, text: "$videos video${videos == 1 ? '' : 's'}"),
+                            _Chip(
+                                icon: Icons.tag_rounded,
+                                text: "Service ID $id",
+                                color: _C.accent),
+                            _Chip(
+                                icon: Icons.person_outline_rounded,
+                                text: "User No. $userNo",
+                                color: _C.mint),
+                            _Chip(
+                                icon: Icons.inventory_2_outlined,
+                                text: "Resources: $resCount"),
+                            _Chip(
+                                icon: Icons.picture_as_pdf_outlined,
+                                text: "Files: $files"),
+                            _Chip(
+                                icon: Icons.photo_outlined,
+                                text: "Photos: $photos"),
+                            _Chip(
+                                icon: Icons.videocam_outlined,
+                                text: "Videos: $videos"),
                           ],
                         );
                       }),
@@ -652,8 +697,6 @@ class _ServiceCard extends StatelessWidget {
             ),
           ),
           Container(height: 1, color: _C.border),
-
-          // ---------------- media viewer ----------------
           Obx(() {
             final items = c.mediaFor(s);
             if (items.isEmpty) {
@@ -663,7 +706,8 @@ class _ServiceCard extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.folder_off_outlined, color: _C.muted, size: 34),
+                      Icon(Icons.folder_off_outlined,
+                          color: _C.muted, size: 34),
                       SizedBox(height: 10),
                       Text("Nothing uploaded for this service yet.",
                           textAlign: TextAlign.center,
@@ -675,64 +719,85 @@ class _ServiceCard extends StatelessWidget {
             }
 
             final int idx = c.indexFor(id, items.length);
-            final item = items[idx];
+            final ServiceMediaItem item = items[idx];
             final String url = c.buildUrl(item.path);
 
-            return LayoutBuilder(builder: (context, box) {
-              final Size screen = MediaQuery.of(context).size;
-              final double availW = math.max(box.maxWidth - 32, 120);
-              final bool isVideo = item.kind == MediaKind.video;
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: LayoutBuilder(builder: (context, box) {
+                final Size screen = MediaQuery.of(context).size;
+                final double availW = _fit(box.maxWidth, 120, box.maxWidth);
+                final bool isVideo = item.kind == MediaKind.video;
 
-              // Photos / PDFs: 50% of screen width, floored so it never
-              // collapses. Video: full available width so the player controls
-              // are scaled down as little as possible on small screens.
-              final double w = isVideo
-                  ? availW
-                  : (screen.width * 0.5)
-                  .clamp(math.min(280.0, availW), availW)
-                  .toDouble();
-              final double h = math.max(screen.height * 0.5, 240.0);
+                final double w = isVideo ? availW : math.min(availW, 760);
+                final double h = isVideo
+                    ? _fit(w * 9 / 16, 200, screen.height * .6)
+                    : _fit(w * 1.25, 260, screen.height * .7);
 
-              final IconData kindIcon = item.kind == MediaKind.file
-                  ? Icons.picture_as_pdf_outlined
-                  : item.kind == MediaKind.photo
-                  ? Icons.photo_outlined
-                  : Icons.play_circle_outline_rounded;
-
-              return Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
+                return Column(
                   children: [
+                    Text(
+                      item.title,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: _C.text,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 10),
                     Wrap(
                       alignment: WrapAlignment.center,
-                      spacing: 10,
+                      spacing: 8,
                       runSpacing: 8,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        _Chip(icon: kindIcon, text: item.label, color: _C.accent),
+                        _Chip(
+                            icon: _kindIcon(item.kind),
+                            text: item.kindLabel,
+                            color: _C.accent),
+                        _Chip(
+                            icon: Icons.tag_rounded,
+                            text: "Service ID ${item.serviceId}"),
+                        _Chip(
+                            icon: Icons.person_outline_rounded,
+                            text: "User No. $userNo",
+                            color: _C.mint),
+                        if (item.resourceId != null)
+                          _Chip(
+                              icon: Icons.inventory_outlined,
+                              text: "Resource ID ${item.resourceId}"),
                         _Chip(
                             icon: Icons.filter_none_rounded,
                             text: "${idx + 1} / ${items.length}"),
                       ],
                     ),
                     const SizedBox(height: 14),
-                    SizedBox(
-                      width: w,
-                      height: h,
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 320),
-                        switchInCurve: Curves.easeOut,
-                        transitionBuilder: (child, anim) => FadeTransition(
-                          opacity: anim,
-                          child: ScaleTransition(
-                            scale: Tween<double>(begin: .97, end: 1).animate(anim),
-                            child: child,
+                    Center(
+                      child: SizedBox(
+                        width: w,
+                        height: h,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 320),
+                          switchInCurve: Curves.easeOut,
+                          transitionBuilder: (child, anim) => FadeTransition(
+                            opacity: anim,
+                            child: ScaleTransition(
+                              scale:
+                              Tween<double>(begin: .97, end: 1).animate(anim),
+                              child: child,
+                            ),
                           ),
-                        ),
-                        child: KeyedSubtree(
-                          key: ValueKey('${id}_$idx'),
-                          child: _MediaPane(
-                              kind: item.kind, url: url, jwt: jwt, fullscreen: false),
+                          child: KeyedSubtree(
+                            key: ValueKey('${id}_$idx'),
+                            child: _MediaPane(
+                              kind: item.kind,
+                              url: url,
+                              jwt: jwt,
+                              fullscreen: false,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -758,7 +823,8 @@ class _ServiceCard extends StatelessWidget {
                               final bool on = i == idx;
                               return AnimatedContainer(
                                 duration: const Duration(milliseconds: 250),
-                                margin: const EdgeInsets.symmetric(horizontal: 3),
+                                margin:
+                                const EdgeInsets.symmetric(horizontal: 3),
                                 width: on ? 20 : 7,
                                 height: 7,
                                 decoration: BoxDecoration(
@@ -772,7 +838,8 @@ class _ServiceCard extends StatelessWidget {
                           onPressed: items.length > 1
                               ? () => c.next(id, items.length)
                               : null,
-                          icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                          icon:
+                          const Icon(Icons.chevron_right_rounded, size: 20),
                           label: const Text("Next"),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _C.accent,
@@ -781,7 +848,8 @@ class _ServiceCard extends StatelessWidget {
                             disabledForegroundColor: Colors.black38,
                             elevation: 0,
                             minimumSize: const Size(0, 44),
-                            textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                            textStyle:
+                            const TextStyle(fontWeight: FontWeight.w700),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12)),
                           ),
@@ -791,10 +859,12 @@ class _ServiceCard extends StatelessWidget {
                               ? null
                               : () => Get.dialog(
                             _FullscreenViewer(
-                                kind: item.kind,
-                                label: item.label,
-                                url: url,
-                                jwt: jwt),
+                              kind: item.kind,
+                              title: item.title,
+                              kindLabel: item.kindLabel,
+                              url: url,
+                              jwt: jwt,
+                            ),
                             barrierColor: Colors.black87,
                             useSafeArea: false,
                           ),
@@ -805,9 +875,9 @@ class _ServiceCard extends StatelessWidget {
                       ],
                     ),
                   ],
-                ),
-              );
-            });
+                );
+              }),
+            );
           }),
         ],
       ),
@@ -829,12 +899,14 @@ class _ServiceCard extends StatelessWidget {
 // =============================================================================
 class _FullscreenViewer extends StatelessWidget {
   final MediaKind kind;
-  final String label;
+  final String title;
+  final String kindLabel;
   final String url;
   final String jwt;
   const _FullscreenViewer({
     required this.kind,
-    required this.label,
+    required this.title,
+    required this.kindLabel,
     required this.url,
     required this.jwt,
   });
@@ -852,13 +924,24 @@ class _FullscreenViewer extends StatelessWidget {
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: _C.text,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  color: _C.text,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700)),
+                          Text(kindLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  color: _C.muted, fontSize: 12)),
+                        ],
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Tooltip(
@@ -871,9 +954,11 @@ class _FullscreenViewer extends StatelessWidget {
                           height: 42,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: _C.text.withOpacity(.55)),
+                            border:
+                            Border.all(color: _C.text.withOpacity(.55)),
                           ),
-                          child: const Icon(Icons.close_rounded, color: _C.text),
+                          child:
+                          const Icon(Icons.close_rounded, color: _C.text),
                         ),
                       ),
                     ),
@@ -883,7 +968,8 @@ class _FullscreenViewer extends StatelessWidget {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
-                  child: _MediaPane(kind: kind, url: url, jwt: jwt, fullscreen: true),
+                  child: _MediaPane(
+                      kind: kind, url: url, jwt: jwt, fullscreen: true),
                 ),
               ),
             ],
@@ -895,7 +981,7 @@ class _FullscreenViewer extends StatelessWidget {
 }
 
 // =============================================================================
-// MEDIA PANE — picks photo / pdf / video
+// MEDIA PANE: picks photo / pdf / other file / video
 // =============================================================================
 class _MediaPane extends StatelessWidget {
   final MediaKind kind;
@@ -914,11 +1000,12 @@ class _MediaPane extends StatelessWidget {
     Widget inner;
     if (url.isEmpty) {
       inner = const _PaneMessage(
-          icon: Icons.link_off_rounded, text: "No path returned for this item.");
+          icon: Icons.link_off_rounded,
+          text: "No path returned for this item.");
     } else {
       switch (kind) {
         case MediaKind.photo:
-          final img = Image.network(
+          final Widget img = Image.network(
             url,
             fit: BoxFit.contain,
             loadingBuilder: (context, child, p) => p == null
@@ -932,15 +1019,19 @@ class _MediaPane extends StatelessWidget {
               ),
             ),
             errorBuilder: (context, e, st) => const _PaneMessage(
-                icon: Icons.broken_image_outlined, text: "Image unavailable"),
+                icon: Icons.broken_image_outlined,
+                text: "Image unavailable"),
           );
           inner = fullscreen
               ? InteractiveViewer(
               minScale: .8, maxScale: 5, child: Center(child: img))
               : Center(child: img);
           break;
-        case MediaKind.file:
-          inner = _PdfPane(url: url, jwt: jwt);
+        case MediaKind.serviceDocument:
+        case MediaKind.resourceFile:
+          inner = isPdfPath(url)
+              ? _PdfPane(url: url, jwt: jwt)
+              : _FilePane(url: url);
           break;
         case MediaKind.video:
           inner = _VideoPane(url: url, jwt: jwt);
@@ -985,10 +1076,79 @@ class _PaneMessage extends StatelessWidget {
               const SizedBox(height: 8),
               TextButton.icon(
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded, color: _C.accent, size: 18),
-                label: const Text("Retry", style: TextStyle(color: _C.accent)),
+                icon: const Icon(Icons.refresh_rounded,
+                    color: _C.accent, size: 18),
+                label:
+                const Text("Retry", style: TextStyle(color: _C.accent)),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------- Other files ---
+/// Non-PDF resource or document. The viewer can't preview it, so the user
+/// can copy the file link instead.
+class _FilePane extends StatelessWidget {
+  final String url;
+  const _FilePane({required this.url});
+
+  String get _fileName {
+    final String clean = url.split('?').first;
+    final String name = clean.split('/').last;
+    try {
+      return Uri.decodeComponent(name);
+    } catch (_) {
+      return name;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.insert_drive_file_outlined,
+                color: _C.accent, size: 44),
+            const SizedBox(height: 12),
+            Text(
+              _fileName.isEmpty ? 'File' : _fileName,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  color: _C.text, fontSize: 14, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              "Preview is available for PDF files only.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _C.muted, fontSize: 12.5),
+            ),
+            const SizedBox(height: 14),
+            OutlinedButton.icon(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: url));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("File link copied.")),
+                );
+              },
+              icon: const Icon(Icons.copy_rounded, size: 18),
+              label: const Text("Copy file link"),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _C.text,
+                side: const BorderSide(color: _C.border, width: 1.2),
+                minimumSize: const Size(0, 44),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
           ],
         ),
       ),
@@ -1007,13 +1167,13 @@ class _PdfPane extends StatefulWidget {
 }
 
 class _PdfPaneState extends State<_PdfPane> {
-  final RxnString error = RxnString();
-  final RxInt attempt = 0.obs;
+  String? _error;
+  int _attempt = 0;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, box) {
-      // Never mount SfPdfViewer in a degenerate box (avoids its clamp crash).
+      // Never mount SfPdfViewer in a degenerate box.
       final bool ok = box.maxWidth.isFinite &&
           box.maxHeight.isFinite &&
           box.maxWidth > 0 &&
@@ -1023,38 +1183,41 @@ class _PdfPaneState extends State<_PdfPane> {
           child: SizedBox(
             width: 22,
             height: 22,
-            child: CircularProgressIndicator(strokeWidth: 2.4, color: _C.accent),
+            child:
+            CircularProgressIndicator(strokeWidth: 2.4, color: _C.accent),
           ),
         );
       }
 
-      return Obx(() {
-        if (error.value != null) {
-          return _PaneMessage(
-            icon: Icons.picture_as_pdf_outlined,
-            text: error.value!,
-            onRetry: () {
-              error.value = null;
-              attempt.value++;
-            },
-          );
-        }
-        return SfPdfViewer.network(
-          widget.url,
-          key: ValueKey('pdf_${attempt.value}'),
-          headers: {"Authorization": "Bearer ${widget.jwt}"},
-          canShowScrollHead: true,
-          canShowScrollStatus: true,
-          canShowPaginationDialog: false,
-          enableDoubleTapZooming: true,
-          pageSpacing: 4,
-          onDocumentLoadFailed: (d) {
-            error.value = d.description.isNotEmpty
+      if (_error != null) {
+        return _PaneMessage(
+          icon: Icons.picture_as_pdf_outlined,
+          text: _error!,
+          onRetry: () => setState(() {
+            _error = null;
+            _attempt++;
+          }),
+        );
+      }
+
+      return SfPdfViewer.network(
+        widget.url,
+        key: ValueKey('pdf_$_attempt'),
+        headers: {"Authorization": "Bearer ${widget.jwt}"},
+        canShowScrollHead: true,
+        canShowScrollStatus: true,
+        canShowPaginationDialog: false,
+        enableDoubleTapZooming: true,
+        pageSpacing: 4,
+        onDocumentLoadFailed: (d) {
+          if (!mounted) return;
+          setState(() {
+            _error = d.description.isNotEmpty
                 ? d.description
                 : "Failed to load this document.";
-          },
-        );
-      });
+          });
+        },
+      );
     });
   }
 }
@@ -1072,8 +1235,8 @@ class _VideoPane extends StatefulWidget {
 class _VideoPaneState extends State<_VideoPane> {
   late final Player _player;
   late final VideoController _vc;
-  final RxnString error = RxnString();
-  dynamic _errSub;
+  String? _error;
+  StreamSubscription<String>? _errSub;
 
   /// Width the media_kit controls need to lay out without overflowing.
   static const double _minControlsW = 360;
@@ -1091,7 +1254,8 @@ class _VideoPaneState extends State<_VideoPane> {
     _player = Player();
     _vc = VideoController(_player);
     _errSub = _player.stream.error.listen((e) {
-      error.value = e.isNotEmpty ? e : "Playback error.";
+      if (!mounted) return;
+      setState(() => _error = e.isNotEmpty ? e : "Playback error.");
     });
     _open();
   }
@@ -1105,41 +1269,39 @@ class _VideoPaneState extends State<_VideoPane> {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      if (error.value != null) {
-        return _PaneMessage(
-          icon: Icons.error_outline_rounded,
-          text: error.value!,
-          onRetry: () {
-            error.value = null;
-            _open();
-          },
-        );
-      }
+    if (_error != null) {
+      return _PaneMessage(
+        icon: Icons.error_outline_rounded,
+        text: _error!,
+        onRetry: () {
+          setState(() => _error = null);
+          _open();
+        },
+      );
+    }
 
-      return LayoutBuilder(builder: (context, box) {
-        final double bw = box.maxWidth;
-        final double bh = box.maxHeight;
-        final Widget video = Video(controller: _vc, fit: BoxFit.contain);
+    return LayoutBuilder(builder: (context, box) {
+      final double bw = box.maxWidth;
+      final double bh = box.maxHeight;
+      final Widget video = Video(controller: _vc, fit: BoxFit.contain);
 
-        final bool degenerate =
-            !bw.isFinite || !bh.isFinite || bw <= 0 || bh <= 0;
+      final bool degenerate =
+          !bw.isFinite || !bh.isFinite || bw <= 0 || bh <= 0;
 
-        // Wide enough (or unmeasurable): render normally.
-        if (degenerate || bw >= _minControlsW) return video;
+      // Wide enough (or unmeasurable): render normally.
+      if (degenerate || bw >= _minControlsW) return video;
 
-        // Narrower than the controls need: lay out at a safe width with the
-        // same aspect ratio as the pane, then scale everything down uniformly.
-        // Touch input still works because FittedBox transforms hit testing.
-        return FittedBox(
-          fit: BoxFit.contain,
-          child: SizedBox(
-            width: _minControlsW,
-            height: _minControlsW * bh / bw,
-            child: video,
-          ),
-        );
-      });
+      // Narrower than the controls need: lay out at a safe width with the
+      // same aspect ratio, then scale down uniformly. Touch still works
+      // because FittedBox transforms hit testing too.
+      return FittedBox(
+        fit: BoxFit.contain,
+        child: SizedBox(
+          width: _minControlsW,
+          height: _minControlsW * bh / bw,
+          child: video,
+        ),
+      );
     });
   }
 }
@@ -1176,7 +1338,9 @@ class _EmptyState extends StatelessWidget {
                 border: Border.all(color: _C.accent.withOpacity(.25)),
               ),
               child: Icon(
-                  searching ? Icons.search_off_rounded : Icons.inventory_2_outlined,
+                  searching
+                      ? Icons.search_off_rounded
+                      : Icons.inventory_2_outlined,
                   color: _C.accent,
                   size: 40),
             ),
@@ -1190,12 +1354,14 @@ class _EmptyState extends StatelessWidget {
                   ? "No service has an id containing \"$query\"."
                   : "Registered provider services will appear here.",
               textAlign: TextAlign.center,
-              style: const TextStyle(color: _C.muted, fontSize: 13.5, height: 1.5),
+              style:
+              const TextStyle(color: _C.muted, fontSize: 13.5, height: 1.5),
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
-              onPressed: searching ? onClear : onRefresh,
-              icon: Icon(searching ? Icons.close_rounded : Icons.refresh_rounded,
+              onPressed: searching ? onClear : () => onRefresh(),
+              icon: Icon(
+                  searching ? Icons.close_rounded : Icons.refresh_rounded,
                   size: 19),
               label: Text(searching ? "Clear search" : "Refresh"),
               style: ElevatedButton.styleFrom(
@@ -1205,7 +1371,8 @@ class _EmptyState extends StatelessWidget {
                 minimumSize: const Size(0, 46),
                 padding: const EdgeInsets.symmetric(horizontal: 22),
                 textStyle: const TextStyle(fontWeight: FontWeight.w700),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
               ),
             ),
           ],
@@ -1276,8 +1443,8 @@ class _SkeletonCardState extends State<_SkeletonCard>
 }
 
 // =============================================================================
-// AMBIENT BACKGROUND — blurred emerald/mint blobs + glass bubbles.
-// Wrapped in IgnorePointer by the caller, so it can never block taps.
+// AMBIENT BACKGROUND: blurred emerald/mint blobs + glass bubbles.
+// Wrapped in IgnorePointer by the caller, so it never blocks taps.
 // =============================================================================
 class _AmbientBackground extends StatelessWidget {
   const _AmbientBackground();
@@ -1297,8 +1464,8 @@ class _AmbientBackground extends StatelessWidget {
       top: top,
       bottom: bottom,
       child: ImageFiltered(
-        imageFilter: ImageFilter.blur(
-            sigmaX: 45, sigmaY: 45, tileMode: TileMode.decal),
+        imageFilter:
+        ImageFilter.blur(sigmaX: 45, sigmaY: 45, tileMode: TileMode.decal),
         child: Container(
           width: size,
           height: size,
@@ -1333,7 +1500,10 @@ class _AmbientBackground extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Colors.white.withOpacity(.07), Colors.white.withOpacity(.01)],
+            colors: [
+              Colors.white.withOpacity(.07),
+              Colors.white.withOpacity(.01)
+            ],
           ),
           border: Border.all(color: Colors.white.withOpacity(.07)),
         ),
@@ -1352,13 +1522,40 @@ class _AmbientBackground extends StatelessWidget {
 
         return Stack(
           children: [
-            _blob(left: -w * .18, top: -h * .12, size: base * .70, color: _C.accent, opacity: .16),
-            _blob(right: -w * .22, top: h * .28, size: base * .60, color: _C.mint, opacity: .12),
-            _blob(left: w * .08, bottom: -h * .22, size: base * .75, color: _C.accent, opacity: .12),
-            _bubble(right: w * .10, top: h * .06, size: (small * .16).clamp(40.0, 150.0)),
-            _bubble(left: w * .06, top: h * .42, size: (small * .10).clamp(28.0, 100.0)),
-            _bubble(right: w * .18, bottom: h * .10, size: (small * .20).clamp(50.0, 190.0)),
-            _bubble(left: w * .40, bottom: h * .04, size: (small * .07).clamp(20.0, 70.0)),
+            _blob(
+                left: -w * .18,
+                top: -h * .12,
+                size: base * .70,
+                color: _C.accent,
+                opacity: .16),
+            _blob(
+                right: -w * .22,
+                top: h * .28,
+                size: base * .60,
+                color: _C.mint,
+                opacity: .12),
+            _blob(
+                left: w * .08,
+                bottom: -h * .22,
+                size: base * .75,
+                color: _C.accent,
+                opacity: .12),
+            _bubble(
+                right: w * .10,
+                top: h * .06,
+                size: _fit(small * .16, 40, 150)),
+            _bubble(
+                left: w * .06,
+                top: h * .42,
+                size: _fit(small * .10, 28, 100)),
+            _bubble(
+                right: w * .18,
+                bottom: h * .10,
+                size: _fit(small * .20, 50, 190)),
+            _bubble(
+                left: w * .40,
+                bottom: h * .04,
+                size: _fit(small * .07, 20, 70)),
           ],
         );
       }),

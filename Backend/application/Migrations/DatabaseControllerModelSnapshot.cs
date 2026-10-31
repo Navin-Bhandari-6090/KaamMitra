@@ -121,6 +121,12 @@ namespace application.Migrations
                     b.Property<double>("AdvancePaymentAmount")
                         .HasColumnType("double precision");
 
+                    b.Property<string>("BookingFile")
+                        .HasColumnType("text");
+
+                    b.Property<string>("BookingVideo")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -232,6 +238,28 @@ namespace application.Migrations
                     b.ToTable("FooterInfos");
                 });
 
+            modelBuilder.Entity("application.Models.NewMessageInfosModel", b =>
+                {
+                    b.Property<int>("NewMsgId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("NewMsgId"));
+
+                    b.Property<int>("MessageReceiverNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MessageSenderNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("Status")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("NewMsgId");
+
+                    b.ToTable("NewMessageStatusInfos");
+                });
+
             modelBuilder.Entity("application.Models.NewNotificationInfoModel", b =>
                 {
                     b.Property<int>("NewNotId")
@@ -315,7 +343,15 @@ namespace application.Migrations
                     b.Property<int>("ProviderServiceId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("ServiceFile")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("ServicePhoto")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ServiceTitle")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -425,6 +461,41 @@ namespace application.Migrations
                     b.HasKey("ServiceId");
 
                     b.ToTable("ServiceInfos");
+                });
+
+            modelBuilder.Entity("application.Models.SharedMediaModel", b =>
+                {
+                    b.Property<int>("SharedMediaId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("SharedMediaId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("MediaDescription")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("ReceiverNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SenderNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ServiceFile")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ServicePhoto")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ServiceVideo")
+                        .HasColumnType("text");
+
+                    b.HasKey("SharedMediaId");
+
+                    b.ToTable("SharedMediaInfos");
                 });
 
             modelBuilder.Entity("application.Models.UserInfo", b =>

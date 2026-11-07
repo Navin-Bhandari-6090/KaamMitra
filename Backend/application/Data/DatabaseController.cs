@@ -45,6 +45,8 @@ namespace application.Data
 
         public DbSet<SharedMediaModel> SharedMediaInfos { get; set; }
 
-   
+        public DbSet<BlackListUsersModel> BlaclistUsers { get; set; }
+
+
     }
 }

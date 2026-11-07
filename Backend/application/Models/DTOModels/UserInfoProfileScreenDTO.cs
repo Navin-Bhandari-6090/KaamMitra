@@ -53,6 +53,9 @@ namespace application.Models.DTOModels
         [Required]
         public bool LoginAccess { get; set; } = true;
 
+        [Required]
+        public bool Status { get; set; } = true;
+
 
     }
 }

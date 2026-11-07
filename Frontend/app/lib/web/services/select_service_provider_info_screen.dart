@@ -1,22 +1,15 @@
-
 import 'package:app/web/common%20widget/GreenTextfield.dart';
-import 'package:app/web/common%20widget/toast.dart';
+
 import 'package:app/web/services/services_provider_service_select.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
-import 'package:velocity_x/velocity_x.dart';
 
 import '../../constant/Server_Database.dart';
-import '../../constant/variable.dart';
 import '../../models/ServiceScreenServiceModel.dart';
-
 import '../../models/ServiceScreenUserInfoModel.dart';
 import '../../state management/getx/services/select_service_provider_info_screen_getx.dart';
-import '../authentication/Error_page.dart';
+import '../../constant/variable.dart';
 import '../common method/Commmon_Method.dart';
-
-
 
 /// ---------------------------------------------------------------------------
 /// THEME TOKENS (dark green, modern) — matches Header.dart / ProviderProfile.dart
@@ -35,6 +28,8 @@ class _Theme {
 
   static const Color emerald = Color(0xFF22C55E);
   static const Color mint = Color(0xFF34D399);
+  static const Color amber = Color(0xFFFBBF24);
+  static const Color danger = Color(0xFFF87171);
 
   static const Color border = Color(0xFF234232);
 }
@@ -53,20 +48,21 @@ class SelectServiceProviderInfoScreen extends StatefulWidget {
   final List<ServiceScreenServiceModel> Service_info_List;
   final List<ServiceScreenUserInfoModel> Provider_info_List;
 
-  const SelectServiceProviderInfoScreen(
-      {super.key,
-        required this.Current_User_Email,
-        required this.Current_User_JwtToken,
-        required this.Current_User_Role,
-        required this.Distance,
-        required this.Rating,
-        required this.Provider_User_Email,
-        required this.Service_info_List,
-        required this.Provider_info_List,
-        required this.Provider_Service_Name,
-        required this.Providernumber,
-        required this.ServiceId, required this.ProRegServiceDescription
-      });
+  const SelectServiceProviderInfoScreen({
+    super.key,
+    required this.Current_User_Email,
+    required this.Current_User_JwtToken,
+    required this.Current_User_Role,
+    required this.Distance,
+    required this.Rating,
+    required this.Provider_User_Email,
+    required this.Service_info_List,
+    required this.Provider_info_List,
+    required this.Provider_Service_Name,
+    required this.Providernumber,
+    required this.ServiceId,
+    required this.ProRegServiceDescription,
+  });
 
   @override
   State<SelectServiceProviderInfoScreen> createState() =>
@@ -84,15 +80,18 @@ class _SelectServiceProviderInfoScreenState
   late final Animation<double> _servicesAnim;
   late final Animation<double> _actionsAnim;
 
-  final UserBookingDescriptionTextCont=TextEditingController();
-
-  final Toast=Toastget();
+  final UserBookingDescriptionTextCont = TextEditingController();
 
   @override
-  void initState()
-  {
+  void initState() {
     super.initState();
-    Provider_User_Jwt_Verify(Jwt_Token: widget.Current_User_JwtToken, context: context);
+
+    // API call lives in the controller now.
+    providerCont.verifySession(
+      jwtToken: widget.Current_User_JwtToken,
+      context: context,
+    );
+
     _entranceController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -116,303 +115,115 @@ class _SelectServiceProviderInfoScreenState
     _entranceController.forward();
   }
 
-
-
-
   @override
-  void dispose()
-  {
+  void dispose() {
     _entranceController.dispose();
+    UserBookingDescriptionTextCont.dispose();
     super.dispose();
   }
 
+  // ============================================================
+  // DATA HELPERS (UI only)
+  // ============================================================
 
-  Future<bool> _confirmBooking() async {
-    try {
-      final bool? result = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (dialogContext) {
-          return AlertDialog(
-            backgroundColor: _Theme.surface,
-            scrollable: true,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-              side: const BorderSide(color: _Theme.border),
-            ),
-            title: Row(
-              children: [
-                const Icon(Icons.event_available_rounded,
-                    color: _Theme.mint),
-                const SizedBox(width: 10),
-                const Flexible(
-                  child: Text(
-                    "Confirm booking?",
-                    style: TextStyle(
-                      color: _Theme.primaryText,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            content: Text(
-              "You are about to book \"${widget.Provider_Service_Name}\" "
-                  "from provider #${widget.Providernumber}.\n\n"
-                  "The description you entered cannot be updated later.",
-              style: const TextStyle(
-                color: _Theme.mutedText,
-                height: 1.5,
-                fontSize: 13.5,
-              ),
-            ),
-            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text(
-                  "Cancel",
-                  style: TextStyle(color: _Theme.mutedTextAlt),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _Theme.emerald,
-                  foregroundColor: Colors.black,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: const Text("Confirm"),
-              ),
-            ],
-          );
-        },
-      );
-      return result == true;
-    } catch (obj) {
-      print(obj.toString());
-      return false;
-    }
-  }
-
-
-
-  ServiceScreenUserInfoModel? get _provider
-  {
-
-    for (final p in widget.Provider_info_List)
-    {
+  ServiceScreenUserInfoModel? get _provider {
+    for (final p in widget.Provider_info_List) {
       if (p.userNumber == widget.Providernumber) return p;
     }
     return null;
-
   }
 
-  List<ServiceScreenServiceModel> get _providerServices
-  {
-
+  List<ServiceScreenServiceModel> get _providerServices {
     return widget.Service_info_List
         .where((s) => s.userNumber == widget.Providernumber)
         .toList();
-
   }
 
-  /// Same pattern as the profile screen's GetPhotoUrl — builds a full
-  /// image URL from a stored relative photo path.
-  String GetPhotoUrl(String photoPath)
-  {
-    if (photoPath.isEmpty) {
-      return "";
-    }
+  /// Builds a full image URL from a stored relative photo path.
+  String GetPhotoUrl(String photoPath) {
+    if (photoPath.trim().isEmpty) return "";
 
     final baseUrl = Backend_Server_Url.endsWith("/")
         ? Backend_Server_Url.substring(0, Backend_Server_Url.length - 1)
         : Backend_Server_Url;
 
     final path = photoPath.startsWith("/") ? photoPath : "/$photoPath";
-
     return "$baseUrl$path";
   }
 
+  // ============================================================
+  // CONFIRM DIALOG (UI only)
+  // ============================================================
 
-
-  Future<int> AddBookingInfo({
-    required String Current_User_JwtToken,
-    required double Distance,
-    required num ProviderNumber,
-    required String ServiceName,
-    required bool ProviderApprovalStatus,
-    required bool ProviderTaskCompleteStatus,
-    required bool UserTaskCompleteStatus,
-    required bool UserApprovalStatus,
-    required String UserBookingDescription,
-    required num ServiceId,
-    required List<int>? FileBytes,
-    required List<int>? VideoBytes,
-    required String? FileExtension,
-    required String? VideoExtension,
-  }) async {
-    try {
-      // 1. API URL
-      const String url =
-          Backend_Server_Url + "api/Service/addbookinginfo";
-
-      // 2. Create multipart request
-      final request = http.MultipartRequest(
-        "POST",
-        Uri.parse(url),
-      );
-
-      // 3. Authorization
-      request.headers["Authorization"] =
-      "Bearer $Current_User_JwtToken";
-
-      // 4. Booking fields
-      request.fields["Distance"] = Distance.toString();
-      request.fields["ServiceName"] = ServiceName;
-      request.fields["ProviderApprovalStatus"] =
-          ProviderApprovalStatus.toString();
-      request.fields["ProviderTaskCompleteStatus"] =
-          ProviderTaskCompleteStatus.toString();
-      request.fields["UserTaskCompleteStatus"] =
-          UserTaskCompleteStatus.toString();
-      request.fields["UserApprovalStatus"] =
-          UserApprovalStatus.toString();
-      request.fields["UserBookingDescription"] =
-          UserBookingDescription;
-      request.fields["ServiceId"] = ServiceId.toString();
-      request.fields["ProviderNumber"] = ProviderNumber.toString();
-
-      // Required DTO fields
-      request.fields["CreatedAt"] =
-          DateTime.now().toUtc().toIso8601String();
-      request.fields["RequiredAdvancePayment"] = "false";
-
-      // 5. Optional booking file
-      if (FileBytes != null && FileBytes.isNotEmpty) {
-        String extension = (FileExtension ?? "").trim();
-
-        if (extension.startsWith(".")) {
-          extension = extension.substring(1);
-        }
-
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            "BookingFile",
-            FileBytes,
-            filename: extension.isNotEmpty
-                ? "booking_file.$extension"
-                : "booking_file",
+  Future<bool> _confirmBooking() async {
+    final bool? result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: _Theme.surface,
+          scrollable: true,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: _Theme.border),
           ),
-        );
-      }
-
-      // 6. Optional booking video
-      if (VideoBytes != null && VideoBytes.isNotEmpty) {
-        String extension = (VideoExtension ?? "").trim();
-
-        if (extension.startsWith(".")) {
-          extension = extension.substring(1);
-        }
-
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            "BookingVideo",
-            VideoBytes,
-            filename: extension.isNotEmpty
-                ? "booking_video.$extension"
-                : "booking_video",
+          title: Row(
+            children: [
+              const Icon(Icons.event_available_rounded, color: _Theme.mint),
+              const SizedBox(width: 10),
+              const Flexible(
+                child: Text(
+                  "Confirm booking?",
+                  style: TextStyle(
+                    color: _Theme.primaryText,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
-        );
-      }
-
-      // 7. Send request
-      final streamedResponse = await request.send();
-
-      final response = await http.Response.fromStream(
-        streamedResponse,
-      );
-
-      // 8. Handle response status codes
-      switch (response.statusCode) {
-        case 200:
-          Toast.Toastmsg("Booking success.");
-          return 1;
-
-        case 400:
-          Toast.Toastmsg(
-            "Invalid booking data. Please check your information.",
-          );
-          return 2;
-
-        case 401:
-          Toast.Toastmsg(
-            "Unauthorized. Please log in again.",
-          );
-          return 3;
-
-        case 403:
-          Toast.Toastmsg(
-            "You are not authorized to create this booking.",
-          );
-          return 4;
-
-        case 500:
-          Toast.Toastmsg(
-            "Booking failed. Server error. Please try again.",
-          );
-          return 5;
-
-        case 502:
-          Toast.Toastmsg(
-            "Current user doesn't match.",
-          );
-
-          await Clear_User_Data();
-          await Random_token_Clear();
-
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ErrorPage(),
+          content: Text(
+            "You are about to book \"${valueOrNA(widget.Provider_Service_Name)}\" "
+                "from provider #${widget.Providernumber}.\n\n"
+                "The description you entered cannot be updated later.",
+            style: const TextStyle(
+              color: _Theme.mutedText,
+              height: 1.5,
+              fontSize: 13.5,
             ),
-                (route) => false,
-          );
-
-          Toastget().Toastmsg(
-            "Session ended. Please log in again.",
-          );
-          return 6;
-
-        case 503:
-          Toast.Toastmsg(
-            "Provider not found. Choose a different provider.",
-          );
-          return 7;
-
-        case 506:
-          Toast.Toastmsg(
-            "You have been blocked by the system. Contact KaamMitra support.",
-          );
-          return 8;
-
-        default:
-          Toast.Toastmsg(
-            "Booking failed. Please try again later.",
-          );
-          return 9;
-      }
-    } catch (e) {
-      Toast.Toastmsg(
-        "Unable to create booking. Please check your connection and try again.",
-      );
-      return 10;
-    }
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text(
+                "Cancel",
+                style: TextStyle(color: _Theme.mutedTextAlt),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _Theme.emerald,
+                foregroundColor: Colors.black,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text("Confirm"),
+            ),
+          ],
+        );
+      },
+    );
+    return result == true;
   }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -429,25 +240,17 @@ class _SelectServiceProviderInfoScreenState
     final provider = _provider;
     final services = _providerServices;
 
-    final String firstName = provider?.firstName ?? "";
-    final String lastName = provider?.lastName ?? "";
-    final String fullName = "$firstName $lastName".trim();
+    final String fullName =
+    "${provider?.firstName ?? ""} ${provider?.lastName ?? ""}".trim();
     final String phone = provider?.phoneNumber ?? "";
     final String whatsapp = provider?.whatsappPhoneNumber ?? "";
-    final String photoUrl = GetPhotoUrl(provider?.photo ?? "");
+    final bool? status = provider?.status;
 
     return Scaffold(
       backgroundColor: _Theme.bgTop,
       body: Stack(
-
-        children:
-
-        [
-          // ====================================================
-          // FIXED FULL-HEIGHT BACKGROUND — base gradient + soft
-          // ambient bubbles that stay put behind the scrolling
-          // content, always covering the full device height.
-          // ====================================================
+        children: [
+          // Fixed background gradient
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
@@ -460,6 +263,7 @@ class _SelectServiceProviderInfoScreenState
               ),
             ),
           ),
+          // Ambient bubbles
           Positioned.fill(
             child: IgnorePointer(
               child: Stack(
@@ -484,21 +288,18 @@ class _SelectServiceProviderInfoScreenState
             ),
           ),
 
-          // ====================================================
-          // CONTENT
-          // ====================================================
+          // Content
           SafeArea(
             child: LayoutBuilder(
               builder: (context, outerConstraints) {
                 return SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                        minHeight: outerConstraints.maxHeight),
+                    constraints:
+                    BoxConstraints(minHeight: outerConstraints.maxHeight),
                     child: Center(
                       child: ConstrainedBox(
-                        constraints:
-                        BoxConstraints(maxWidth: contentMaxWidth),
+                        constraints: BoxConstraints(maxWidth: contentMaxWidth),
                         child: Padding(
                           padding: EdgeInsets.symmetric(
                             horizontal: horizontalPadding,
@@ -507,35 +308,22 @@ class _SelectServiceProviderInfoScreenState
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // ========================================
-                              // BACK ROW
-                              // ========================================
                               _buildBackRow(context, isMobile),
-
                               SizedBox(height: isMobile ? 20 : 28),
 
                               if (provider == null)
                                 _notFoundCard()
                               else ...[
-                                // ====================================
-                                // HERO — avatar, name, contact chips
-                                // ====================================
                                 _animatedSection(
                                   animation: _heroAnim,
                                   child: _buildHero(
                                     isMobile: isMobile,
                                     fullName: fullName,
-                                    phone: phone,
-                                    whatsapp: whatsapp,
-                                    photoUrl: photoUrl,
+                                    status: status,
                                   ),
                                 ),
-
                                 SizedBox(height: isMobile ? 18 : 24),
 
-                                // ====================================
-                                // STATS — distance, rating, services count
-                                // ====================================
                                 _animatedSection(
                                   animation: _statsAnim,
                                   child: _buildStatsRow(
@@ -543,57 +331,37 @@ class _SelectServiceProviderInfoScreenState
                                     serviceCount: services.length,
                                   ),
                                 ),
+                                SizedBox(height: isMobile ? 18 : 24),
+
+                                _animatedSection(
+                                  animation: _statsAnim,
+                                  child: _buildAboutCard(
+                                    isMobile: isMobile,
+                                    phone: phone,
+                                    whatsapp: whatsapp,
+                                  ),
+                                ),
 
                                 SizedBox(height: isMobile ? 18 : 24),
 
-                                // ====================================
-                                // SERVICES OFFERED
-                                // ====================================
                                 _animatedSection(
                                   animation: _servicesAnim,
                                   child: _buildServicesCard(
-                                      isMobile: isMobile, services: services),
-                                ),
-
-                                SizedBox(height: isMobile ? 22 : 28),
-
-                                Text("Please describe all the details of the service you want to book.You cannot update later on.File and video are optional.",style: TextStyle(
-                                  color: Colors.red
-                                ),),
-
-                                SizedBox(height: isMobile ? 22 : 28),
-
-                                  GreenField(controller: UserBookingDescriptionTextCont,
-                                      label: "Enter all the details that you need.",
-                                      icon: Icons.info,
-                                    keyboardType: TextInputType.multiline,
-                                    obscure: false,
-                                    height: 100,
+                                    isMobile: isMobile,
+                                    services: services,
                                   ),
+                                ),
+                                SizedBox(height: isMobile ? 18 : 24),
 
-                                SizedBox(height: isMobile ? 22 : 28),
+                                _animatedSection(
+                                  animation: _servicesAnim,
+                                  child: _buildBookingCard(isMobile: isMobile),
+                                ),
+                                SizedBox(height: isMobile ? 18 : 24),
 
-                                ElevatedButton(onPressed: ()async{
-                                  await PickFile();
-                                }, child: Text("Pick file.")),
-
-
-                                SizedBox(height: isMobile ? 22 : 28),
-
-                                ElevatedButton(onPressed: ()async
-                                {
-                                  await PickVideo();
-                                }, child: Text("Pick video.")),
-
-
-                                SizedBox(height: isMobile ? 22 : 28),
-
-                                // ====================================
-                                // ACTIONS — gallery + book
-                                // ====================================
                                 _animatedSection(
                                   animation: _actionsAnim,
-                                  child: _buildActions(isMobile),
+                                  child: _buildActions(isMobile, status),
                                 ),
                               ],
 
@@ -608,13 +376,7 @@ class _SelectServiceProviderInfoScreenState
               },
             ),
           ),
-
-
-
         ],
-
-
-
       ),
     );
   }
@@ -624,7 +386,7 @@ class _SelectServiceProviderInfoScreenState
       height: size,
       width: size,
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(size / 2),
         gradient: RadialGradient(
           colors: [
             color.withOpacity(opacity),
@@ -635,10 +397,6 @@ class _SelectServiceProviderInfoScreenState
       ),
     );
   }
-
-  // ============================================================
-  // ANIMATED SECTION WRAPPER
-  // ============================================================
 
   Widget _animatedSection({
     required Animation<double> animation,
@@ -703,7 +461,7 @@ class _SelectServiceProviderInfoScreenState
   }
 
   // ============================================================
-  // NOT FOUND (defensive — provider absent from Provider_info_List)
+  // NOT FOUND
   // ============================================================
 
   Widget _notFoundCard() {
@@ -730,7 +488,7 @@ class _SelectServiceProviderInfoScreenState
             ),
           ),
           const SizedBox(height: 6),
-          Text(
+          const Text(
             "We couldn't find profile details for this provider.",
             textAlign: TextAlign.center,
             style: TextStyle(color: _Theme.mutedText, fontSize: 12.5),
@@ -741,16 +499,17 @@ class _SelectServiceProviderInfoScreenState
   }
 
   // ============================================================
-  // HERO — avatar + name + contact chips
+  // HERO
   // ============================================================
 
   Widget _buildHero({
     required bool isMobile,
     required String fullName,
-    required String phone,
-    required String whatsapp,
-    required String photoUrl,
+    required bool? status,
   }) {
+    final String serviceName = valueOrNA(widget.Provider_Service_Name);
+    final bool serviceMissing = serviceName == kDataNotAvailable;
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.all(isMobile ? 20 : 28),
@@ -773,149 +532,48 @@ class _SelectServiceProviderInfoScreenState
       child: LayoutBuilder(
         builder: (context, constraints) {
           final bool compact = constraints.maxWidth < 520;
-          final avatar = Container(
-            height: 96,
-            width: 96,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  _Theme.emerald.withOpacity(0.22),
-                  _Theme.emerald.withOpacity(0.02),
-                  Colors.transparent,
-                ],
-              ),
-            ),
-            child: Container(
-              height: 78,
-              width: 78,
-              padding: const EdgeInsets.all(2.5),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border:
-                Border.all(color: _Theme.emerald.withOpacity(0.35), width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: _Theme.emerald.withOpacity(0.12),
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: ClipOval(
-                child: Container(
-                  color: _Theme.surface,
-                  child: photoUrl.isEmpty
-                      ? const Icon(Icons.person_rounded,
-                      color: _Theme.mint, size: 34)
-                      : Image.network(
-                    photoUrl,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, loadingProgress)
-                    {
-                      if (loadingProgress == null) return child;
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          color: _Theme.emerald,
-                          strokeWidth: 2.2,
-                        ),
-                      );
-                    },
-                    errorBuilder: (context, error, stackTrace) {
-                      return const Icon(Icons.person_rounded,
-                          color: _Theme.mint, size: 34);
-                    },
-                  ),
-                ),
-              ),
-            ),
-          );
+          final CrossAxisAlignment align =
+          compact ? CrossAxisAlignment.center : CrossAxisAlignment.start;
+          final TextAlign textAlign =
+          compact ? TextAlign.center : TextAlign.start;
+
+          final avatar = _buildAvatar();
 
           final info = Column(
-            crossAxisAlignment:
-            compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+            crossAxisAlignment: align,
             children: [
-
-              Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  color: _Theme.emerald.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(50),
-                  border: Border.all(color: _Theme.emerald.withOpacity(0.20)),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.verified_rounded, color: _Theme.mint, size: 14),
-                    SizedBox(width: 7),
-                    Text(
-                      "Verified provider",
-                      style: TextStyle(
-                        color: _Theme.mint,
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
+              _pill(
+                icon: Icons.verified_rounded,
+                text: "Provider profile",
+                color: _Theme.mint,
               ),
               const SizedBox(height: 14),
               Text(
-                fullName.isEmpty ? "Service provider" : fullName,
-                textAlign: compact ? TextAlign.center : TextAlign.start,
+                fullName.isEmpty ? kDataNotAvailable : fullName,
+                textAlign: textAlign,
                 style: TextStyle(
-                  color: _Theme.primaryText,
+                  color: fullName.isEmpty
+                      ? _Theme.mutedText
+                      : _Theme.primaryText,
                   fontSize: isMobile ? 22 : 26,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.6,
                 ),
               ),
-              // const SizedBox(height: 12),
-
-              //contact info
-              // Wrap(
-              //   alignment:
-              //   compact ? WrapAlignment.center : WrapAlignment.start,
-              //   spacing: 10,
-              //   runSpacing: 10,
-              //   children: [
-              //     if (phone.isNotEmpty)
-              //       _contactChip(Icons.call_rounded, "Phone Number : ${phone}"),
-              //     if (whatsapp.isNotEmpty)
-              //       _contactChip(Icons.chat_rounded, "Whatsapp : ${whatsapp}"),
-              //   ],
-              // ),
-
-              const SizedBox(height: 12),
-              Text(
-                widget.Provider_Service_Name.isEmpty ? "Service provider name not found" : widget.Provider_Service_Name,
-                textAlign: compact ? TextAlign.center : TextAlign.start,
-                style: TextStyle(
-                  color: _Theme.primaryText,
-                  fontSize: isMobile ? 22 : 26,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.6,
-                ),
+              const SizedBox(height: 10),
+              Wrap(
+                alignment: compact ? WrapAlignment.center : WrapAlignment.start,
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _statusPill(status),
+                  _pill(
+                    icon: Icons.design_services_rounded,
+                    text: serviceName,
+                    color: serviceMissing ? _Theme.mutedText : _Theme.mint,
+                  ),
+                ],
               ),
-
-              const SizedBox(height: 12),
-
-              Text(
-                "Provider Service Description:${widget.ProRegServiceDescription.isEmpty ? "Service description from provider not found" : widget.ProRegServiceDescription}",
-                textAlign: compact ? TextAlign.center : TextAlign.start,
-                style: TextStyle(
-                  color: _Theme.primaryText,
-                  fontSize: isMobile ? 22 : 26,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.6,
-                ),
-              ),
-
-
-
-
             ],
           );
 
@@ -942,25 +600,116 @@ class _SelectServiceProviderInfoScreenState
     );
   }
 
-  Widget _contactChip(IconData icon, String text) {
+
+  Widget _buildAvatar() {
+    final provider = _provider;
+    final photoUrl = GetPhotoUrl(provider?.photo ?? "");
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      height: 96,
+      width: 96,
+      alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: _Theme.surfaceBar,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _Theme.border),
+        borderRadius: BorderRadius.circular(48),
+        gradient: RadialGradient(
+          colors: [
+            _Theme.emerald.withOpacity(0.22),
+            _Theme.emerald.withOpacity(0.02),
+            Colors.transparent,
+          ],
+        ),
+      ),
+      child: Container(
+        height: 78,
+        width: 78,
+        padding: const EdgeInsets.all(2.5),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(39),
+          border: Border.all(color: _Theme.emerald.withOpacity(0.35), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: _Theme.emerald.withOpacity(0.12),
+              blurRadius: 20,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(39),
+          child: Container(
+            color: _Theme.surface,
+            child: photoUrl.isEmpty
+                ? const Icon(Icons.person_rounded, color: _Theme.mint, size: 34)
+                : Image.network(
+              photoUrl,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return const Center(
+                  child: CircularProgressIndicator(
+                    color: _Theme.emerald,
+                    strokeWidth: 2.2,
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return const Icon(Icons.person_rounded,
+                    color: _Theme.mint, size: 34);
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _statusPill(bool? status) {
+    if (status == null) {
+      return _pill(
+        icon: Icons.info_outline_rounded,
+        text: kDataNotAvailable,
+        color: _Theme.mutedText,
+      );
+    }
+    return status
+        ? _pill(
+      icon: Icons.lock_clock_rounded,
+      text: "Reserved",
+      color: _Theme.danger,
+    )
+        : _pill(
+      icon: Icons.check_circle_rounded,
+      text: "Available",
+      color: _Theme.emerald,
+    );
+  }
+
+  Widget _pill({
+    required IconData icon,
+    required String text,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(50),
+        border: Border.all(color: color.withOpacity(0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: _Theme.mint, size: 15),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: const TextStyle(
-              color: _Theme.primaryText,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
+          Icon(icon, color: color, size: 14),
+          const SizedBox(width: 7),
+          Flexible(
+            child: Text(
+              text,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -969,7 +718,7 @@ class _SelectServiceProviderInfoScreenState
   }
 
   // ============================================================
-  // STATS ROW — distance, rating, service count
+  // STATS
   // ============================================================
 
   Widget _buildStatsRow({required bool isMobile, required int serviceCount}) {
@@ -984,23 +733,23 @@ class _SelectServiceProviderInfoScreenState
           _statCard(
             icon: Icons.location_on_rounded,
             label: "Distance",
-            value: "${widget.Distance.toStringAsFixed(1)} km",
+            value: widget.Distance > 0
+                ? "${widget.Distance.toStringAsFixed(1)} km"
+                : kDataNotAvailable,
           ),
           _statCard(
             icon: Icons.star_rounded,
-            iconColor: const Color(0xFFFBBF24),
+            iconColor: _Theme.amber,
             label: "Rating",
             value: widget.Rating > 0
                 ? widget.Rating.toStringAsFixed(1)
-                : "New",
-            trailing: widget.Rating > 0
-                ? _starRow(fullStars, hasHalfStar)
-                : null,
+                : "No ratings yet",
+            trailing: widget.Rating > 0 ? _starRow(fullStars, hasHalfStar) : null,
           ),
           _statCard(
             icon: Icons.design_services_rounded,
             label: "Services",
-            value: "$serviceCount",
+            value: serviceCount > 0 ? "$serviceCount" : kDataNotAvailable,
           ),
         ];
 
@@ -1039,7 +788,7 @@ class _SelectServiceProviderInfoScreenState
         } else {
           icon = Icons.star_border_rounded;
         }
-        return Icon(icon, color: const Color(0xFFFBBF24), size: 13);
+        return Icon(icon, color: _Theme.amber, size: 13);
       }),
     );
   }
@@ -1051,6 +800,8 @@ class _SelectServiceProviderInfoScreenState
     Color iconColor = _Theme.mint,
     Widget? trailing,
   }) {
+    final bool missing = value == kDataNotAvailable;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -1090,20 +841,20 @@ class _SelectServiceProviderInfoScreenState
                   ),
                 ),
                 const SizedBox(height: 3),
-                Row(
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
                   children: [
                     Text(
                       value,
-                      style: const TextStyle(
-                        color: _Theme.primaryText,
-                        fontSize: 15,
+                      style: TextStyle(
+                        color: missing ? _Theme.mutedText : _Theme.primaryText,
+                        fontSize: missing ? 12.5 : 15,
                         fontWeight: FontWeight.w800,
+                        fontStyle: missing ? FontStyle.italic : FontStyle.normal,
                       ),
                     ),
-                    if (trailing != null) ...[
-                      const SizedBox(width: 8),
-                      trailing,
-                    ],
+                    if (trailing != null) trailing,
                   ],
                 ),
               ],
@@ -1115,106 +866,435 @@ class _SelectServiceProviderInfoScreenState
   }
 
   // ============================================================
-  // SERVICES OFFERED
+  // ABOUT + CONTACT
   // ============================================================
 
-  Widget _buildServicesCard({
+  Widget _buildAboutCard({
     required bool isMobile,
-    required List<ServiceScreenServiceModel> services,
+    required String phone,
+    required String whatsapp,
   }) {
+    final String description = valueOrNA(widget.ProRegServiceDescription);
+
+    return _sectionCard(
+      isMobile: isMobile,
+      icon: Icons.info_outline_rounded,
+      title: "About this service",
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final bool twoCol = constraints.maxWidth >= 480;
+
+          final descriptionBox = _infoBlock(
+            label: "Service description",
+            value: description,
+          );
+
+          final contactBox = Column(
+            children: [
+              _contactRow(
+                icon: Icons.phone_rounded,
+                label: "Phone",
+                value: valueOrNA(phone),
+              ),
+            ],
+          );
+
+          if (twoCol) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 3, child: descriptionBox),
+                const SizedBox(width: 14),
+                Expanded(flex: 2, child: contactBox),
+              ],
+            );
+          }
+
+          return Column(
+            children: [
+              descriptionBox,
+              const SizedBox(height: 14),
+              contactBox,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _infoBlock({required String label, required String value}) {
+    final bool missing = value == kDataNotAvailable;
+
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(isMobile ? 16 : 22),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: _Theme.surface,
-        borderRadius: BorderRadius.circular(22),
+        color: _Theme.surfaceBar,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _Theme.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(9),
-                decoration: BoxDecoration(
-                  color: _Theme.emerald.withOpacity(0.10),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.engineering_rounded,
-                    color: _Theme.mint, size: 18),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  "Services offered",
-                  style: TextStyle(
-                    color: _Theme.primaryText,
-                    fontSize: isMobile ? 15.5 : 17,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          if (services.isEmpty)
-            Text(
-              "No services listed yet.",
-              style: TextStyle(color: _Theme.mutedText, fontSize: 12.5),
-            )
-          else
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: services.map((s) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 11),
-                  decoration: BoxDecoration(
-                    color: _Theme.surfaceBar,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: _Theme.border),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.check_circle_rounded,
-                          color: _Theme.mint, size: 15),
-                      const SizedBox(width: 8),
-                      Text(
-                        s.serviceName ?? "Service",
-                        style: const TextStyle(
-                          color: _Theme.primaryText,
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
+          Text(
+            label,
+            style: const TextStyle(
+              color: _Theme.mutedTextAlt,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
             ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              color: missing ? _Theme.mutedText : _Theme.primaryText,
+              fontSize: 13.5,
+              height: 1.5,
+              fontWeight: FontWeight.w500,
+              fontStyle: missing ? FontStyle.italic : FontStyle.normal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _contactRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    final bool missing = value == kDataNotAvailable;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: _Theme.surfaceBar,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _Theme.border),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: _Theme.mint, size: 16),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: _Theme.mutedTextAlt,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: missing ? _Theme.mutedText : _Theme.primaryText,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    fontStyle: missing ? FontStyle.italic : FontStyle.normal,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
   // ============================================================
-  // ACTIONS — My gallery + Book
+  // SERVICES
   // ============================================================
 
-  Widget _buildActions(bool isMobile) {
+  Widget _buildServicesCard({
+    required bool isMobile,
+    required List<ServiceScreenServiceModel> services,
+  }) {
+    return _sectionCard(
+      isMobile: isMobile,
+      icon: Icons.engineering_rounded,
+      title: "Services offered",
+      child: services.isEmpty
+          ? _emptyState("No services listed yet. $kDataNotAvailable")
+          : Wrap(
+        spacing: 10,
+        runSpacing: 10,
+        children: services.map((s) {
+          final name = valueOrNA(s.serviceName);
+          final bool missing = name == kDataNotAvailable;
+          return Container(
+            padding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            decoration: BoxDecoration(
+              color: _Theme.surfaceBar,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: _Theme.border),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  missing
+                      ? Icons.help_outline_rounded
+                      : Icons.check_circle_rounded,
+                  color: missing ? _Theme.mutedText : _Theme.mint,
+                  size: 15,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  name,
+                  style: TextStyle(
+                    color:
+                    missing ? _Theme.mutedText : _Theme.primaryText,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    fontStyle:
+                    missing ? FontStyle.italic : FontStyle.normal,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // ============================================================
+  // BOOKING FORM
+  // ============================================================
+
+  Widget _buildBookingCard({required bool isMobile}) {
+    return _sectionCard(
+      isMobile: isMobile,
+      icon: Icons.event_note_rounded,
+      title: "Booking details",
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _Theme.amber.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _Theme.amber.withOpacity(0.25)),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.warning_amber_rounded, color: _Theme.amber, size: 18),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    "Describe all the details of the service you want to book. "
+                        "The description cannot be changed later. ",
+                    style: TextStyle(
+                      color: _Theme.amber,
+                      fontSize: 12.5,
+                      height: 1.45,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+
+          const SizedBox(height: 16),
+
+          GreenField(
+            controller: UserBookingDescriptionTextCont,
+            label: "Enter all the details that you need.",
+            icon: Icons.info,
+            keyboardType: TextInputType.multiline,
+            obscure: false,
+            height: 100,
+          ),
+
+          const SizedBox(height: 16),
+
+          Text(
+            "Use CamScanner app to convert photos into file(.pdf).You can skip file and video.That are optional.",
+            style: TextStyle(
+              color: _Theme.amber,
+              fontSize: 12.5,
+              height: 1.45,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          LayoutBuilder
+            (
+            builder: (context, constraints) {
+              final bool twoCol = constraints.maxWidth >= 480;
+
+              final filePicker = _mediaPickerCard(
+                icon: Icons.attach_file_rounded,
+                title: "Attach file",
+                hint: "Documents or other files",
+                onPick: () async => await PickFile(),
+                isSelected: () =>
+                change_file_cont_getx.fileBytes.value != null &&
+                    change_file_cont_getx.fileBytes.value!.isNotEmpty,
+                selectedText: () {
+                  final ext = change_file_cont_getx.fileExtension.value;
+                  return ext.isEmpty ? "File selected" : "File selected (.$ext)";
+                },
+              );
+
+              final videoPicker = _mediaPickerCard
+                (
+                icon: Icons.videocam_rounded,
+                title: "Attach video",
+                hint: "Short video that explains your needs.",
+                onPick: () async => await PickVideo(),
+                isSelected: () =>
+                change_video_cont_getx.videoBytes.value != null &&
+                    change_video_cont_getx.videoBytes.value!.isNotEmpty,
+                selectedText: () {
+                  final ext = change_video_cont_getx.videoExtension.value;
+                  return ext.isEmpty ? "Video selected" : "Video selected (.$ext)";
+                },
+              );
+
+              if (twoCol)
+              {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: filePicker),
+                    const SizedBox(width: 14),
+                    Expanded(child: videoPicker),
+                  ],
+                );
+              }
+              return Column(
+                children: [
+                  filePicker,
+                  const SizedBox(height: 12),
+                  videoPicker,
+                ],
+
+              );
+            },
+          ),
+
+          const SizedBox(height: 16),
+
+         if(widget.Current_User_Role=="user")Text
+           (
+            "A Small Request, A Big Support for KaamMitra.KaamMitra is free for user to use.Once your provider has completed the task or you have received the service, kindly visit your (Booking Screen) and update your task complete status to Yes(Completed).Your small action means a lot to us. It helps us grow and bring more useful services to you in the future.Thank you for being a part of KaamMitra Together, we grow.",
+            style: TextStyle(
+              color: _Theme.amber,
+              fontSize: 12.5,
+              height: 1.45,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+
+
+
+        ],
+      ),
+    );
+  }
+
+  Widget _mediaPickerCard({
+    required IconData icon,
+    required String title,
+    required String hint,
+    required Future<void> Function() onPick,
+    required bool Function() isSelected,
+    required String Function() selectedText,
+  }) {
+    return Obx(() {
+      final bool selected = isSelected();
+
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => onPick(),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: _Theme.surfaceBar,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: selected ? _Theme.emerald.withOpacity(0.6) : _Theme.border,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _Theme.emerald.withOpacity(0.10),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, color: _Theme.mint, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: _Theme.primaryText,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        selected ? selectedText() : hint,
+                        style: TextStyle(
+                          color: selected ? _Theme.mint : _Theme.mutedText,
+                          fontSize: 11.5,
+                          fontWeight:
+                          selected ? FontWeight.w700 : FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  selected
+                      ? Icons.check_circle_rounded
+                      : Icons.add_circle_outline_rounded,
+                  color: selected ? _Theme.emerald : _Theme.mutedTextAlt,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  // ============================================================
+  // ACTIONS
+  // ============================================================
+
+  Widget _buildActions(bool isMobile, bool? status) {
     final galleryButton = _actionButton(
       icon: Icons.photo_library_rounded,
-      label: "My gallery",
+      label: "Provider gallery",
       primary: false,
       pressed: providerCont.isGalleryPressed,
       onPressDown: () => providerCont.setGalleryPressed(true),
@@ -1241,64 +1321,37 @@ class _SelectServiceProviderInfoScreenState
       pressed: providerCont.isBookPressed,
       onPressDown: () => providerCont.setBookPressed(true),
       onPressEnd: () => providerCont.setBookPressed(false),
-      onTap: () async
-      {
-
-        if(widget.Current_User_Role.trim().toLowerCase()=="provider")
-        {
-          Toast.Toastmsg("Please register as user and book services.");
+      onTap: () async {
+        // 1. Validation (controller)
+        final String? error = providerCont.validateBooking(
+          providerStatus: status,
+          role: widget.Current_User_Role,
+          description: UserBookingDescriptionTextCont.text,
+        );
+        if (error != null) {
+          Toast.Toastmsg(error);
           return;
         }
 
-        if(UserBookingDescriptionTextCont.text.trim().isEmptyOrNull)
-        {
-          Toast.Toastmsg("User description is empty.Provide the description.");
-          return;
-        }
-
+        // 2. Confirmation (UI)
         final bool confirmed = await _confirmBooking();
         if (!confirmed) return;
 
-
-        final AddBookingResult=await AddBookingInfo(
-            Current_User_JwtToken: widget.Current_User_JwtToken,
-            Distance: widget.Distance,
-            ServiceName: widget.Provider_Service_Name,
-            ProviderApprovalStatus: false,
-            UserApprovalStatus: true,
-          ProviderTaskCompleteStatus: false,
-          UserTaskCompleteStatus: false,
-          UserBookingDescription: UserBookingDescriptionTextCont.text.trim(),
-          ServiceId:widget.ServiceId,
-          ProviderNumber: widget.Providernumber,
-          FileBytes: change_file_cont_getx.fileBytes.value!=null?change_file_cont_getx.fileBytes.value:null,
-          VideoBytes: change_video_cont_getx.videoBytes.value!=null?change_video_cont_getx.videoBytes.value:null,
-          FileExtension: change_file_cont_getx.fileExtension.value!=""?change_file_cont_getx.fileExtension.value:'',
-          VideoExtension: change_video_cont_getx.videoExtension.value!=""?change_video_cont_getx.videoExtension.value:'',
+        // 3. Booking + notifications (controller owns all API calls)
+        await providerCont.bookService(
+          context: context,
+          jwtToken: widget.Current_User_JwtToken,
+          userEmail: widget.Current_User_Email,
+          serviceName: widget.Provider_Service_Name,
+          serviceId: widget.ServiceId,
+          providerNumber: widget.Providernumber,
+          distance: widget.Distance,
+          description: UserBookingDescriptionTextCont.text.trim(),
         );
-
-
-          await ClearFilesValues();
-
-          final AddNotificationsResult=await AddNotifications(
-              ReceiverNumber: widget.Providernumber,
-              Message: "You have been booked by ${widget.Current_User_Email} for ${widget.Provider_Service_Name}.",
-              Current_User_JwtToken: widget.Current_User_JwtToken,
-              context: context
-          );
-
-              final AddNewNotificationsResult= await AddNewNotifications(
-                  ReceiverNumber: widget.Providernumber,
-                  Status: true,
-                  Current_User_JwtToken: widget.Current_User_JwtToken,
-                  context: context
-              );
-
       },
     );
 
-    if (isMobile)
-    {
+    if (isMobile) {
       return Column(
         children: [
           bookButton,
@@ -1346,8 +1399,7 @@ class _SelectServiceProviderInfoScreenState
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 gradient: primary
-                    ? const LinearGradient(
-                    colors: [_Theme.emerald, _Theme.mint])
+                    ? const LinearGradient(colors: [_Theme.emerald, _Theme.mint])
                     : null,
                 color: primary ? null : _Theme.surface,
                 borderRadius: BorderRadius.circular(16),
@@ -1386,5 +1438,83 @@ class _SelectServiceProviderInfoScreenState
         ),
       );
     });
+  }
+
+  // ============================================================
+  // SHARED CARD + EMPTY STATE
+  // ============================================================
+
+  Widget _sectionCard({
+    required bool isMobile,
+    required IconData icon,
+    required String title,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isMobile ? 16 : 22),
+      decoration: BoxDecoration(
+        color: _Theme.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _Theme.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color: _Theme.emerald.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: _Theme.mint, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: _Theme.primaryText,
+                    fontSize: isMobile ? 15.5 : 17,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyState(String text) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _Theme.surfaceBar,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _Theme.border),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: _Theme.mutedText,
+          fontSize: 12.5,
+          fontStyle: FontStyle.italic,
+        ),
+      ),
+    );
   }
 }

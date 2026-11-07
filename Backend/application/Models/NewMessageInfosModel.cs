@@ -10,10 +10,6 @@ namespace application.Models
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int NewMsgId { get; set; }
 
-
-        [Required]
-        public int MessageSenderNumber { get; set; }
-
         [Required]
         public int MessageReceiverNumber { get; set; }
 

@@ -1,13 +1,14 @@
-/// userNumber : 6
-/// firstName : " aaa 6"
+/// userNumber : 4
+/// firstName : "aaaa 444"
 /// lastName : "aaa"
-/// email : "sd1@.com"
+/// email : "sd3@.com"
 /// phoneNumber : "+5363536645"
 /// whatsappPhoneNumber : "+56334535443"
 /// latitude : 26.740530333333332
 /// longitude : 87.54193883333333
-/// photo : ""
+/// photo : "/uploads/profile/707fe5a6e88143e7938430656f4e742d.png"
 /// address : "gadgs"
+/// status : true
 
 class ServiceScreenUserInfoModel {
   ServiceScreenUserInfoModel({
@@ -20,7 +21,8 @@ class ServiceScreenUserInfoModel {
       num? latitude, 
       num? longitude, 
       String? photo, 
-      String? address,}){
+      String? address, 
+      bool? status,}){
     _userNumber = userNumber;
     _firstName = firstName;
     _lastName = lastName;
@@ -31,6 +33,7 @@ class ServiceScreenUserInfoModel {
     _longitude = longitude;
     _photo = photo;
     _address = address;
+    _status = status;
 }
 
   ServiceScreenUserInfoModel.fromJson(dynamic json) {
@@ -44,6 +47,7 @@ class ServiceScreenUserInfoModel {
     _longitude = json['longitude'];
     _photo = json['photo'];
     _address = json['address'];
+    _status = json['status'];
   }
   num? _userNumber;
   String? _firstName;
@@ -55,6 +59,7 @@ class ServiceScreenUserInfoModel {
   num? _longitude;
   String? _photo;
   String? _address;
+  bool? _status;
 ServiceScreenUserInfoModel copyWith({  num? userNumber,
   String? firstName,
   String? lastName,
@@ -65,6 +70,7 @@ ServiceScreenUserInfoModel copyWith({  num? userNumber,
   num? longitude,
   String? photo,
   String? address,
+  bool? status,
 }) => ServiceScreenUserInfoModel(  userNumber: userNumber ?? _userNumber,
   firstName: firstName ?? _firstName,
   lastName: lastName ?? _lastName,
@@ -75,6 +81,7 @@ ServiceScreenUserInfoModel copyWith({  num? userNumber,
   longitude: longitude ?? _longitude,
   photo: photo ?? _photo,
   address: address ?? _address,
+  status: status ?? _status,
 );
   num? get userNumber => _userNumber;
   String? get firstName => _firstName;
@@ -86,6 +93,7 @@ ServiceScreenUserInfoModel copyWith({  num? userNumber,
   num? get longitude => _longitude;
   String? get photo => _photo;
   String? get address => _address;
+  bool? get status => _status;
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
@@ -99,6 +107,7 @@ ServiceScreenUserInfoModel copyWith({  num? userNumber,
     map['longitude'] = _longitude;
     map['photo'] = _photo;
     map['address'] = _address;
+    map['status'] = _status;
     return map;
   }
 

@@ -180,7 +180,7 @@ class _ProviderAddServiceState extends State<ProviderAddService>
 
       const String url = Backend_Server_Url + "api/Profile/addservice";
 
-      print("API URL: $url");
+
 
       // =========================================================
       // 6. Create multipart request
@@ -392,7 +392,7 @@ class _ProviderAddServiceState extends State<ProviderAddService>
     required SearchText,
   }) async {
     try {
-      print("profile user info method called");
+
       const String url = Backend_Server_Url + "api/Profile/getserviceinfo";
       Map<String, dynamic> UserDetails = {"Email": Email};
       final response = await http.post(
@@ -403,7 +403,7 @@ class _ProviderAddServiceState extends State<ProviderAddService>
         },
         body: json.encode(UserDetails),
       );
-      print(response.statusCode);
+
       if (response.statusCode == 200) {
         List<dynamic> responseData = await jsonDecode(response.body);
         RegisterSearchlList.clear();
@@ -423,10 +423,9 @@ class _ProviderAddServiceState extends State<ProviderAddService>
     }
   }
 
-  // ============================================================
   // SUBMIT HANDLER — same logic/branches as before, wrapped with
   // a GetX-driven loading state instead of any setState.
-  // ============================================================
+
   Future<void> _onSubmitPressed() async {
     if (SearchTextGetxCont.isSubmitting.value) return;
 
@@ -564,6 +563,18 @@ class _ProviderAddServiceState extends State<ProviderAddService>
                             _animatedSection(
                               animation: _formAnim,
                               child: _buildDetailsCard(isMobile),
+                            ),
+
+                            SizedBox(height: isMobile ? 22 : 30),
+
+                            Text(
+                              "Use CamScanner app to convert photos into file(.pdf).",
+                              style: TextStyle(
+                                color: Colors.amber,
+                                fontSize: 12.5,
+                                height: 1.45,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
 
                             SizedBox(height: isMobile ? 22 : 30),

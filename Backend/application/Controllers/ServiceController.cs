@@ -141,7 +141,9 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                         Latitude = x.Latitude,
                         Longitude = x.Longitude,
                         Photo = x.Photo,
-                        Address=x.Address
+                        Address=x.Address,
+                        Status=(bool)x.Status
+
                     })
                     .ToListAsync();
 

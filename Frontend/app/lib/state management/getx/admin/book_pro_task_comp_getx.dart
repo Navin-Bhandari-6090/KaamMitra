@@ -18,6 +18,7 @@ class BookProTaskCompGetx extends GetxController {
   // ---------------- reactive state ----------------
   final RxList<AdminTaskCompletePaymentModel> adminTaskCompletePaymentList =
       <AdminTaskCompletePaymentModel>[].obs;
+
   final RxBool isLoading = true.obs;
 
   /// Non-empty while an action runs, e.g. "delb_15". Used to disable buttons.

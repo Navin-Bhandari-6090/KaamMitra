@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
@@ -7,13 +6,9 @@ import 'package:app/web/bookings/view_book_file.dart';
 import 'package:app/web/bookings/view_book_video.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 
-import '../../constant/Server_Database.dart';
 import '../../models/BookingInfoModel.dart';
 import '../../state management/getx/booking/ProviderBookingDetalsGetX.dart';
-import '../authentication/Error_page.dart';
-import '../common method/Commmon_Method.dart';
 import '../common widget/getx_cont_pick_single_photo_int.dart';
 import '../common widget/toast.dart';
 
@@ -47,6 +42,7 @@ String? _n(num? n) {
   return n % 1 == 0 ? n.toInt().toString() : n.toStringAsFixed(2);
 }
 
+/// 12-hour format: 05 Mar 2026, 03:09 PM
 String? _d(dynamic v) {
   try {
     final String? raw = _s(v);
@@ -55,21 +51,13 @@ String? _d(dynamic v) {
     if (d == null) return raw;
     final DateTime l = d.toLocal();
     const m = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     String two(int x) => x.toString().padLeft(2, '0');
-    return '${two(l.day)} ${m[l.month - 1]} ${l.year}, ${two(l.hour)}:${two(l.minute)}';
+    final int h12 = l.hour % 12 == 0 ? 12 : l.hour % 12;
+    final String ap = l.hour >= 12 ? 'PM' : 'AM';
+    return '${two(l.day)} ${m[l.month - 1]} ${l.year}, ${two(h12)}:${two(l.minute)} $ap';
   } catch (_) {
     return null;
   }
@@ -113,26 +101,22 @@ class _ProviderbookinginfodetailsscreenState
   final PickPhotoCont = Get.put(pick_single_photo_getx_int());
   final c = Get.put(Providerbookingdetalsgetx());
 
-  // Cached futures: the network call runs once per refresh toggle, not per rebuild.
-  bool? _photoFutureKey;
-  Future<int>? _photoFuture;
-  Future<int>? _qrFuture;
-
-  BookingInfoModel? get _booking =>
-      widget.BookingInfoListInfo.isEmpty ? null : widget.BookingInfoListInfo[0];
-
   @override
   void initState() {
     super.initState();
-    Provider_Jwt_Verify(Jwt_Token: widget.Current_User_JwtToken);
-    final b = _booking;
-    c.seed(
-      providerApproval: b?.providerApprovalStatus,
-      providerTaskComplete: b?.providerTaskCompleteStatus,
-      customerApproval: b?.userApprovalStatus,
-      customerTaskComplete: b?.userTaskCompleteStatus,
-      advanceAmount: b?.advancePaymentAmount,
+    // The screen starts from the data passed in, then everything is driven by
+    // c.booking (refreshed from the API after each change).
+    c.init(
+      bookings: widget.BookingInfoListInfo,
+      email: widget.Current_User_Email,
+      jwt: widget.Current_User_JwtToken,
     );
+    c.verifyJwt();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      c.fetchPhoto(context);
+      c.fetchQr(context);
+    });
   }
 
   @override
@@ -162,49 +146,9 @@ class _ProviderbookinginfodetailsscreenState
   }
 
   // ---------------------------------------------------------------------------
-  // SESSION
+  // VALIDATION HELPERS
   // ---------------------------------------------------------------------------
-  Future<void> _forceRelogin() async {
-    try {
-      await Clear_User_Data();
-      await Random_token_Clear();
-      if (!mounted) return;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => ErrorPage()),
-        (route) => false,
-      );
-      Toast.Toastmsg("Session ended. Please log in again.");
-    } catch (e) {
-      print(e);
-    }
-  }
-
-  Future<void> Provider_Jwt_Verify({required String Jwt_Token}) async {
-    try {
-      final int result = await ProviderJwtVerify(Jwt_Token: Jwt_Token);
-      if (result != 1) await _forceRelogin();
-    } catch (e) {
-      print("Unexpected error in Provider_Jwt_Verify: $e");
-      Toast.Toastmsg("Something went wrong. Please try again.");
-      await _forceRelogin();
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // NETWORK
-  // ---------------------------------------------------------------------------
-  Future<http.Response> _putJson(String path, Map<String, dynamic> body) {
-    return http.put(
-      Uri.parse(Backend_Server_Url + path),
-      headers: {
-        "Content-Type": "application/json",
-        'Authorization': 'Bearer ${widget.Current_User_JwtToken}',
-      },
-      body: json.encode(body),
-    );
-  }
-
+  /// "yyyy-MM-dd hh:mm" (12-hour clock) + "am"/"pm"  ->  DateTime
   DateTime? parseDateTimeWithAmPm(String dateTimeText, String amPm) {
     final regex = RegExp(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$');
     if (!regex.hasMatch(dateTimeText)) return null;
@@ -248,171 +192,61 @@ class _ProviderbookinginfodetailsscreenState
     }
   }
 
-  Future<int> UpdateDate({
-    required String UserEmail,
-    required num BookId,
-    required String StartDate,
-    required String EndDate,
-  }) async {
+  /// Date picker + 12-hour time picker -> fills the text field and AM/PM.
+  Future<void> _pickDateTime(
+      TextEditingController dateC,
+      TextEditingController periodC,
+      ) async {
     try {
-      final r = await _putJson("api/Booking/updatedate", {
-        "UserEmail": UserEmail,
-        "BookId": BookId,
-        "StartDate": StartDate,
-        "EndDate": EndDate,
-      });
-      switch (r.statusCode) {
-        case 200:
-          Toast.Toastmsg("Schedule updated.");
-          return 1;
-        case 500:
-          Toast.Toastmsg("Server error. Please try again.");
-          return 2;
-        case 502:
-          await _forceRelogin();
-          return 3;
-        case 503:
-          Toast.Toastmsg("No booking found for this ID.");
-          return 4;
-        case 501:
-          Toast.Toastmsg("Invalid data format.");
-          return 5;
-        default:
-          Toast.Toastmsg("Update failed. Try again.");
-          return 6;
-      }
-    } catch (e) {
-      print(e);
-      Toast.Toastmsg("Update failed. Try again.");
-      return 7;
-    }
-  }
+      final now = DateTime.now();
+      Widget themed(BuildContext ctx, Widget? child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: _C.accent,
+            onPrimary: Colors.black,
+            surface: _C.surface,
+            onSurface: _C.text,
+          ),
+          dialogBackgroundColor: _C.surface,
+        ),
+        child: MediaQuery(
+          data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: false),
+          child: child!,
+        ),
+      );
 
-  Future<int> UpdateAdvanceAmount({
-    required String UserEmail,
-    required num BookId,
-    required double AdvanceAmount,
-  }) async {
-    try {
-      final r = await _putJson("api/Booking/updateadvanceamount", {
-        "UserEmail": UserEmail,
-        "BookId": BookId,
-        "AdvancePaymentAmount": AdvanceAmount,
-      });
-      switch (r.statusCode) {
-        case 200:
-          Toast.Toastmsg("Advance amount updated.");
-          return 1;
-        case 500:
-          Toast.Toastmsg("Server error. Please try again.");
-          return 2;
-        case 502:
-          await _forceRelogin();
-          return 3;
-        case 503:
-          Toast.Toastmsg("No booking found for this ID.");
-          return 4;
-        case 501:
-          Toast.Toastmsg("Invalid data format.");
-          return 5;
-        case 504:
-          Toast.Toastmsg("Advance amount was already changed.");
-          return 8;
-        default:
-          Toast.Toastmsg("Update failed. Try again.");
-          return 6;
-      }
-    } catch (e) {
-      print(e);
-      Toast.Toastmsg("Update failed. Try again.");
-      return 7;
-    }
-  }
+      final DateTime? d = await showDatePicker(
+        context: context,
+        initialDate: now,
+        firstDate: DateTime(now.year - 1),
+        lastDate: DateTime(now.year + 5),
+        builder: themed,
+      );
+      if (d == null || !mounted) return;
 
-  Future<int> UpdateProviderApprovalStatus({
-    required String UserEmail,
-    required num BookId,
-  }) async {
-    try {
-      final r = await _putJson("api/Booking/updateproviderapprovalstatus", {
-        "UserEmail": UserEmail,
-        "BookId": BookId,
-      });
-      switch (r.statusCode) {
-        case 200:
-          Toast.Toastmsg("Approval updated.");
-          return 1;
-        case 500:
-          Toast.Toastmsg("Server error. Please try again.");
-          return 2;
-        case 502:
-          await _forceRelogin();
-          return 3;
-        case 503:
-          Toast.Toastmsg("No booking found for this ID.");
-          return 4;
-        case 504:
-          Toast.Toastmsg("You have already approved this booking.");
-          return 8;
-        case 501:
-          Toast.Toastmsg("Invalid data format.");
-          return 5;
-        default:
-          Toast.Toastmsg("Update failed. Try again.");
-          return 6;
-      }
-    } catch (e) {
-      print(e);
-      Toast.Toastmsg("Update failed. Try again.");
-      return 7;
-    }
-  }
+      final TimeOfDay? t = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(now),
+        builder: themed,
+      );
+      if (t == null) return;
 
-  Future<int> UpdateDescription({
-    required String UserEmail,
-    required num BookId,
-    required String UserBookingDescription,
-  }) async {
-    try {
-      final r = await _putJson("api/Booking/updateproviderdescp", {
-        "UserEmail": UserEmail,
-        "BookId": BookId,
-        "UserBookingDescription": UserBookingDescription,
-      });
-      switch (r.statusCode) {
-        case 200:
-          Toast.Toastmsg("Description updated.");
-          return 1;
-        case 500:
-          Toast.Toastmsg("Server error. Please try again.");
-          return 2;
-        case 502:
-          await _forceRelogin();
-          return 3;
-        case 503:
-          Toast.Toastmsg("No booking found for this ID.");
-          return 4;
-        case 501:
-          Toast.Toastmsg("Invalid data format.");
-          return 5;
-        default:
-          Toast.Toastmsg("Update failed. Try again.");
-          return 6;
-      }
+      String two(int x) => x.toString().padLeft(2, '0');
+      final int h12 = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+      dateC.text = '${d.year}-${two(d.month)}-${two(d.day)} ${two(h12)}:${two(t.minute)}';
+      periodC.text = t.period == DayPeriod.am ? 'am' : 'pm';
     } catch (e) {
       print(e);
-      Toast.Toastmsg("Update failed. Try again.");
-      return 7;
     }
   }
 
   // ---------------------------------------------------------------------------
-  // ACTIONS (each one asks for confirmation first)
+  // ACTIONS (validate -> confirm -> controller call -> UI rebuilds from c.booking)
   // ---------------------------------------------------------------------------
   Future<void> _onSaveSchedule() async {
     if (c.busyKey.value.isNotEmpty) return;
     try {
-      final b = _booking;
+      final b = c.booking.value;
       if (b == null || b.bookId == null) {
         Toast.Toastmsg("No booking data available.");
         return;
@@ -455,32 +289,30 @@ class _ProviderbookinginfodetailsscreenState
       final ok = await _confirm(
         title: "Update schedule?",
         message:
-            "Booking #${b.bookId} will start ${StartDateController.text.trim()} ${StartDateAmOrPmController.text.trim().toUpperCase()} "
+        "Booking #${_n(b.bookId)} will start ${StartDateController.text.trim()} ${StartDateAmOrPmController.text.trim().toUpperCase()} "
             "and end ${EndDateController.text.trim()} ${EndDateAmOrPmController.text.trim().toUpperCase()}.",
         confirmLabel: "Update",
         icon: Icons.event_available_rounded,
       );
-      if (!ok) return;
+      if (!ok || !mounted) return;
 
-      c.busyKey.value = 'date';
-      await UpdateDate(
-        UserEmail: widget.Current_User_Email,
-        BookId: b.bookId!,
-        StartDate: start.toIso8601String(),
-        EndDate: end.toIso8601String(),
-      );
+      final saved = await c.saveSchedule(context, start: start, end: end);
+      if (saved) {
+        StartDateController.clear();
+        EndDateController.clear();
+        StartDateAmOrPmController.clear();
+        EndDateAmOrPmController.clear();
+      }
     } catch (e) {
       print(e);
       Toast.Toastmsg("Something went wrong.");
-    } finally {
-      c.busyKey.value = '';
     }
   }
 
   Future<void> _onSaveAdvance() async {
     if (c.busyKey.value.isNotEmpty) return;
     try {
-      final b = _booking;
+      final b = c.booking.value;
       if (b == null || b.bookId == null || b.userNumber == null) {
         Toast.Toastmsg("No booking data available.");
         return;
@@ -496,94 +328,53 @@ class _ProviderbookinginfodetailsscreenState
       final ok = await _confirm(
         title: "Update advance amount?",
         message:
-            "Advance amount for booking #${b.bookId} will be set to $amount. The customer will be notified.",
+        "Advance amount for booking #${_n(b.bookId)} will be set to $amount. The customer will be notified.",
         confirmLabel: "Update",
         icon: Icons.account_balance_wallet_rounded,
       );
-      if (!ok) return;
+      if (!ok || !mounted) return;
 
-      c.busyKey.value = 'advance';
-      final result = await UpdateAdvanceAmount(
-        UserEmail: widget.Current_User_Email,
-        BookId: b.bookId!,
-        AdvanceAmount: amount,
-      );
-      if (result == 1) {
-        c.advanceAmount.value = amount;
-        AdvanceAmountController.clear();
-      }
-
-      await AddNotifications(
-        ReceiverNumber: b.userNumber!,
-        Message:
-            "Provider updated the advance amount to $amount for booking #${b.bookId}.",
-        Current_User_JwtToken: widget.Current_User_JwtToken,
-        context: context,
-      );
-      await AddNewNotifications(
-        ReceiverNumber: b.userNumber!,
-        Status: true,
-        Current_User_JwtToken: widget.Current_User_JwtToken,
-        context: context,
-      );
+      final saved = await c.saveAdvance(context, amount);
+      if (saved) AdvanceAmountController.clear();
     } catch (e) {
       print(e);
       Toast.Toastmsg("Something went wrong.");
-    } finally {
-      c.busyKey.value = '';
     }
   }
 
   Future<void> _onApproval() async {
     if (c.busyKey.value.isNotEmpty) return;
     try {
-      final b = _booking;
+      final b = c.booking.value;
       if (b == null || b.bookId == null || b.userNumber == null) {
         Toast.Toastmsg("No booking data available.");
+        return;
+      }
+      if (c.providerApproval == true) {
+        Toast.Toastmsg("You have already approved this booking.");
         return;
       }
 
       final ok = await _confirm(
         title: "Approve booking?",
         message:
-            "Your approval for booking #${b.bookId} will be saved and the customer will be notified.",
+        "Your approval for booking #${_n(b.bookId)} will be saved and the customer will be notified.",
         confirmLabel: "Approve",
         icon: Icons.verified_rounded,
       );
-      if (!ok) return;
+      if (!ok || !mounted) return;
 
-      c.busyKey.value = 'approval';
-      final result = await UpdateProviderApprovalStatus(
-        UserEmail: widget.Current_User_Email,
-        BookId: b.bookId!,
-      );
-      if (result == 1 || result == 8) c.providerApproval.value = true;
-
-      await AddNotifications(
-        ReceiverNumber: b.userNumber!,
-        Message:
-            "Provider changed the approval status for booking #${b.bookId}.",
-        Current_User_JwtToken: widget.Current_User_JwtToken,
-        context: context,
-      );
-      await AddNewNotifications(
-        ReceiverNumber: b.userNumber!,
-        Status: true,
-        Current_User_JwtToken: widget.Current_User_JwtToken,
-        context: context,
-      );
+      await c.approve(context);
     } catch (e) {
       print(e);
       Toast.Toastmsg("Something went wrong.");
-    } finally {
-      c.busyKey.value = '';
     }
   }
 
   Future<void> _onSaveDescription() async {
     if (c.busyKey.value.isNotEmpty) return;
     try {
-      final b = _booking;
+      final b = c.booking.value;
       if (b == null || b.bookId == null) {
         Toast.Toastmsg("No booking data available.");
         return;
@@ -597,28 +388,27 @@ class _ProviderbookinginfodetailsscreenState
       final ok = await _confirm(
         title: "Update description?",
         message:
-            "The service description for booking #${b.bookId} will be saved.",
+        "The service description for booking #${_n(b.bookId)} will be saved.",
         confirmLabel: "Save",
         icon: Icons.description_rounded,
       );
-      if (!ok) return;
+      if (!ok || !mounted) return;
 
-      c.busyKey.value = 'desc';
-      await UpdateDescription(
-        UserEmail: widget.Current_User_Email,
-        BookId: b.bookId!,
-        UserBookingDescription: text,
-      );
+      final saved = await c.saveDescription(context, text);
+      if (saved) ProviderDescriptionCont.clear();
     } catch (e) {
       print(e);
       Toast.Toastmsg("Something went wrong.");
-    } finally {
-      c.busyKey.value = '';
     }
   }
 
   Future<void> _openTaskComplete() async {
     try {
+      final b = c.booking.value;
+      if (b == null) {
+        Toast.Toastmsg("No booking data available.");
+        return;
+      }
       final bool? changed = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
@@ -627,41 +417,55 @@ class _ProviderbookinginfodetailsscreenState
             Current_User_JwtToken: widget.Current_User_JwtToken,
             Current_User_Role: widget.Current_User_Role,
             Current_User_Number: widget.Current_User_Number,
-            BookingInfoListInfo: widget.BookingInfoListInfo,
+            BookingInfoListInfo: [b],
           ),
         ),
       );
       // ProTaskCompleteStatus pops with `true` after a successful update.
-      if (changed == true) c.providerTaskComplete.value = true;
+      if (changed == true && mounted) await c.markTaskComplete(context);
     } catch (e) {
       print(e);
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // PHOTO FUTURES (cached)
-  // ---------------------------------------------------------------------------
-  Future<int> _photoFutureFor(bool key, BookingInfoModel b) {
-    if (_photoFuture == null || _photoFutureKey != key) {
-      _photoFutureKey = key;
-      _photoFuture = GetAdvancePaymentPhoto(
-        BookId: b.bookId!.toString(),
-        UserEmail: widget.Current_User_Email,
-        context: context,
-        Current_User_JwtToken: widget.Current_User_JwtToken,
-        UpdateStatePhotoUpload: key,
+  void _openFile(BookingInfoModel b) {
+    try {
+      if (b.bookingFile == null || b.bookingFile!.isEmpty) {
+        Toast.Toastmsg("No file available.");
+        return;
+      }
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ViewBookFile(
+            Current_User_JwtToken: widget.Current_User_JwtToken,
+            FilePath: b.bookingFile!,
+          ),
+        ),
       );
+    } catch (e) {
+      print(e);
     }
-    return _photoFuture!;
   }
 
-  Future<int> _qrFutureFor(BookingInfoModel b) {
-    _qrFuture ??= GetAdvancePaymentQRPhoto(
-      UserNumber: b.providerNumber!,
-      context: context,
-      Current_User_JwtToken: widget.Current_User_JwtToken,
-    );
-    return _qrFuture!;
+  void _openVideo(BookingInfoModel b) {
+    try {
+      if (b.bookingVideo == null || b.bookingVideo!.isEmpty) {
+        Toast.Toastmsg("No video available.");
+        return;
+      }
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ViewBookVideo(
+            Current_User_JwtToken: widget.Current_User_JwtToken,
+            VideoPath: b.bookingVideo!,
+          ),
+        ),
+      );
+    } catch (e) {
+      print(e);
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -712,9 +516,29 @@ class _ProviderbookinginfodetailsscreenState
             fontWeight: FontWeight.w700,
           ),
         ),
+        actions: [
+          Tooltip(
+            message: "Refresh",
+            child: IconButton(
+              onPressed: () => c.refreshAll(context, silent: false),
+              icon: const Icon(Icons.refresh_rounded, color: _C.mint),
+            ),
+          ),
+          const SizedBox(width: 6),
+        ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: _C.border),
+          preferredSize: const Size.fromHeight(2),
+          child: Obx(
+                () => c.isRefreshing.value
+                ? const SizedBox(
+              height: 2,
+              child: LinearProgressIndicator(
+                color: _C.mint,
+                backgroundColor: _C.border,
+              ),
+            )
+                : Container(height: 2, color: _C.border),
+          ),
         ),
       ),
       body: Stack(
@@ -727,28 +551,32 @@ class _ProviderbookinginfodetailsscreenState
               builder: (context, box) {
                 final double hPad = box.maxWidth >= 700 ? 24 : 14;
                 final bool wide = box.maxWidth >= 980;
-                final BookingInfoModel? b = _booking;
 
                 return SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(
                     parent: BouncingScrollPhysics(),
                   ),
                   keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  ScrollViewKeyboardDismissBehavior.onDrag,
                   padding: EdgeInsets.fromLTRB(hPad, 22, hPad, 40),
                   child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 1120),
                       child: Column(
                         children: [
-                          _buildHeader(b),
+                          // Obx builders run synchronously, so every c.* read
+                          // inside _buildHeader / _buildContent is tracked.
+                          Obx(() => _buildHeader(c.booking.value)),
                           const SizedBox(height: 22),
-                          if (b == null)
-                            const _EmptyState(
-                              text: "No booking data available.",
-                            )
-                          else
-                            _buildContent(b, wide),
+                          Obx(() {
+                            final BookingInfoModel? b = c.booking.value;
+                            if (b == null) {
+                              return const _EmptyState(
+                                text: "No booking data available.",
+                              );
+                            }
+                            return _buildContent(b, wide);
+                          }),
                         ],
                       ),
                     ),
@@ -832,6 +660,7 @@ class _ProviderbookinginfodetailsscreenState
   // HEADER
   // ---------------------------------------------------------------------------
   Widget _buildHeader(BookingInfoModel? b) {
+    final bool? appr = c.providerApproval;
     return Column(
       children: [
         TweenAnimationBuilder<double>(
@@ -879,34 +708,31 @@ class _ProviderbookinginfodetailsscreenState
         ),
         if (b != null) ...[
           const SizedBox(height: 12),
-          Obx(() {
-            final bool? appr = c.providerApproval.value;
-            return Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _Chip(
-                  icon: Icons.tag_rounded,
-                  text: "Booking #${_n(b.bookId) ?? '—'}",
-                ),
-                _Chip(
-                  icon: appr == true
-                      ? Icons.check_circle_rounded
-                      : Icons.hourglass_empty_rounded,
-                  text: appr == true ? "Approved" : "Approval pending",
-                  color: appr == true ? _C.mint : _C.warn,
-                ),
-              ],
-            );
-          }),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _Chip(
+                icon: Icons.tag_rounded,
+                text: "Booking #${_n(b.bookId) ?? '—'}",
+              ),
+              _Chip(
+                icon: appr == true
+                    ? Icons.check_circle_rounded
+                    : Icons.hourglass_empty_rounded,
+                text: appr == true ? "Approved" : "Approval pending",
+                color: appr == true ? _C.mint : _C.warn,
+              ),
+            ],
+          ),
         ],
       ],
     );
   }
 
   // ---------------------------------------------------------------------------
-  // DETAILS — same groups and fields as the user details screen
+  // DETAILS
   // ---------------------------------------------------------------------------
   Widget _buildDetailsGrid(BookingInfoModel b) {
     String? coords(num? lat, num? lon) =>
@@ -937,14 +763,12 @@ class _ProviderbookinginfodetailsscreenState
           title: "Schedule & payment",
           icon: Icons.payments_rounded,
           children: [
-            _InfoTile(Icons.play_arrow_rounded, "Start date", _d(b.startDate)),
-            _InfoTile(Icons.stop_rounded, "End date", _d(b.endDate)),
-            Obx(
-              () => _InfoTile(
-                Icons.account_balance_wallet_rounded,
-                "Advance payment amount",
-                _n(c.advanceAmount.value),
-              ),
+            _InfoTile(Icons.play_arrow_rounded, "Start date", _d(c.startDate)),
+            _InfoTile(Icons.stop_rounded, "End date", _d(c.endDate)),
+            _InfoTile(
+              Icons.account_balance_wallet_rounded,
+              "Advance payment amount",
+              _n(c.advanceAmount),
             ),
             _StatusTile("Advance payment required", b.requiredAdvancePayment),
           ],
@@ -953,22 +777,10 @@ class _ProviderbookinginfodetailsscreenState
           title: "Status",
           icon: Icons.fact_check_rounded,
           children: [
-            Obx(() => _StatusTile("Your approval", c.providerApproval.value)),
-            Obx(
-              () => _StatusTile(
-                "Your task complete",
-                c.providerTaskComplete.value,
-              ),
-            ),
-            Obx(
-              () => _StatusTile("Customer approval", c.customerApproval.value),
-            ),
-            Obx(
-              () => _StatusTile(
-                "Customer task complete",
-                c.customerTaskComplete.value,
-              ),
-            ),
+            _StatusTile("Your approval", c.providerApproval),
+            _StatusTile("Your task complete", c.providerTaskComplete),
+            _StatusTile("Customer approval", c.customerApproval),
+            _StatusTile("Customer task complete", c.customerTaskComplete),
           ],
         ),
         _InfoGroup(
@@ -981,11 +793,6 @@ class _ProviderbookinginfodetailsscreenState
               "Phone number",
               _s(b.userPhoneNumber),
             ),
-            // _InfoTile(
-            //   Icons.chat_rounded,
-            //   "WhatsApp number",
-            //   _s(b.userWhatsappPhoneNumber),
-            // ),
             _InfoTile(Icons.location_on_rounded, "Address", _s(b.userAddress)),
             _InfoTile(
               Icons.my_location_rounded,
@@ -1003,21 +810,12 @@ class _ProviderbookinginfodetailsscreenState
           title: "Provider details",
           icon: Icons.engineering_rounded,
           children: [
-            _InfoTile(
-              Icons.tag_rounded,
-              "ID",
-              _n(b.providerNumber),
-            ),
+            _InfoTile(Icons.tag_rounded, "ID", _n(b.providerNumber)),
             _InfoTile(
               Icons.phone_rounded,
               "Phone number",
               _s(b.providerPhoneNumber),
             ),
-            // _InfoTile(
-            //   Icons.chat_rounded,
-            //   "WhatsApp number",
-            //   _s(b.providerWhatsappPhoneNumber),
-            // ),
             _InfoTile(
               Icons.location_on_rounded,
               "Address",
@@ -1031,53 +829,40 @@ class _ProviderbookinginfodetailsscreenState
             _InfoTile(
               Icons.notes_rounded,
               "Booking description",
-              _s(b.providerBookingDescription),
+              _s(c.providerDescription),
             ),
           ],
         ),
-
-        SizedBox(height: 10,),
-        ElevatedButton(onPressed: (){
-          try{
-            if(b.bookingFile==null || b.bookingFile!.isEmpty)
-            {
-              Toast.Toastmsg("No file available.");
-              return;
-            }
-            Navigator.push(context, MaterialPageRoute(builder: (context) {
-              return ViewBookFile(Current_User_JwtToken: widget.Current_User_JwtToken, FilePath: b.bookingFile!,);
-            },
-            )
+        LayoutBuilder(
+          builder: (context, box) {
+            final bool two = box.maxWidth >= 420;
+            final fileBtn = _GradientButton(
+              outlined: true,
+              label: "View file",
+              icon: Icons.attach_file_rounded,
+              onTap: () => _openFile(b),
             );
-
-          }catch(obj){
-            return;
-          }
-
-        }, child: Text("View file.")),
-
-        SizedBox(height: 10,),
-        ElevatedButton(onPressed: (){
-          try{
-
-            if(
-            b.bookingVideo==null || b.bookingVideo!.isEmpty){
-              Toast.Toastmsg("No video available.");
-              return;
+            final videoBtn = _GradientButton(
+              outlined: true,
+              label: "View video",
+              icon: Icons.play_circle_outline_rounded,
+              onTap: () => _openVideo(b),
+            );
+            if (two) {
+              return Row(
+                children: [
+                  Expanded(child: fileBtn),
+                  const SizedBox(width: 10),
+                  Expanded(child: videoBtn),
+                ],
+              );
             }
-
-            Navigator.push(context, MaterialPageRoute(builder: (context) {
-              return ViewBookVideo(Current_User_JwtToken: widget.Current_User_JwtToken, VideoPath: b.bookingVideo!,);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [fileBtn, const SizedBox(height: 10), videoBtn],
+            );
           },
-          )
-          );
-
-          }catch(obj){
-            return;
-          }
-        }, child: Text("View video.")),
-        SizedBox(height: 10,),
-
+        ),
       ],
     );
   }
@@ -1088,8 +873,9 @@ class _ProviderbookinginfodetailsscreenState
   Widget _buildScheduleCard() {
     return _SectionCard(
       icon: Icons.event_available_rounded,
-      title: "Update schedule.Refresh booking screen to see changes.",
-      subtitle: "Format yyyy-MM-dd hh:mm(2016-02-13 03:09), then choose AM or PM.",
+      title: "Update schedule",
+      subtitle:
+      "Tap the calendar icon, or type yyyy-MM-dd hh:mm (12-hour, e.g. 2026-02-13 03:09) and choose AM or PM.",
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1099,6 +885,8 @@ class _ProviderbookinginfodetailsscreenState
             hint: "2026-06-30 01:03",
             icon: Icons.play_arrow_rounded,
             type: TextInputType.datetime,
+            onPick: () =>
+                _pickDateTime(StartDateController, StartDateAmOrPmController),
           ),
           const SizedBox(height: 8),
           _PeriodSelector(controller: StartDateAmOrPmController),
@@ -1109,12 +897,14 @@ class _ProviderbookinginfodetailsscreenState
             hint: "2026-06-30 05:00",
             icon: Icons.stop_rounded,
             type: TextInputType.datetime,
+            onPick: () =>
+                _pickDateTime(EndDateController, EndDateAmOrPmController),
           ),
           const SizedBox(height: 8),
           _PeriodSelector(controller: EndDateAmOrPmController),
           const SizedBox(height: 16),
           Obx(
-            () => _GradientButton(
+                () => _GradientButton(
               label: "Save schedule",
               icon: Icons.save_rounded,
               loading: c.busyKey.value == 'date',
@@ -1129,11 +919,20 @@ class _ProviderbookinginfodetailsscreenState
   Widget _buildAdvanceAmountCard() {
     return _SectionCard(
       icon: Icons.payments_rounded,
-      title: "Advance payment amount.Refresh booking screen to see changes.",
+      title: "Advance payment amount",
       subtitle: "Amount the customer should pay in advance.",
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Obx(() {
+            final String? cur = _n(c.advanceAmount);
+            return cur == null
+                ? const SizedBox.shrink()
+                : Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _Hint(text: "Current advance amount: $cur"),
+            );
+          }),
           _field(
             controller: AdvanceAmountController,
             label: "Enter advance amount",
@@ -1142,7 +941,7 @@ class _ProviderbookinginfodetailsscreenState
           ),
           const SizedBox(height: 16),
           Obx(
-            () => _GradientButton(
+                () => _GradientButton(
               label: "Update advance amount",
               icon: Icons.save_rounded,
               loading: c.busyKey.value == 'advance',
@@ -1157,25 +956,29 @@ class _ProviderbookinginfodetailsscreenState
   Widget _buildApprovalCard() {
     return _SectionCard(
       icon: Icons.verified_rounded,
-      title: "Provider approvalRefresh booking screen to see changes.",
+      title: "Provider approval",
       subtitle: "Confirm that you accept this booking.",
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Obx(
-            () => _StateBanner(
-              value: c.providerApproval.value,
+                () => _StateBanner(
+              value: c.providerApproval,
               doneText: "You have approved this booking.",
               pendingText: "You have not approved this booking yet.",
             ),
           ),
           const SizedBox(height: 16),
           Obx(
-            () => _GradientButton(
-              label: "Approve booking",
+                () => _GradientButton(
+              label: c.providerApproval == true
+                  ? "Already approved"
+                  : "Approve booking",
               icon: Icons.check_circle_outline_rounded,
               loading: c.busyKey.value == 'approval',
-              onTap: c.busyKey.value.isNotEmpty ? null : _onApproval,
+              onTap: (c.busyKey.value.isNotEmpty || c.providerApproval == true)
+                  ? null
+                  : _onApproval,
             ),
           ),
         ],
@@ -1186,7 +989,7 @@ class _ProviderbookinginfodetailsscreenState
   Widget _buildDescriptionCard() {
     return _SectionCard(
       icon: Icons.description_rounded,
-      title: "Service description.Refresh booking screen to see changes.",
+      title: "Service description",
       subtitle: "Describe the service you will provide.",
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1199,7 +1002,7 @@ class _ProviderbookinginfodetailsscreenState
           ),
           const SizedBox(height: 16),
           Obx(
-            () => _GradientButton(
+                () => _GradientButton(
               label: "Save description",
               icon: Icons.save_rounded,
               loading: c.busyKey.value == 'desc',
@@ -1218,7 +1021,7 @@ class _ProviderbookinginfodetailsscreenState
       subtitle: "Mark the task as finished when the work is done.",
       child: _GradientButton(
         outlined: true,
-        label: "Open task complete status",
+        label: "Request provider task complete status",
         icon: Icons.arrow_forward_rounded,
         onTap: _openTaskComplete,
       ),
@@ -1226,7 +1029,7 @@ class _ProviderbookinginfodetailsscreenState
   }
 
   // ---------------------------------------------------------------------------
-  // PHOTO CARDS
+  // PHOTO CARDS (state lives in the controller)
   // ---------------------------------------------------------------------------
   Widget _buildAdvancePhotoCard(BookingInfoModel b) {
     return _SectionCard(
@@ -1236,47 +1039,29 @@ class _ProviderbookinginfodetailsscreenState
       trailing: Tooltip(
         message: "Reload photo",
         child: IconButton(
-          onPressed: c.ChangeUpdateStatePhotoUpload,
+          onPressed: () => c.reloadPhoto(context),
           icon: const Icon(Icons.refresh_rounded, color: _C.mint, size: 20),
         ),
       ),
       child: Obx(() {
-        final bool key = c.UpdateStatePhotoUpload.value;
         if (b.bookId == null) {
           return const _MediaMessage(
             text: "No data available. Booking ID is missing.",
           );
         }
-        return FutureBuilder<int>(
-          future: _photoFutureFor(key, b),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const _SkeletonBox(height: 240);
-            }
-            if (snapshot.hasError) {
-              print("Advance payment photo error: ${snapshot.error}");
-              return const _MediaMessage(
-                text: "Unable to load advance payment photo.",
-              );
-            }
-            if (AdvancePaymentPhotoList.isEmpty) {
-              return const _MediaMessage(
-                text:
-                    "No data available. No advance payment photo uploaded yet.",
-              );
-            }
-            final String url = GetPhotoUrl(
-              AdvancePaymentPhotoList[0].paymentPhoto ?? "",
-            );
-            if (url.isEmpty) {
-              return const _MediaMessage(
-                text:
-                    "No data available. No advance payment photo uploaded yet.",
-              );
-            }
-            return _PhotoBlock(url: url, label: "Advance payment photo");
-          },
-        );
+        if (c.photoLoading.value) return const _SkeletonBox(height: 240);
+        if (c.photoError.value) {
+          return const _MediaMessage(
+            text: "Unable to load advance payment photo.",
+          );
+        }
+        final String? url = c.photoUrl.value;
+        if (url == null) {
+          return const _MediaMessage(
+            text: "No data available. No advance payment photo uploaded yet.",
+          );
+        }
+        return _PhotoBlock(url: url, label: "Advance payment photo");
       }),
     );
   }
@@ -1286,38 +1071,31 @@ class _ProviderbookinginfodetailsscreenState
       icon: Icons.qr_code_2_rounded,
       title: "Payment QR code",
       subtitle: "Customer scans this to pay you.",
-      child: b.providerNumber == null
-          ? const _MediaMessage(
-              text: "No data available. Provider number is missing.",
-            )
-          : FutureBuilder<int>(
-              future: _qrFutureFor(b),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const _SkeletonBox(height: 240);
-                }
-                if (snapshot.hasError) {
-                  print("Advance payment QR error: ${snapshot.error}");
-                  return const _MediaMessage(
-                    text: "Unable to load payment QR.",
-                  );
-                }
-                if (AdvancePaymentQrPhotoList.isEmpty) {
-                  return const _MediaMessage(
-                    text: "No data available. No payment QR uploaded.",
-                  );
-                }
-                final String url = GetPhotoUrl(
-                  AdvancePaymentQrPhotoList[0].qrPhoto ?? "",
-                );
-                if (url.isEmpty) {
-                  return const _MediaMessage(
-                    text: "No data available. No payment QR uploaded.",
-                  );
-                }
-                return _PhotoBlock(url: url, label: "Payment QR", white: true);
-              },
-            ),
+      trailing: Tooltip(
+        message: "Reload QR",
+        child: IconButton(
+          onPressed: () => c.fetchQr(context),
+          icon: const Icon(Icons.refresh_rounded, color: _C.mint, size: 20),
+        ),
+      ),
+      child: Obx(() {
+        if (b.providerNumber == null) {
+          return const _MediaMessage(
+            text: "No data available. Provider number is missing.",
+          );
+        }
+        if (c.qrLoading.value) return const _SkeletonBox(height: 240);
+        if (c.qrError.value) {
+          return const _MediaMessage(text: "Unable to load payment QR.");
+        }
+        final String? url = c.qrUrl.value;
+        if (url == null) {
+          return const _MediaMessage(
+            text: "No data available. No payment QR uploaded.",
+          );
+        }
+        return _PhotoBlock(url: url, label: "Payment QR", white: true);
+      }),
     );
   }
 
@@ -1331,6 +1109,7 @@ class _ProviderbookinginfodetailsscreenState
     String? hint,
     TextInputType? type,
     int maxLines = 1,
+    VoidCallback? onPick,
   }) {
     OutlineInputBorder border(Color color, double w) => OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
@@ -1352,6 +1131,19 @@ class _ProviderbookinginfodetailsscreenState
           fontWeight: FontWeight.w600,
         ),
         prefixIcon: Icon(icon, color: _C.mint, size: 20),
+        suffixIcon: onPick == null
+            ? null
+            : Tooltip(
+          message: "Pick date & time",
+          child: IconButton(
+            onPressed: onPick,
+            icon: const Icon(
+              Icons.calendar_month_rounded,
+              color: _C.mint,
+              size: 20,
+            ),
+          ),
+        ),
         filled: true,
         fillColor: _C.bg.withOpacity(.6),
         contentPadding: const EdgeInsets.symmetric(
@@ -1596,6 +1388,32 @@ class _Chip extends StatelessWidget {
   }
 }
 
+class _Hint extends StatelessWidget {
+  final String text;
+  const _Hint({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: _tileDeco(),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline_rounded, size: 16, color: _C.mint),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: _C.muted, fontSize: 12.5, height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _InfoGroup extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -1765,12 +1583,12 @@ class _StateBanner extends StatelessWidget {
         ),
         boxShadow: done
             ? [
-                BoxShadow(
-                  color: _C.mint.withOpacity(.16),
-                  blurRadius: 12,
-                  spreadRadius: 1,
-                ),
-              ]
+          BoxShadow(
+            color: _C.mint.withOpacity(.16),
+            blurRadius: 12,
+            spreadRadius: 1,
+          ),
+        ]
             : [],
       ),
       child: Row(
@@ -1883,60 +1701,60 @@ class _GradientButton extends StatelessWidget {
               gradient: outlined
                   ? null
                   : LinearGradient(
-                      colors: [
-                        _C.accent.withOpacity(disabled ? .45 : 1),
-                        _C.mint.withOpacity(disabled ? .45 : 1),
-                      ],
-                    ),
+                colors: [
+                  _C.accent.withOpacity(disabled ? .45 : 1),
+                  _C.mint.withOpacity(disabled ? .45 : 1),
+                ],
+              ),
               color: outlined ? _C.surface : null,
               border: outlined ? Border.all(color: _C.border) : null,
               boxShadow: outlined || disabled
                   ? []
                   : [
-                      BoxShadow(
-                        color: _C.accent.withOpacity(.32),
-                        blurRadius: 16,
-                        offset: const Offset(0, 7),
-                      ),
-                    ],
+                BoxShadow(
+                  color: _C.accent.withOpacity(.32),
+                  blurRadius: 16,
+                  offset: const Offset(0, 7),
+                ),
+              ],
             ),
             child: loading
                 ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.4,
-                      valueColor: AlwaysStoppedAnimation<Color>(_C.bg),
-                    ),
-                  )
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.4,
+                valueColor: AlwaysStoppedAnimation<Color>(_C.bg),
+              ),
+            )
                 : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        icon,
-                        size: 18,
-                        color: outlined
-                            ? _C.mint.withOpacity(disabled ? .5 : 1)
-                            : _C.bg,
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          label,
-                          textAlign: TextAlign.center,
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 2,
-                          style: TextStyle(
-                            color: outlined
-                                ? _C.text.withOpacity(disabled ? .5 : 1)
-                                : _C.bg,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 18,
+                  color: outlined
+                      ? _C.mint.withOpacity(disabled ? .5 : 1)
+                      : _C.bg,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                    style: TextStyle(
+                      color: outlined
+                          ? _C.text.withOpacity(disabled ? .5 : 1)
+                          : _C.bg,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                    ),
                   ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1969,10 +1787,7 @@ class _PhotoBlock extends StatelessWidget {
                 white: white,
                 onTap: () => _openFullscreen(
                   label,
-                  _PhotoFrame(
-                    white: white,
-                    child: _NetPhoto(url: url),
-                  ),
+                  _PhotoFrame(white: white, child: _NetPhoto(url: url)),
                 ),
                 child: _NetPhoto(url: url),
               ),
@@ -1984,10 +1799,7 @@ class _PhotoBlock extends StatelessWidget {
           child: OutlinedButton.icon(
             onPressed: () => _openFullscreen(
               label,
-              _PhotoFrame(
-                white: white,
-                child: _NetPhoto(url: url),
-              ),
+              _PhotoFrame(white: white, child: _NetPhoto(url: url)),
             ),
             icon: const Icon(Icons.fullscreen_rounded, size: 20),
             label: const Text("Full screen"),
@@ -2071,15 +1883,15 @@ class _NetPhoto extends StatelessWidget {
       loadingBuilder: (context, child, p) => p == null
           ? child
           : const Center(
-              child: SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: _C.accent,
-                ),
-              ),
-            ),
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: _C.accent,
+          ),
+        ),
+      ),
       errorBuilder: (context, e, st) {
         print("Photo loading failed: $e");
         return const Center(

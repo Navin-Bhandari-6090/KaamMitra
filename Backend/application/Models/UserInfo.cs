@@ -47,14 +47,15 @@ namespace application.Models
         [Required]
         public double Longitude { get; set; }
 
-        public string Photo { get; set; } = string.Empty;
+        public string? Photo { get; set; } = string.Empty;
 
         [Required]
         [StringLength(50)]
         public string Role { get; set; } = string.Empty;
 
-        public bool LoginAccess { get; set; } = true; 
+        public bool? LoginAccess { get; set; } = true;
 
+        public bool? Status { get; set; } = true;
 
 
     }

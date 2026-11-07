@@ -13,5 +13,7 @@ namespace application.Models.DTOModels
         [EmailAddress]
         public string Email { get; set; } = string.Empty;
 
+
+
     }
 }

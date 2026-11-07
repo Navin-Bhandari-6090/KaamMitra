@@ -722,29 +722,75 @@ class _ServiceCard extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(height: 6),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: accent.withOpacity(0.10),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                          color: accent.withOpacity(0.28)),
-                                    ),
-                                    child: Text(
-                                      'Your Service Description = $Description',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: mint,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
+
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: Container(
+                                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                                      decoration: BoxDecoration(
+                                        color: accent.withOpacity(0.07),
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(color: accent.withOpacity(0.22)),
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.notes_rounded, size: 13, color: mint.withOpacity(0.9)),
+                                              const SizedBox(width: 6),
+                                              const Flexible(
+                                                child: Text(
+                                                  'SERVICE DESCRIPTION',
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    color: _ProviderServiceSelectState.textMuted,
+                                                    fontSize: 10.5,
+                                                    fontWeight: FontWeight.w700,
+                                                    letterSpacing: 1.1,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            (Description.trim().isEmpty || Description.trim() == '-')
+                                                ? 'No data available'
+                                                : Description.trim(),
+                                            softWrap: true,
+                                            style: TextStyle(
+                                              color: (Description.trim().isEmpty || Description.trim() == '-')
+                                                  ? _ProviderServiceSelectState.textMuted
+                                                  : _ProviderServiceSelectState.textPrimary.withOpacity(0.88),
+                                              fontSize: 13,
+                                              height: 1.55,
+                                              letterSpacing: 0.1,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
+
+
+
+
+
+
+
+
                                 ],
                               ),
                             ),
+
+
+
+
                             const SizedBox(width: 8),
                             AnimatedContainer(
                               duration: const Duration(milliseconds: 200),

@@ -12,6 +12,7 @@ import '../../models/AdvancePaymentPhotoModel.dart';
 import '../../models/AdvancePaymentQRPhoto.dart';
 import '../../models/BookingInfoModel.dart';
 import '../../models/ChatInfoModel.dart';
+import '../../models/NewMsgStatusModel.dart';
 import '../authentication/Error_page.dart';
 import '../common widget/toast.dart';
 import '../../../constant/variable.dart';
@@ -229,7 +230,8 @@ Future<int> AllUserJwtVerify({required String Jwt_Token})async{
   }
 }
 
-Future<void> Random_Jwt_Verify({required String Jwt_Token,required BuildContext context}) async {
+Future<void> Random_Jwt_Verify({required String Jwt_Token,required BuildContext context}) async
+{
   try {
     int Result = await RandomJwtVerify(Jwt_Token: Jwt_Token);
 
@@ -351,51 +353,47 @@ Future<int> AddNotifications({
     );
     if (response.statusCode == 200)
     {
-      print("Add notification info success");
+      // print("Add notification info success");
       // Toast.Toastmsg("Notifcations added done.");
       return 1;
     }
     else if (response.statusCode == 500)
     {
       // Toastget().Toastmsg("Add notification fail.Try again.Server error.");
-      print("Add notification fail.Try again.Server error.");
+      // print("Add notification fail.Try again.Server error.");
       return 2;
     }
     else if (response.statusCode == 502)
     {
+
       Toastget().Toastmsg("Current user doesn't match.");
-      print("Current user doesn't match.");
-      await Clear_User_Data();
-      await Random_token_Clear();
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => ErrorPage()),
-            (route) => false,
-      );
+      // print("Current user doesn't match.");
+
       // Toastget().Toastmsg("Session End.Relogin please.");
+      await Logout(context: context);
       return 3;
     }
     else if (response.statusCode == 503)
     {
       // Toastget().Toastmsg("Provide doesn't match.Choose different provider.");
-      print("Provide doesn't match.Choose different provider.");
+      // print("Provide doesn't match.Choose different provider.");
       return 4;
     }
     else if (response.statusCode == 501)
     {
       // Toastget().Toastmsg("Invalid data format.Please provide data in correct format.");
-      print("Invalid data format.Please provide data in correct format.");
+      // print("Invalid data format.Please provide data in correct format.");
       return 5;
     }
     else {
-      print("Other status code.Error.");
-      print("Status code = ${response.statusCode}");
+      // print("Other status code.Error.");
+      // print("Status code = ${response.statusCode}");
       // Toastget().Toastmsg("Add notification fail.Try again.Server error.");
       return 6;
     }
   } catch (Obj) {
-    print("Exception caught while adding  notification info.");
-    print(Obj.toString());
+    // print("Exception caught while adding  notification info.");
+    // print(Obj.toString());
     // Toastget().Toastmsg("Add notification fail.Try again.Server error.");
     return 7;
   }
@@ -424,51 +422,45 @@ Future<int> AddNewNotifications({
     );
     if (response.statusCode == 200)
     {
-      print("Add new notification info success");
+      // print("Add new notification info success");
       // Toast.Toastmsg("Add new notification done.");
       return 1;
     }
     else if (response.statusCode == 500)
     {
       // Toastget().Toastmsg("Add new notification fail.Try again.Server error.");
-      print("Add new notification fail.Try again.Server error.");
+      // print("Add new notification fail.Try again.Server error.");
       return 2;
     }
     else if (response.statusCode == 502)
     {
       Toastget().Toastmsg("Current user doesn't match.");
-      print("Current user doesn't match.");
-      await Clear_User_Data();
-      await Random_token_Clear();
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => ErrorPage()),
-            (route) => false,
-      );
+      // print("Current user doesn't match.");
+  await Logout(context: context);
       // Toastget().Toastmsg("Session End.Relogin please.");
       return 3;
     }
     else if (response.statusCode == 503)
     {
       // Toastget().Toastmsg("Provide doesn't match.Choose different provider.");
-      print("Provide doesn't match.Choose different provider.");
+      // print("Provide doesn't match.Choose different provider.");
       return 4;
     }
     else if (response.statusCode == 501)
     {
       // Toastget().Toastmsg("Invalid data format.Please provide data in correct format.");
-      print("Invalid data format.Please provide data in correct format.");
+      // print("Invalid data format.Please provide data in correct format.");
       return 5;
     }
     else {
-      print("Other status code.Error.");
-      print("Status code = ${response.statusCode}");
+      // print("Other status code.Error.");
+      // print("Status code = ${response.statusCode}");
       // Toastget().Toastmsg("Add new notification fail.Try again.Server error.");
       return 6;
     }
   } catch (Obj) {
-    print("Exception caught while adding  notification info.");
-    print(Obj.toString());
+    // print("Exception caught while adding  notification info.");
+    // print(Obj.toString());
     // Toastget().Toastmsg("Add new notification fail.Try again.Server error.");
     return 7;
   }
@@ -673,7 +665,6 @@ Future<void> GetUserInfo({
       },
     );
     if (response.statusCode == 200) {
-      print("user info");
       UserInfoModelList.clear();
       List<dynamic> responseData = await jsonDecode(response.body);
       UserInfoModelList.clear();
@@ -788,6 +779,163 @@ Future<void> GetChatMessages({
     print('[CHAT API] ERROR: $e\n$st');
   }
 }
+
+Future<int> AddChatStatus({
+  required String JwtToken,
+  required int MessageReceiverNumber,
+  required BuildContext context,
+}) async {
+  try {
+    if (MessageReceiverNumber <= 0) {
+      Toast.Toastmsg("Invalid receiver information.");
+      return 3;
+    }
+
+    final String url =
+        "${Backend_Server_Url}api/Home/addchatstatus";
+
+    final response = await http.put(
+      Uri.parse(url),
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": "Bearer $JwtToken",
+      },
+      body: jsonEncode({
+        "MessageReceiverNumber": MessageReceiverNumber,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      print("Chat status add successfully.");
+      return 1;
+    } else if (response.statusCode == 400) {
+      Toast.Toastmsg("Invalid receiver information.");
+    } else if (response.statusCode == 401) {
+      Toast.Toastmsg("Your session has expired. Please login again.");
+      await Logout(context: context);
+    } else if (response.statusCode == 403) {
+      Toast.Toastmsg("You are not authorized to update chat status.");
+    } else if (response.statusCode == 500) {
+      Toast.Toastmsg("Server error. Please try again later.");
+    } else {
+      Toast.Toastmsg("Unable to add chat status. Please try again.");
+    }
+
+    return 3;
+  } catch (e) {
+    Toast.Toastmsg("Something went wrong. Please try again.");
+    return 3;
+  }
+}
+
+
+Future<int> UpdateChatStatus({
+  required String JwtToken,
+  required int MessageReceiverNumber,
+  required BuildContext context,
+}) async {
+  try {
+    if (MessageReceiverNumber <= 0) {
+      Toast.Toastmsg("Invalid receiver information.");
+      return 3;
+    }
+
+    final String url =
+        "${Backend_Server_Url}api/Home/updatechatstatus";
+
+    final response = await http.put(
+      Uri.parse(url),
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": "Bearer $JwtToken",
+      },
+      body: jsonEncode({
+        "MessageReceiverNumber": MessageReceiverNumber,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      print("Chat status updated successfully.");
+      return 1;
+    } else if (response.statusCode == 400) {
+      Toast.Toastmsg("Invalid receiver information.");
+    } else if (response.statusCode == 401) {
+      Toast.Toastmsg("Your session has expired. Please login again.");
+      await Logout(context: context);
+    } else if (response.statusCode == 403) {
+      Toast.Toastmsg("You are not authorized to update chat status.");
+    } else if (response.statusCode == 500) {
+      Toast.Toastmsg("Server error. Please try again later.");
+    } else {
+      Toast.Toastmsg("Unable to update chat status. Please try again.");
+    }
+
+    return 3;
+  } catch (e) {
+    Toast.Toastmsg("Something went wrong. Please try again.");
+    return 3;
+  }
+}
+
+
+List<NewMsgStatusModel> NewMsgStatusInfoList=[];
+
+Future<int> GetNewMsgStatus({
+  required String JwtToken,
+  required BuildContext context,
+}) async {
+  try {
+    final String url =
+        "${Backend_Server_Url}api/Home/getnewmessagestatus";
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        "Accept": "application/json",
+        "Authorization": "Bearer $JwtToken",
+      },
+    );
+
+    if (response.statusCode == 200) {
+      NewMsgStatusInfoList.clear();
+      final dynamic responseData = jsonDecode(response.body);
+        NewMsgStatusInfoList.add(
+          NewMsgStatusModel.fromJson(responseData),
+        );
+        print("New message status info get success.");
+        return 1;
+    } else if (response.statusCode == 401) {
+      NewMsgStatusInfoList.clear();
+      Toast.Toastmsg("Your session has expired. Please login again.");
+      await Logout(context: context);
+    } else if (response.statusCode == 403) {
+      NewMsgStatusInfoList.clear();
+      Toast.Toastmsg("You are not authorized to access this information.");
+    } else if (response.statusCode == 404) {
+      NewMsgStatusInfoList.clear();
+      Toast.Toastmsg("User information not found.");
+    } else if (response.statusCode == 506) {
+      NewMsgStatusInfoList.clear();
+      Toast.Toastmsg("Your account has been blocked.");
+      await Logout(context: context);
+    } else if (response.statusCode == 500) {
+      NewMsgStatusInfoList.clear();
+      Toast.Toastmsg("Server error. Please try again later.");
+    } else {
+      NewMsgStatusInfoList.clear();
+      Toast.Toastmsg("Unable to get new message status information.");
+    }
+    return 3;
+  } catch (e) {
+    NewMsgStatusInfoList.clear();
+    Toast.Toastmsg("Something went wrong. Please try again.");
+    return 3;
+  }
+}
+
+
 
 List<BookingInfoModel> ReactiveBookingInfos=[];
 

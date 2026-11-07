@@ -1,12 +1,30 @@
+import 'dart:convert';
 import 'dart:math';
+
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
+
+import '../../../constant/Server_Database.dart';
 import '../../../models/RatingInfoModel.dart';
 import '../../../models/ServiceScreenServiceModel.dart';
 import '../../../models/ServiceScreenUserInfoModel.dart';
+import '../../../web/common method/Commmon_Method.dart';
+import '../../../web/common widget/toast.dart';
+
+/// Text shown whenever a database value is null, empty, or "null".
+const String kNoData = "No data available";
+
+/// Returns the trimmed value, or [kNoData] when it is null, empty, or "null".
+String textOrNoData(String? value) {
+  final String t = (value ?? "").trim();
+  if (t.isEmpty || t.toLowerCase() == "null") return kNoData;
+  return t;
+}
 
 enum ServiceSortMode { distance, rating }
-class CombinedServiceCard
-{
+
+class CombinedServiceCard {
   final ServiceScreenServiceModel service;
   final ServiceScreenUserInfoModel? provider;
   final double rating;
@@ -20,11 +38,20 @@ class CombinedServiceCard
     required this.distanceKm,
     required this.hasLocation,
   });
-
-
 }
 
 class ServiceScreenGetx extends GetxController {
+  // ============================================================
+  // Raw API data
+  // ============================================================
+
+  final List<RatingInfoModel> ratingInfoList = [];
+  final List<ServiceScreenServiceModel> serviceInfoList = [];
+  final List<ServiceScreenUserInfoModel> providerInfoList = [];
+
+  // ============================================================
+  // Loading / error state
+  // ============================================================
 
   RxBool isLoading = false.obs;
   RxBool hasLoadError = false.obs;
@@ -32,29 +59,43 @@ class ServiceScreenGetx extends GetxController {
   void setLoading(bool value) => isLoading.value = value;
   void setLoadError(bool value) => hasLoadError.value = value;
 
-
+  // ============================================================
+  // Cards
+  // ============================================================
 
   final RxList<CombinedServiceCard> allCards = <CombinedServiceCard>[].obs;
   final RxList<CombinedServiceCard> displayedCards =
       <CombinedServiceCard>[].obs;
 
-
+  // ============================================================
+  // Search + sort
+  // ============================================================
 
   RxString searchText = "".obs;
   Rx<ServiceSortMode> sortMode = ServiceSortMode.distance.obs;
 
   void changeSearchText(String value) {
-    searchText.value = value;
-    _applyFilterSort();
+    try {
+      searchText.value = value;
+      _applyFilterSort();
+    } catch (e) {
+      debugPrint("changeSearchText failed: $e");
+    }
   }
 
   void changeSortMode(ServiceSortMode mode) {
-    if (sortMode.value == mode) return;
-    sortMode.value = mode;
-    _applyFilterSort();
+    try {
+      if (sortMode.value == mode) return;
+      sortMode.value = mode;
+      _applyFilterSort();
+    } catch (e) {
+      debugPrint("changeSortMode failed: $e");
+    }
   }
 
-
+  // ============================================================
+  // UI interaction state
+  // ============================================================
 
   RxBool isSearchFocused = false.obs;
   RxInt hoveredCardIndex = (-1).obs;
@@ -66,7 +107,182 @@ class ServiceScreenGetx extends GetxController {
   void setPressedCard(int index) => pressedCardIndex.value = index;
   void clearPressedCard() => pressedCardIndex.value = -1;
 
+  // ============================================================
+  // LOAD ORCHESTRATION — the screen calls only this
+  // ============================================================
 
+  Future<void> loadEverything({
+    required String email,
+    required String jwtToken,
+    required BuildContext context,
+  }) async {
+    setLoading(true);
+    setLoadError(false);
+
+    try {
+      final results = await Future.wait([
+        getServiceInfo(email: email, jwtToken: jwtToken, context: context),
+        getProviderInfo(email: email, jwtToken: jwtToken, context: context),
+        getRatingInfo(email: email, jwtToken: jwtToken, context: context),
+      ]);
+
+      final bool anyFailed = results.any((r) => r != 1);
+
+      double currentLat = 0.0;
+      double currentLong = 0.0;
+      bool locationKnown = false;
+
+      for (final p in providerInfoList) {
+        if (p.email == email) {
+          currentLat = asDouble(p.latitude);
+          currentLong = asDouble(p.longitude);
+          locationKnown = true;
+          break;
+        }
+      }
+
+      buildCombinedList(
+        services: serviceInfoList,
+        providers: providerInfoList,
+        ratings: ratingInfoList,
+        currentUserLat: currentLat,
+        currentUserLong: currentLong,
+        currentUserLocationKnown: locationKnown,
+      );
+
+      setLoadError(anyFailed && serviceInfoList.isEmpty);
+    } catch (e) {
+      debugPrint("Load services failed: $e");
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ============================================================
+  // API CALLS (logic unchanged; moved from the screen)
+  // ============================================================
+
+  Map<String, String> _headers(String jwtToken) => {
+    "Content-Type": "application/json",
+    'Authorization': 'Bearer $jwtToken',
+  };
+
+  Future<int> getRatingInfo({
+    required String email,
+    required String jwtToken,
+    required BuildContext context,
+  }) async {
+    try {
+      const String url = Backend_Server_Url + "api/Service/getratinginfo";
+      final response = await http.post(
+        Uri.parse(url),
+        headers: _headers(jwtToken),
+        body: json.encode({"Email": email}),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = jsonDecode(response.body);
+        ratingInfoList
+          ..clear()
+          ..addAll(responseData.map((d) => RatingInfoModel.fromJson(d)));
+        return 1;
+      } else if (response.statusCode == 500) {
+        ratingInfoList.clear();
+        Toastget().Toastmsg("Your register email don't match..");
+        if (context.mounted) await Logout(context: context);
+        return 3;
+      } else if (response.statusCode == 501) {
+        ratingInfoList.clear();
+        return 4;
+      } else {
+        ratingInfoList.clear();
+        return 2;
+      }
+    } catch (e) {
+      ratingInfoList.clear();
+      return 0;
+    }
+  }
+
+  Future<int> getServiceInfo({
+    required String email,
+    required String jwtToken,
+    required BuildContext context,
+  }) async {
+    try {
+      const String url = Backend_Server_Url + "api/Service/getserviceinfo";
+      final response = await http.post(
+        Uri.parse(url),
+        headers: _headers(jwtToken),
+        body: json.encode({"Email": email}),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = jsonDecode(response.body);
+        serviceInfoList
+          ..clear()
+          ..addAll(
+              responseData.map((d) => ServiceScreenServiceModel.fromJson(d)));
+        return 1;
+      } else if (response.statusCode == 404) {
+        serviceInfoList.clear();
+        if (context.mounted) await Logout(context: context);
+        return 3;
+      } else if (response.statusCode == 501 || response.statusCode == 502) {
+        serviceInfoList.clear();
+        return 4;
+      } else {
+        serviceInfoList.clear();
+        return 2;
+      }
+    } catch (e) {
+      serviceInfoList.clear();
+      return 0;
+    }
+  }
+
+  Future<int> getProviderInfo({
+    required String email,
+    required String jwtToken,
+    required BuildContext context,
+  }) async {
+    try {
+      const String url = Backend_Server_Url + "api/Service/getuserinfo";
+      final response = await http.post(
+        Uri.parse(url),
+        headers: _headers(jwtToken),
+        body: json.encode({"Email": email}),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = jsonDecode(response.body);
+        providerInfoList
+          ..clear()
+          ..addAll(responseData
+              .map((d) => ServiceScreenUserInfoModel.fromJson(d)));
+        return 1;
+      } else if (response.statusCode == 404) {
+        providerInfoList.clear();
+        Toastget().Toastmsg("Your register email don't match..");
+        if (context.mounted) await Logout(context: context);
+        return 3;
+      } else if (response.statusCode == 501 || response.statusCode == 502) {
+        providerInfoList.clear();
+        return 4;
+      } else {
+        providerInfoList.clear();
+        return 2;
+      }
+    } catch (e) {
+      providerInfoList.clear();
+      return 0;
+    }
+  }
+
+  // ============================================================
+  // Current user location
+  // ============================================================
 
   double _currentUserLat = 0.0;
   double _currentUserLong = 0.0;
@@ -78,7 +294,9 @@ class ServiceScreenGetx extends GetxController {
     _currentUserLocationKnown = known;
   }
 
-
+  // ============================================================
+  // Build combined list
+  // ============================================================
 
   void buildCombinedList({
     required List<ServiceScreenServiceModel> services,
@@ -96,12 +314,9 @@ class ServiceScreenGetx extends GetxController {
 
     final List<CombinedServiceCard> combined = [];
 
-    for (final service in services)
-    {
-
+    for (final service in services) {
       ServiceScreenUserInfoModel? provider;
-      for (final p in providers)
-      {
+      for (final p in providers) {
         if (p.userNumber == service.userNumber) {
           provider = p;
           break;
@@ -109,8 +324,7 @@ class ServiceScreenGetx extends GetxController {
       }
 
       double rating = 0.0;
-      for (final r in ratings)
-      {
+      for (final r in ratings) {
         if (r.ratingReceiverNumber == service.userNumber &&
             r.serviceName == service.serviceName) {
           rating = asDouble(r.averageRating);
@@ -119,8 +333,7 @@ class ServiceScreenGetx extends GetxController {
       }
 
       double distance = 0.0;
-      final bool hasLocation =
-          _currentUserLocationKnown && provider != null;
+      final bool hasLocation = _currentUserLocationKnown && provider != null;
 
       if (hasLocation) {
         distance = calculateDistanceKm(
@@ -138,10 +351,6 @@ class ServiceScreenGetx extends GetxController {
         distanceKm: distance,
         hasLocation: hasLocation,
       ));
-
-
-
-
     }
 
     allCards.assignAll(combined);
@@ -168,8 +377,7 @@ class ServiceScreenGetx extends GetxController {
     } else {
       filtered = allCards.where((card) {
         final String name = (card.service.serviceName ?? "").toLowerCase();
-        final String userNumber =
-        (card.service.userNumber ?? 0).toString();
+        final String userNumber = (card.service.userNumber ?? 0).toString();
         return name.contains(query) || userNumber.contains(query);
       }).toList();
     }
@@ -185,8 +393,7 @@ class ServiceScreenGetx extends GetxController {
 }
 
 // ============================================================
-// HAVERSINE DISTANCE (km) — straight-line distance between two
-// lat/long points on Earth's surface.
+// HAVERSINE DISTANCE (km)
 // ============================================================
 
 double calculateDistanceKm(
@@ -207,11 +414,6 @@ double _degToRad(double deg) => deg * (pi / 180);
 
 // ============================================================
 // SAFE NUMERIC CONVERSION
-// Model fields coming from JSON aren't always a clean `double?` —
-// they can arrive as int, num, String, or dynamic depending on how
-// fromJson was written. This accepts any of those and always
-// returns a non-null double, so call sites never fight the type
-// checker again.
 // ============================================================
 
 double asDouble(dynamic value, {double fallback = 0.0}) {

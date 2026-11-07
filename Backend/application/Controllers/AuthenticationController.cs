@@ -81,6 +81,7 @@ namespace application.Controllers
                     return StatusCode(501, "Password must be between 8 and 72 characters.");
 
                 var email = (obj.Email ?? "").Trim().ToLower();
+
                 if (string.IsNullOrEmpty(email))
                     return StatusCode(501, "The provided data is not in correct format.");
 
@@ -89,6 +90,7 @@ namespace application.Controllers
                     .Select(e => e.Trim().ToLower());
 
                 string role;
+
                 if (adminEmails.Contains(email))
                 {
                     role = "admin";
@@ -103,9 +105,17 @@ namespace application.Controllers
 
                 var existingUser = await Database.UserInfos
                     .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
+
                 if (existingUser != null)
                     return StatusCode(502, "The provided user email is already registered.");
 
+                var BlackListData=await Database.BlaclistUsers.Where(x=>x.Email==obj.Email || x.PhoneNumber==obj.PhoneNumber || x.WhatsappPhoneNumber==obj.WhatsappPhoneNumber).ToListAsync();
+
+                if (BlackListData.Count>=1) 
+                { 
+                    return StatusCode(525, "You have been blocked by the system.");
+                }
+               
                 var user = new UserInfo
                 {
                     FirstName = obj.FirstName,
@@ -119,7 +129,8 @@ namespace application.Controllers
                     Longitude = obj.Longitude,
                     Photo = string.Empty,
                     Role = role,
-                    LoginAccess = true
+                    LoginAccess = true,
+                    Status=false
                 };
 
                 await Database.UserInfos.AddAsync(user);
@@ -159,7 +170,7 @@ namespace application.Controllers
                 if (!VerifyPassword(user, obj.Password ?? ""))
                     return StatusCode(503, "Invalid email or password.");
 
-                if (!user.LoginAccess)
+                if (!(bool)user.LoginAccess)
                     return StatusCode(504, "Your account is not authorized for login.");
 
                 string token = TokenServices.GenerateTokenUser(user);
@@ -298,6 +309,8 @@ namespace application.Controllers
                 return StatusCode(500, $"Exception caught in login action method.\n{ex.Message}"); // 500 Internal Server Error
             }
         }
+
+
 
 
 

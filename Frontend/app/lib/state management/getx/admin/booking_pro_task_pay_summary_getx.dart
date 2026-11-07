@@ -1,51 +1,27 @@
-// =============================================================================
-// filter_summary_booking_task_comp_getx.dart
-// ANALYSIS controller for FilterSummaryBookingTaskCompPayment screen.
-//
-// - Server data comes ONLY from the OLD BookProTaskCompGetx (same API methods,
-//   same JWT flow). This controller wraps it; no API code is duplicated here.
-// - Visualization only: no add / update / delete calls exist in this file.
-// - Every derived value is Rx-based, so the UI updates reactively.
-// - If BookingInfoModel / ProTaskCompPayInfoModel live in their own files,
-//   add their import lines below.
-// =============================================================================
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../models/AdminTaskCompletePaymentModel.dart';
 import '../../../models/BookingInfoModel.dart';
 import '../../../models/ProTaskCompPayInfoModel.dart';
 import 'book_pro_task_comp_getx.dart';
 
-// -----------------------------------------------------------------------------
-// ENUMS
-// -----------------------------------------------------------------------------
+const String kNoData = 'No data available';
+
+const List<String> kMonths = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
 enum Tri { any, yes, no }
 
-enum SortKey {
-  newest,
-  oldest,
-  bookIdAsc,
-  bookIdDesc,
-  amountHigh,
-  amountLow,
-  riskHigh,
-}
-
-enum IncomePeriod { weekly, monthly, yearly }
+enum SortKey { newest, oldest, bookIdAsc, bookIdDesc, amountHigh, amountLow, riskHigh }
 
 enum RiskLevel { low, medium, high, critical }
 
 enum PartyKind { user, provider }
 
-const List<String> kMonths = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-];
+enum RiskView { fakeUsers, providerNotApproved, providerNotCompleted }
 
-// -----------------------------------------------------------------------------
-// HELPERS (pure, never throw)
-// -----------------------------------------------------------------------------
 String digitsOnly(String? s) => (s ?? '').replaceAll(RegExp(r'\D'), '');
 
 String numText(num? n) {
@@ -73,17 +49,12 @@ bool triMatch(bool v, Tri t) {
   }
 }
 
-bool _isDomesticMethod(String? m) =>
-    (m ?? '').trim().toLowerCase() == 'domestic';
+bool _isDomesticMethod(String? m) => (m ?? '').trim().toLowerCase() == 'domestic';
 
-bool _isIntlMethod(String? m) =>
-    (m ?? '').trim().toLowerCase().contains('inter');
+bool _isIntlMethod(String? m) => (m ?? '').trim().toLowerCase().contains('inter');
 
-// -----------------------------------------------------------------------------
-// ROW MODELS
-// -----------------------------------------------------------------------------
+List<num> idsOf(Iterable<BookingRow> rows) => rows.map((r) => r.bookId).toList();
 
-/// One booking (deduplicated by bookId) with all its payments attached.
 class BookingRow {
   BookingRow({required this.bookId, required this.info});
 
@@ -96,7 +67,7 @@ class BookingRow {
 
   String get serviceName {
     final s = (info.serviceName ?? '').trim();
-    return s.isEmpty ? 'Unknown service' : s;
+    return s.isEmpty ? kNoData : s;
   }
 
   DateTime? get createdAt => parseDate(info.createdAt);
@@ -109,17 +80,17 @@ class BookingRow {
   bool get hasPayment => payments.isNotEmpty;
   bool get fullyCompleted => userDone && providerDone;
 
-  /// Open for 7+ days and not closed by both sides.
-  bool get stalled {
+  int get daysOpen {
     final d = createdAt;
-    return !fullyCompleted && d != null && DateTime.now().difference(d).inDays >= 7;
+    return d == null ? 0 : DateTime.now().difference(d).inDays;
   }
 
-  /// Money logged but job not closed by both sides.
+  bool get stalled => !fullyCompleted && daysOpen >= 7;
+
   bool get paidButIncomplete => hasPayment && !fullyCompleted;
 
-  double get paidTotal => payments.fold<double>(
-      0.0, (s, p) => s + (p.paymentAmount ?? 0).toDouble());
+  double get paidTotal =>
+      payments.fold<double>(0.0, (s, p) => s + (p.paymentAmount ?? 0).toDouble());
 
   bool get contactGap =>
       digitsOnly(info.userPhoneNumber).length < 6 ||
@@ -130,7 +101,6 @@ class BookingRow {
   bool get emptyDesc => (info.userBookingDescription ?? '').trim().length < 3;
 }
 
-/// One payment record (may be orphan when its booking was deleted).
 class PaymentRow {
   PaymentRow({required this.payment, this.booking});
 
@@ -141,22 +111,25 @@ class PaymentRow {
   DateTime? get date => parseDate(payment.paymentDate);
   bool get isDomestic => _isDomesticMethod(payment.paymentMethod);
   bool get isIntl => _isIntlMethod(payment.paymentMethod);
-  String get kind => isDomestic ? 'domestic' : (isIntl ? 'international' : 'other');
-  String get category => booking?.serviceName ?? 'Unknown service';
+  String get category => booking?.serviceName ?? kNoData;
 }
 
 class RiskFlag {
-  const RiskFlag(this.title, this.detail, this.points, {this.severe = false});
+  const RiskFlag(
+      this.title,
+      this.detail,
+      this.points, {
+        this.severe = false,
+        this.bookIds = const <num>[],
+      });
 
   final String title;
   final String detail;
   final int points;
-
-  /// A severe flag alone pushes the party onto the blacklist.
   final bool severe;
+  final List<num> bookIds;
 }
 
-/// Risk profile for a user number or a provider number.
 class RiskProfile {
   RiskProfile({
     required this.kind,
@@ -193,20 +166,18 @@ class RiskProfile {
 
   int get stalledCount => rows.where((r) => r.stalled).length;
 
-  double get paidTotal =>
-      rows.fold<double>(0.0, (s, r) => s + r.paidTotal);
+  double get paidTotal => rows.fold<double>(0.0, (s, r) => s + r.paidTotal);
 }
 
-/// Income bucket for weekly / monthly / yearly charts.
-class IncomeBucket {
-  IncomeBucket({required this.start, required this.label});
+class DayIncome {
+  DayIncome(this.date);
 
-  final DateTime start;
-  final String label;
+  final DateTime date;
   double domestic = 0.0;
   double international = 0.0;
   double other = 0.0;
   int count = 0;
+  final List<PaymentRow> items = [];
 
   double get total => domestic + international + other;
 
@@ -220,10 +191,10 @@ class IncomeBucket {
       other += a;
     }
     count++;
+    items.add(r);
   }
 }
 
-/// Income per service category (service name).
 class CategoryIncome {
   CategoryIncome(this.name);
 
@@ -248,20 +219,14 @@ class CategoryIncome {
   }
 }
 
-// =============================================================================
-// CONTROLLER
-// =============================================================================
 class FilterSummaryBookingTaskCompPaymentGetx extends GetxController {
-  /// OLD controller: owns API calls, JWT, and raw server list.
   final BookProTaskCompGetx src = BookProTaskCompGetx();
 
-  // ---------------- derived reactive data ----------------
   final RxList<BookingRow> bookings = <BookingRow>[].obs;
   final RxList<PaymentRow> payments = <PaymentRow>[].obs;
   final RxList<RiskProfile> userRisks = <RiskProfile>[].obs;
   final RxList<RiskProfile> providerRisks = <RiskProfile>[].obs;
 
-  // ---------------- booking search (each field separate) ----------------
   final TextEditingController bookIdCont = TextEditingController();
   final TextEditingController userCont = TextEditingController();
   final TextEditingController providerCont = TextEditingController();
@@ -269,7 +234,6 @@ class FilterSummaryBookingTaskCompPaymentGetx extends GetxController {
   final RxString userQ = ''.obs;
   final RxString providerQ = ''.obs;
 
-  // ---------------- booking filters (tri-state) ----------------
   final Rx<Tri> userApprovedF = Tri.any.obs;
   final Rx<Tri> providerApprovedF = Tri.any.obs;
   final Rx<Tri> userDoneF = Tri.any.obs;
@@ -277,44 +241,36 @@ class FilterSummaryBookingTaskCompPaymentGetx extends GetxController {
   final Rx<Tri> paymentF = Tri.any.obs;
   final Rx<SortKey> sortKey = SortKey.newest.obs;
 
-  // ---------------- quick finder: last N (1..10) ----------------
   final RxInt quickN = 10.obs;
+  final RxInt tab = 0.obs;
 
-  // ---------------- income ----------------
-  final Rx<IncomePeriod> period = IncomePeriod.monthly.obs;
+  final Rx<DateTime> incomeMonth =
+      DateTime(DateTime.now().year, DateTime.now().month).obs;
+  final Rxn<DateTime> selectedDay = Rxn<DateTime>();
+  final TextEditingController dateCont = TextEditingController();
+  final RxString dateError = ''.obs;
 
-  // ---------------- risk ----------------
-  final Rx<PartyKind> riskKind = PartyKind.user.obs;
+  final Rx<RiskView> riskView = RiskView.fakeUsers.obs;
   final Rxn<RiskLevel> riskLevelF = Rxn<RiskLevel>();
   final TextEditingController riskCont = TextEditingController();
   final RxString riskQ = ''.obs;
-
-  // ---------------- UI tab ----------------
-  final RxInt tab = 0.obs;
 
   final List<Worker> _workers = [];
 
   RxBool get isLoading => src.isLoading;
 
-  // ===========================================================================
-  // LIFECYCLE
-  // ===========================================================================
   Future<void> init({required String jwtToken}) async {
     try {
       _workers.add(ever(src.adminTaskCompletePaymentList, (_) => _recompute()));
       await src.init(jwtToken: jwtToken);
       _recompute();
-    } catch (e) {
-      print("FilterSummary init error: $e");
-    }
+    } catch (_) {}
   }
 
   Future<void> refreshData() async {
     try {
       await src.loadInfo();
-    } catch (e) {
-      print("FilterSummary refresh error: $e");
-    }
+    } catch (_) {}
   }
 
   @override
@@ -327,10 +283,9 @@ class FilterSummaryBookingTaskCompPaymentGetx extends GetxController {
       userCont.dispose();
       providerCont.dispose();
       riskCont.dispose();
+      dateCont.dispose();
       src.onClose();
-    } catch (e) {
-      print("FilterSummary onClose error: $e");
-    }
+    } catch (_) {}
     super.onClose();
   }
 
@@ -351,19 +306,13 @@ class FilterSummaryBookingTaskCompPaymentGetx extends GetxController {
       sortKey.value = SortKey.newest;
       riskLevelF.value = null;
       riskQ.value = '';
-    } catch (e) {
-      print("resetFilters error: $e");
-    }
+    } catch (_) {}
   }
 
-  // ===========================================================================
-  // BUILD DERIVED DATA (from old controller's raw list)
-  // ===========================================================================
   void _recompute() {
     try {
       final raw = src.adminTaskCompletePaymentList;
 
-      // Pass 1: every booking exactly once.
       final Map<num, BookingRow> map = {};
       for (final m in raw) {
         final info = m.bookingInfo;
@@ -373,7 +322,6 @@ class FilterSummaryBookingTaskCompPaymentGetx extends GetxController {
         }
       }
 
-      // Pass 2: attach payments once each (dedupe by payment id).
       final Set<num> seenPay = {};
       final List<PaymentRow> pays = [];
       for (final m in raw) {
@@ -391,17 +339,9 @@ class FilterSummaryBookingTaskCompPaymentGetx extends GetxController {
       payments.assignAll(pays);
       userRisks.assignAll(_buildUserRisks(bookingList));
       providerRisks.assignAll(_buildProviderRisks(bookingList));
-    } catch (e) {
-      print("FilterSummary recompute error: $e");
-    }
+    } catch (_) {}
   }
 
-  // ===========================================================================
-  // FAKE USER / BLACKLIST ENGINE
-  // Points per signal, score capped at 100.
-  // Level: 30 medium, 50 high, 70 critical.
-  // Blacklist: score >= 70 OR any severe signal.
-  // ===========================================================================
   List<RiskProfile> _buildUserRisks(List<BookingRow> all) {
     try {
       final Map<num, List<BookingRow>> groups = {};
@@ -411,7 +351,6 @@ class FilterSummaryBookingTaskCompPaymentGetx extends GetxController {
         groups.putIfAbsent(k, () => <BookingRow>[]).add(r);
       }
 
-      // Phone -> set of user numbers using it (shared-phone detection).
       final Map<String, Set<num>> phoneOwners = {};
       for (final r in all) {
         final ph = digitsOnly(r.info.userPhoneNumber);
@@ -420,7 +359,7 @@ class FilterSummaryBookingTaskCompPaymentGetx extends GetxController {
           phoneOwners.putIfAbsent(ph, () => <num>{}).add(u);
         }
       }
-      final sharedKeys = phoneOwners.entries
+      final Set<String> sharedKeys = phoneOwners.entries
           .where((e) => e.value.length > 1)
           .map((e) => e.key)
           .toSet();
@@ -429,97 +368,113 @@ class FilterSummaryBookingTaskCompPaymentGetx extends GetxController {
       groups.forEach((num number, List<BookingRow> rows) {
         final flags = <RiskFlag>[];
 
-        final never = rows.where((r) => !r.userApproved && !r.providerApproved).length;
-        if (never >= 2) {
+        final never =
+        rows.where((r) => !r.userApproved && !r.providerApproved).toList();
+        if (never.length >= 2) {
           flags.add(RiskFlag(
             'Never approved',
-            '$never booking(s) with no approval from either side',
-            never >= 5 ? 30 : 15,
-            severe: never >= 5,
+            '${never.length} booking(s) with no approval from either side',
+            never.length >= 5 ? 30 : 15,
+            severe: never.length >= 5,
+            bookIds: idsOf(never),
           ));
         }
 
-        final userNoShow = rows
+        final userOpen = rows
             .where((r) => r.providerApproved && !r.userDone && r.stalled)
-            .length;
-        if (userNoShow >= 2) {
+            .toList();
+        if (userOpen.length >= 2) {
           flags.add(RiskFlag(
             'User never completes',
-            '$userNoShow approved job(s) left open by the user',
+            '${userOpen.length} approved job(s) left open by the user',
             20,
+            bookIds: idsOf(userOpen),
           ));
         }
 
-        final providerIgnores =
-            rows.where((r) => r.userApproved && !r.providerApproved).length;
-        if (providerIgnores >= 2) {
+        final ignores =
+        rows.where((r) => r.userApproved && !r.providerApproved).toList();
+        if (ignores.length >= 2) {
           flags.add(RiskFlag(
             'Provider ignores user',
-            '$providerIgnores booking(s) approved by user but not by provider',
+            '${ignores.length} booking(s) approved by user but not by provider',
             10,
+            bookIds: idsOf(ignores),
           ));
         }
 
-        final staleUnpaid = rows.where((r) => r.stalled && !r.hasPayment).length;
-        if (staleUnpaid >= 3) {
+        final staleUnpaid =
+        rows.where((r) => r.stalled && !r.hasPayment).toList();
+        if (staleUnpaid.length >= 3) {
           flags.add(RiskFlag(
             'Stale unpaid bookings',
-            '$staleUnpaid booking(s) open 7+ days with no payment',
+            '${staleUnpaid.length} booking(s) open 7+ days with no payment',
             15,
+            bookIds: idsOf(staleUnpaid),
           ));
         }
 
-        final Map<String, int> perDay = {};
+        final Map<String, List<BookingRow>> perDay = {};
         for (final r in rows) {
           final d = r.createdAt;
           if (d == null) continue;
-          final k = '${d.year}-${d.month}-${d.day}';
-          perDay[k] = (perDay[k] ?? 0) + 1;
+          perDay
+              .putIfAbsent('${d.year}-${d.month}-${d.day}', () => <BookingRow>[])
+              .add(r);
         }
-        final burst = perDay.values.fold<int>(0, (m, v) => v > m ? v : m);
-        if (burst >= 3) {
+        List<BookingRow> burstRows = const <BookingRow>[];
+        perDay.forEach((_, v) {
+          if (v.length > burstRows.length) burstRows = v;
+        });
+        if (burstRows.length >= 3) {
           flags.add(RiskFlag(
             'Booking burst',
-            'Up to $burst bookings created in a single day',
+            'Up to ${burstRows.length} bookings created in a single day',
             15,
+            bookIds: idsOf(burstRows),
           ));
         }
 
-        final sharedPhone = rows.any((r) =>
-            sharedKeys.contains(digitsOnly(r.info.userPhoneNumber)));
-        if (sharedPhone) {
+        final sharedRows = rows
+            .where((r) => sharedKeys.contains(digitsOnly(r.info.userPhoneNumber)))
+            .toList();
+        if (sharedRows.isNotEmpty) {
           flags.add(RiskFlag(
             'Shared phone number',
             'Same phone number linked to multiple user accounts',
             25,
             severe: true,
+            bookIds: idsOf(sharedRows),
           ));
         }
 
-        final gaps = rows.where((r) => r.contactGap).length;
-        if (gaps > 0 && gaps * 2 >= rows.length) {
+        final gaps = rows.where((r) => r.contactGap).toList();
+        if (gaps.isNotEmpty && gaps.length * 2 >= rows.length) {
           flags.add(RiskFlag(
             'Incomplete contact',
             'Phone or email missing on most bookings',
             10,
+            bookIds: idsOf(gaps),
           ));
         }
 
-        final noCoords = rows.where((r) => r.noCoords).length;
-        if (noCoords >= 2 && noCoords * 2 >= rows.length) {
+        final noCoords = rows.where((r) => r.noCoords).toList();
+        if (noCoords.length >= 2 && noCoords.length * 2 >= rows.length) {
           flags.add(RiskFlag(
             'No location data',
             'Coordinates missing on most bookings',
             8,
+            bookIds: idsOf(noCoords),
           ));
         }
 
-        final emptyDesc = rows.where((r) => r.emptyDesc).length;
-        if (emptyDesc >= 2 && emptyDesc * 2 >= rows.length) {
+        final emptyDesc = rows.where((r) => r.emptyDesc).toList();
+        if (emptyDesc.length >= 2 && emptyDesc.length * 2 >= rows.length) {
           flags.add(RiskFlag(
             'Empty descriptions',
             'Booking descriptions are blank or too short',
             5,
+            bookIds: idsOf(emptyDesc),
           ));
         }
 
@@ -536,8 +491,7 @@ class FilterSummaryBookingTaskCompPaymentGetx extends GetxController {
 
       out.sort((a, b) => b.score.compareTo(a.score));
       return out;
-    } catch (e) {
-      print("buildUserRisks error: $e");
+    } catch (_) {
       return [];
     }
   }
@@ -555,60 +509,56 @@ class FilterSummaryBookingTaskCompPaymentGetx extends GetxController {
       groups.forEach((num number, List<BookingRow> rows) {
         final flags = <RiskFlag>[];
 
-        final ignored = rows.where((r) => !r.providerApproved).length;
-        if (ignored >= 2) {
+        final ignored = rows.where((r) => !r.providerApproved).toList();
+        if (ignored.length >= 2) {
           flags.add(RiskFlag(
             'Ignores booking requests',
-            '$ignored booking(s) never approved by provider',
-            ignored >= 5 ? 25 : 15,
-            severe: ignored >= 5,
+            '${ignored.length} booking(s) never approved by provider',
+            ignored.length >= 5 ? 25 : 15,
+            severe: ignored.length >= 5,
+            bookIds: idsOf(ignored),
           ));
         }
 
-        final noFinish = rows.where((r) => r.userDone && !r.providerDone).length;
-        if (noFinish >= 2) {
+        final noFinish = rows.where((r) => r.userDone && !r.providerDone).toList();
+        if (noFinish.length >= 2) {
           flags.add(RiskFlag(
             'Does not close after user confirms',
-            '$noFinish job(s) confirmed by user but not closed by provider',
-            noFinish >= 4 ? 30 : 20,
-            severe: noFinish >= 4,
+            '${noFinish.length} job(s) confirmed by user but not closed by provider',
+            noFinish.length >= 4 ? 30 : 20,
+            severe: noFinish.length >= 4,
+            bookIds: idsOf(noFinish),
           ));
         }
 
-        final doneNoPay = rows.where((r) => r.providerDone && !r.hasPayment).length;
-        if (doneNoPay >= 1) {
+        final doneNoPay =
+        rows.where((r) => r.providerDone && !r.hasPayment).toList();
+        if (doneNoPay.isNotEmpty) {
           flags.add(RiskFlag(
             'Completed without payment',
-            '$doneNoPay job(s) closed with no payment logged',
-            doneNoPay >= 3 ? 25 : 10,
+            '${doneNoPay.length} job(s) closed with no payment logged',
+            doneNoPay.length >= 3 ? 25 : 10,
+            bookIds: idsOf(doneNoPay),
           ));
         }
 
-        final stale = rows.where((r) => r.stalled).length;
-        if (stale >= 3) {
+        final stale = rows.where((r) => r.stalled).toList();
+        if (stale.length >= 3) {
           flags.add(RiskFlag(
             'Stale bookings',
-            '$stale booking(s) open 7+ days',
+            '${stale.length} booking(s) open 7+ days',
             20,
+            bookIds: idsOf(stale),
           ));
         }
 
-        final paidOpen = rows.where((r) => r.paidButIncomplete).length;
-        if (paidOpen >= 2) {
+        final paidOpen = rows.where((r) => r.paidButIncomplete).toList();
+        if (paidOpen.length >= 2) {
           flags.add(RiskFlag(
             'Paid but not closed',
-            '$paidOpen payment(s) logged on jobs not closed by both sides',
+            '${paidOpen.length} payment(s) logged on jobs not closed by both sides',
             15,
-          ));
-        }
-
-        final badPhone = rows.any(
-                (r) => digitsOnly(r.info.providerPhoneNumber).length < 6);
-        if (badPhone) {
-          flags.add(RiskFlag(
-            'Missing provider phone',
-            'Contact number missing or invalid',
-            10,
+            bookIds: idsOf(paidOpen),
           ));
         }
 
@@ -625,15 +575,11 @@ class FilterSummaryBookingTaskCompPaymentGetx extends GetxController {
 
       out.sort((a, b) => b.score.compareTo(a.score));
       return out;
-    } catch (e) {
-      print("buildProviderRisks error: $e");
+    } catch (_) {
       return [];
     }
   }
 
-  // ===========================================================================
-  // BOOKING SEARCH / FILTER / SORT / QUICK FINDER
-  // ===========================================================================
   int _rowRisk(BookingRow r) {
     int s = 0;
     if (r.stalled) s += 30;
@@ -689,26 +635,21 @@ class FilterSummaryBookingTaskCompPaymentGetx extends GetxController {
       }).toList();
       _sortList(out, sortKey.value);
       return out;
-    } catch (e) {
-      print("filteredBookings error: $e");
+    } catch (_) {
       return [];
     }
   }
 
-  /// Last N bookings (N = 1..10) where provider approved AND no payment logged.
   List<BookingRow> get quickFinder {
     try {
-      final list = bookings
-          .where((r) => r.providerApproved && !r.hasPayment)
-          .toList()
+      final list = bookings.where((r) => r.providerApproved && !r.hasPayment).toList()
         ..sort((a, b) => (b.createdAt ?? DateTime(1970))
             .compareTo(a.createdAt ?? DateTime(1970)));
       int n = quickN.value;
       if (n < 1) n = 1;
       if (n > 10) n = 10;
       return list.take(n).toList();
-    } catch (e) {
-      print("quickFinder error: $e");
+    } catch (_) {
       return [];
     }
   }
@@ -728,95 +669,134 @@ class FilterSummaryBookingTaskCompPaymentGetx extends GetxController {
     return 0;
   }
 
-  // ===========================================================================
-  // RISK FILTER
-  // ===========================================================================
+  bool _matchRisk(BookingRow r, String q) {
+    if (q.isEmpty) return true;
+    return numText(r.bookId).contains(q) ||
+        numText(r.userNumber).contains(q) ||
+        numText(r.providerNumber).contains(q);
+  }
+
+  List<BookingRow> _searchRows(List<BookingRow> list) {
+    final q = riskQ.value.trim();
+    final out = list.where((r) => _matchRisk(r, q)).toList();
+    out.sort((a, b) => (b.createdAt ?? DateTime(1970))
+        .compareTo(a.createdAt ?? DateTime(1970)));
+    return out;
+  }
+
+  List<BookingRow> get providerNotApprovedRows =>
+      _searchRows(bookings.where((r) => !r.providerApproved).toList());
+
+  List<BookingRow> get providerNotCompletedRows =>
+      _searchRows(bookings.where((r) => !r.providerDone).toList());
+
   List<RiskProfile> get filteredRisks {
     try {
-      final base = riskKind.value == PartyKind.user ? userRisks : providerRisks;
       final q = riskQ.value.trim();
       final lv = riskLevelF.value;
-      return base.where((r) {
+      return userRisks.where((r) {
         if (lv != null && r.level != lv) return false;
-        if (q.isNotEmpty && !numText(r.number).contains(q)) return false;
+        if (q.isNotEmpty &&
+            !numText(r.number).contains(q) &&
+            !r.rows.any((b) => numText(b.bookId).contains(q))) {
+          return false;
+        }
         return true;
       }).toList();
-    } catch (e) {
-      print("filteredRisks error: $e");
+    } catch (_) {
       return [];
     }
   }
 
-  // ===========================================================================
-  // INCOME ANALYTICS
-  // ===========================================================================
-  DateTime _keyOf(DateTime d, IncomePeriod p) {
-    switch (p) {
-      case IncomePeriod.weekly:
-        {
-          final day = DateTime(d.year, d.month, d.day);
-          return day.subtract(Duration(days: day.weekday - 1));
-        }
-      case IncomePeriod.monthly:
-        return DateTime(d.year, d.month);
-      case IncomePeriod.yearly:
-        return DateTime(d.year);
-    }
+  String get monthLabelText {
+    final m = incomeMonth.value;
+    return '${m.month}/${m.year}';
   }
 
-  String _label(DateTime k, IncomePeriod p) {
-    switch (p) {
-      case IncomePeriod.weekly:
-        return '${k.day.toString().padLeft(2, '0')} ${kMonths[k.month - 1]}';
-      case IncomePeriod.monthly:
-        return '${kMonths[k.month - 1]} ${k.year % 100}';
-      case IncomePeriod.yearly:
-        return '${k.year}';
-    }
+  int get daysInIncomeMonth {
+    final m = incomeMonth.value;
+    return DateTime(m.year, m.month + 1, 0).day;
   }
 
-  /// Weekly: last 12 weeks. Monthly: last 12 months. Yearly: all years.
-  List<IncomeBucket> incomeBuckets() {
+  void shiftMonth(int delta) {
     try {
-      final p = period.value;
-      final now = DateTime.now();
-      final Map<DateTime, IncomeBucket> m = {};
-
-      if (p == IncomePeriod.weekly) {
-        final start = _keyOf(now, p);
-        for (int i = 11; i >= 0; i--) {
-          final k = DateTime(start.year, start.month, start.day - 7 * i);
-          m[k] = IncomeBucket(start: k, label: _label(k, p));
-        }
-      } else if (p == IncomePeriod.monthly) {
-        for (int i = 11; i >= 0; i--) {
-          final k = DateTime(now.year, now.month - i);
-          m[k] = IncomeBucket(start: k, label: _label(k, p));
-        }
-      } else {
-        int first = now.year - 4;
-        for (final r in payments) {
-          final d = r.date;
-          if (d != null && d.year < first) first = d.year;
-        }
-        for (int y = first; y <= now.year; y++) {
-          final k = DateTime(y);
-          m[k] = IncomeBucket(start: k, label: _label(k, p));
-        }
+      final m = incomeMonth.value;
+      final next = DateTime(m.year, m.month + delta, 1);
+      incomeMonth.value = next;
+      final s = selectedDay.value;
+      if (s != null && (s.year != next.year || s.month != next.month)) {
+        selectedDay.value = null;
       }
+    } catch (_) {}
+  }
 
+  void selectDay(DateTime d) {
+    try {
+      final day = DateTime(d.year, d.month, d.day);
+      incomeMonth.value = DateTime(day.year, day.month, 1);
+      selectedDay.value = day;
+      dateError.value = '';
+    } catch (_) {}
+  }
+
+  void clearSelectedDay() {
+    selectedDay.value = null;
+  }
+
+  bool applyDateText() {
+    try {
+      final t = dateCont.text.trim();
+      final m = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$').firstMatch(t);
+      if (m == null) {
+        dateError.value = 'Use the format yyyy-MM-dd';
+        return false;
+      }
+      final int y = int.parse(m.group(1)!);
+      final int mo = int.parse(m.group(2)!);
+      final int d = int.parse(m.group(3)!);
+      final DateTime date = DateTime(y, mo, d);
+      if (date.year != y || date.month != mo || date.day != d) {
+        dateError.value = 'This date does not exist';
+        return false;
+      }
+      selectDay(date);
+      return true;
+    } catch (_) {
+      dateError.value = 'Use the format yyyy-MM-dd';
+      return false;
+    }
+  }
+
+  List<DayIncome> dailyIncome() {
+    try {
+      final m = incomeMonth.value;
+      final days = daysInIncomeMonth;
+      final list = List<DayIncome>.generate(
+        days,
+            (i) => DayIncome(DateTime(m.year, m.month, i + 1)),
+      );
       for (final r in payments) {
         final d = r.date;
         if (d == null) continue;
-        final b = m[_keyOf(d, p)];
-        if (b == null) continue;
-        b.add(r);
+        if (d.year != m.year || d.month != m.month) continue;
+        list[d.day - 1].add(r);
       }
-
-      final list = m.values.toList()..sort((a, b) => a.start.compareTo(b.start));
       return list;
-    } catch (e) {
-      print("incomeBuckets error: $e");
+    } catch (_) {
+      return [];
+    }
+  }
+
+  List<PaymentRow> paymentsOn(DateTime d) {
+    try {
+      final list = payments.where((r) {
+        final x = r.date;
+        return x != null && x.year == d.year && x.month == d.month && x.day == d.day;
+      }).toList()
+        ..sort((a, b) =>
+            (a.date ?? DateTime(1970)).compareTo(b.date ?? DateTime(1970)));
+      return list;
+    } catch (_) {
       return [];
     }
   }
@@ -828,24 +808,25 @@ class FilterSummaryBookingTaskCompPaymentGetx extends GetxController {
         m.putIfAbsent(r.category, () => CategoryIncome(r.category)).add(r);
       }
       return m.values.toList()..sort((a, b) => b.total.compareTo(a.total));
-    } catch (e) {
-      print("categoryBreakdown error: $e");
+    } catch (_) {
       return [];
     }
   }
 
-  // ===========================================================================
-  // OVERVIEW STATS (all reactive through the Rx lists they read)
-  // ===========================================================================
   int get totalBookings => bookings.length;
   int get totalPayments => payments.length;
 
-  double get totalRevenue =>
-      payments.fold<double>(0.0, (s, p) => s + p.amount);
+  double get totalRevenue => payments.fold<double>(0.0, (s, p) => s + p.amount);
 
-  double _sumKind(String k) => payments
-      .where((p) => p.kind == k)
-      .fold<double>(0.0, (s, p) => s + p.amount);
+  double _sumKind(String k) {
+    double s = 0.0;
+    for (final p in payments) {
+      if (k == 'domestic' && p.isDomestic) s += p.amount;
+      if (k == 'international' && p.isIntl) s += p.amount;
+      if (k == 'other' && !p.isDomestic && !p.isIntl) s += p.amount;
+    }
+    return s;
+  }
 
   double get domesticRevenue => _sumKind('domestic');
   double get intlRevenue => _sumKind('international');
@@ -859,12 +840,8 @@ class FilterSummaryBookingTaskCompPaymentGetx extends GetxController {
       totalBookings == 0 ? 0.0 : fullyCompletedCount / totalBookings;
 
   int get stalledCount => bookings.where((r) => r.stalled).length;
-  int get paidIncompleteCount => bookings.where((r) => r.paidButIncomplete).length;
   int get bookingsWithoutPayment => bookings.where((r) => !r.hasPayment).length;
-  int get orphanPaymentCount => payments.where((p) => p.booking == null).length;
 
   int get blacklistedUsers => userRisks.where((r) => r.blacklisted).length;
   int get blacklistedProviders => providerRisks.where((r) => r.blacklisted).length;
-  int get highRiskUsers => userRisks.where((r) => r.level == RiskLevel.high || r.level == RiskLevel.critical).length;
-  int get highRiskProviders => providerRisks.where((r) => r.level == RiskLevel.high || r.level == RiskLevel.critical).length;
 }

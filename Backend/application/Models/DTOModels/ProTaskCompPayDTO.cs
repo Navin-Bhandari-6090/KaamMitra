@@ -7,7 +7,7 @@ namespace application.Models.DTOModels
         [Required]
         public double PaymentAmount { get; set; }
 
-        public DateTime PaymentDate { get; set; } = DateTime.UtcNow;
+        public DateTime? PaymentDate { get; set; } = DateTime.UtcNow;
 
         [Required]
         public int BookId { get; set; }

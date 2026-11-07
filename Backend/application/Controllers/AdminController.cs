@@ -1119,7 +1119,8 @@ namespace application.Controllers
                         Latitude = user.Latitude,
                         Longitude = user.Longitude,
                         Role = user.Role,
-                        LoginAccess = user.LoginAccess
+                        LoginAccess = (bool)user.LoginAccess,
+
                     }).ToList();
 
                     return Ok(user_info);
@@ -1139,7 +1140,7 @@ namespace application.Controllers
         [HttpPost]
         [Route("deleteservice")]
         public async Task<IActionResult> DeleteService(
-     [FromBody] ProviderServiceIdDTO? obj)
+     [FromBody] ProviderServiceIdDTO obj)
         {
             try
             {
@@ -3216,7 +3217,12 @@ public async Task<IActionResult> DeleteAdvancePaymentInfo(
                     );
                 }
 
-  
+                var ratingList = await Database.RatingInfos
+    .Where(x => x.BookId == model.BookId)
+    .ToListAsync();
+
+
+
                 // Get wwwroot path
 
                 var webRootPath = _environment.WebRootPath;
@@ -3265,6 +3271,13 @@ public async Task<IActionResult> DeleteAdvancePaymentInfo(
                     {
                         System.IO.File.Delete(physicalVideoPath);
                     }
+                }
+
+
+                if (ratingList.Count > 0)
+                {
+                    Database.RatingInfos.RemoveRange(ratingList);
+                    await Database.SaveChangesAsync();
                 }
 
                 // Delete booking from database
@@ -4003,13 +4016,62 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                     }
                 }
 
+                BlackListUsersModel BlackListUser = new BlackListUsersModel
+                {
+                    Email = user.Email,
+                    PhoneNumber = user.PhoneNumber,
+                    WhatsappPhoneNumber = user.WhatsappPhoneNumber
+                };
 
+
+                await Database.BlaclistUsers.AddAsync(BlackListUser);
+
+                // Get related records
+                var Msg_Data = await Database.ChatInfos
+                    .Where(x => x.SenderNumber == obj.UserNumber)
+                    .ToListAsync();
+
+                var New_Msg_Status_data = await Database.NewMessageStatusInfos
+                    .Where(x => x.MessageReceiverNumber == obj.UserNumber)
+                    .ToListAsync();
+
+                var Not_Data = await Database.NotificationInfos
+                    .Where(x => x.ReceiverNumber == obj.UserNumber)
+                    .ToListAsync();
+
+                var New_Not_Status_Data = await Database.NewNotificationInfos
+                    .Where(x => x.ReceiverNumber == obj.UserNumber)
+                    .ToListAsync();
+
+                // Delete available related records
+                if (Msg_Data.Count > 0)
+                {
+                    Database.ChatInfos.RemoveRange(Msg_Data);
+                }
+
+                if (New_Msg_Status_data.Count > 0)
+                {
+                    Database.NewMessageStatusInfos.RemoveRange(New_Msg_Status_data);
+                }
+
+                if (Not_Data.Count > 0)
+                {
+                    Database.NotificationInfos.RemoveRange(Not_Data);
+                }
+
+                if (New_Not_Status_Data.Count > 0)
+                {
+                    Database.NewNotificationInfos.RemoveRange(New_Not_Status_Data);
+                }
+
+                // Delete user
                 Database.UserInfos.Remove(user);
 
+                // Save all changes together
                 await Database.SaveChangesAsync();
 
+                return Ok("User and related information deleted successfully.");
 
-                return Ok("User and profile photo deleted successfully.");
             }
             catch (Exception ex)
             {
@@ -4230,6 +4292,353 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 );
             }
         }
+
+
+        [Authorize(Policy = "RequireAdminRole")]
+        [HttpPost]
+        [Route("deleteproserviceares")]
+        public async Task<IActionResult> DeleteService([FromBody] serv_res_id_DTO obj)
+        {
+            try
+            {
+                var userNumberClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int userNumber))
+                    return Forbid();
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == userNumber);
+
+                if (user == null)
+                    return StatusCode(505, "User not found.");
+
+                if (user.LoginAccess == false)
+                    return StatusCode(506,
+                        "You have been blocked by System. Contact the KaamMitra community.");
+
+                if (obj == null)
+                    return StatusCode(400, "Request data is required.");
+
+                if (!ModelState.IsValid)
+                    return StatusCode(400, "Data are not in the correct format.");
+
+                // Null, 0 or a negative number means "not provided".
+                bool hasServiceId = obj.ProviderServiceId.HasValue && obj.ProviderServiceId.Value > 0;
+                bool hasResourceId = obj.ProviderServiceResourcesId.HasValue && obj.ProviderServiceResourcesId.Value > 0;
+
+                if (hasServiceId && hasResourceId)
+                    return StatusCode(512,
+                        "Send only one id at a time: either ProviderServiceId or ProviderServiceResourcesId, not both.");
+
+                if (!hasServiceId && !hasResourceId)
+                    return StatusCode(400,
+                        "Send ProviderServiceId or ProviderServiceResourcesId.");
+
+                // ---- file helpers (paths must stay inside wwwroot) ----
+                var webRootPath = _environment.WebRootPath;
+
+                if (string.IsNullOrWhiteSpace(webRootPath))
+                    webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+
+                webRootPath = Path.GetFullPath(webRootPath);
+
+                var rootPrefix = Path.TrimEndingDirectorySeparator(webRootPath)
+                    + Path.DirectorySeparatorChar;
+
+                var pathComparison = OperatingSystem.IsWindows()
+                    ? StringComparison.OrdinalIgnoreCase
+                    : StringComparison.Ordinal;
+
+                string? ResolvePhysicalPath(string? storedPath)
+                {
+                    if (string.IsNullOrWhiteSpace(storedPath))
+                        return null;
+
+                    var normalizedPath = storedPath.Trim()
+                        .Replace('\\', Path.DirectorySeparatorChar)
+                        .Replace('/', Path.DirectorySeparatorChar)
+                        .TrimStart(Path.DirectorySeparatorChar);
+
+                    if (string.IsNullOrWhiteSpace(normalizedPath) ||
+                        Path.IsPathRooted(normalizedPath))
+                        return null;
+
+                    var physicalPath = Path.GetFullPath(Path.Combine(webRootPath, normalizedPath));
+
+                    return physicalPath.StartsWith(rootPrefix, pathComparison)
+                        ? physicalPath
+                        : null;
+                }
+
+                // Deletes the files and returns true if any file could not be removed.
+                bool DeleteFiles(IEnumerable<string?> storedPaths)
+                {
+                    var physicalFilePaths = new HashSet<string>(
+                        OperatingSystem.IsWindows()
+                            ? StringComparer.OrdinalIgnoreCase
+                            : StringComparer.Ordinal);
+
+                    foreach (var storedPath in storedPaths)
+                    {
+                        var physicalPath = ResolvePhysicalPath(storedPath);
+                        if (physicalPath != null)
+                            physicalFilePaths.Add(physicalPath);
+                    }
+
+                    bool incomplete = false;
+
+                    foreach (var physicalPath in physicalFilePaths)
+                    {
+                        try
+                        {
+                            if (System.IO.File.Exists(physicalPath))
+                                System.IO.File.Delete(physicalPath);
+                        }
+                        catch (Exception)
+                        {
+                            incomplete = true;
+                        }
+                    }
+
+                    return incomplete;
+                }
+
+                IActionResult Done(string okMessage, string partialMessage, bool incomplete)
+                {
+                    return Ok(new
+                    {
+                        Message = incomplete ? partialMessage : okMessage,
+                        FileCleanupIncomplete = incomplete
+                    });
+                }
+
+                // ================= CASE 1: delete ONE resource =================
+                if (hasResourceId)
+                {
+                    var resource = await Database.ProviderServiceResourcesInfo
+                        .FirstOrDefaultAsync(x =>
+                            x.ProviderServiceResourcesId == obj.ProviderServiceResourcesId);
+
+                    if (resource == null)
+                        return StatusCode(404, "Service resource is not present.");
+
+                    var resourcePaths = new List<string?>
+            {
+                resource.ServicePhoto,
+                resource.ServiceVideo,
+                resource.ServiceFile
+            };
+
+                    Database.ProviderServiceResourcesInfo.Remove(resource);
+                    await Database.SaveChangesAsync();
+
+                    // Files are removed only after the database delete succeeded.
+                    bool incompleteResource = DeleteFiles(resourcePaths);
+
+                    return Done(
+                        "Service resource deleted successfully.",
+                        "Service resource record was deleted, but some physical files could not be removed.",
+                        incompleteResource);
+                }
+
+                // ============ CASE 2: delete the SERVICE + all its resources ============
+                var serviceData = await Database.ProviderServiceInfo
+                    .FirstOrDefaultAsync(x =>
+                        x.ProviderServiceId == obj.ProviderServiceId);
+
+                if (serviceData == null)
+                    return StatusCode(404, "Registered service is not present.");
+
+                var serviceResources = await Database.ProviderServiceResourcesInfo
+                    .Where(x => x.ProviderServiceId == obj.ProviderServiceId)
+                    .ToListAsync();
+
+                var servicePaths = new List<string?> { serviceData.ServiceDocument };
+
+                foreach (var resource in serviceResources)
+                {
+                    if (resource == null)
+                        continue;
+
+                    servicePaths.Add(resource.ServicePhoto);
+                    servicePaths.Add(resource.ServiceVideo);
+                    servicePaths.Add(resource.ServiceFile);
+                }
+
+                if (serviceResources.Count > 0)
+                    Database.ProviderServiceResourcesInfo.RemoveRange(serviceResources);
+
+                Database.ProviderServiceInfo.Remove(serviceData);
+
+                await Database.SaveChangesAsync();
+
+                bool incompleteService = DeleteFiles(servicePaths);
+
+                return Done(
+                    "Registered service and all associated resources deleted successfully.",
+                    "Service and resource records were deleted, but some physical files could not be removed.",
+                    incompleteService);
+            }
+            catch (Exception)
+            {
+                return StatusCode(500,
+                    "An error occurred while deleting the registered service or resource.");
+            }
+        }
+
+
+        [Authorize(Policy = "RequireAdminRole")]
+        [HttpPost]
+        [Route("getuserlinkedresources")]
+        public async Task<IActionResult> GetUserLinkedResources(
+            [FromBody] UserNumberDTO obj)
+        {
+            try
+            {
+                // Validate Admin JWT claim.
+                var userNumberClaim =
+                    User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int adminUserNumber))
+                    return Forbid();
+
+                // Validate Admin account.
+                var admin = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == adminUserNumber);
+
+                if (admin == null)
+                    return StatusCode(505, "Admin account not found.");
+
+                if (admin.LoginAccess == false)
+                    return StatusCode(
+                        506,
+                        "You have been blocked by System. Contact the KaamMitra community.");
+
+                // Validate request data.
+                if (obj == null)
+                    return StatusCode(400, "Request data is required.");
+
+                if (!ModelState.IsValid)
+                    return StatusCode(400, "Data are not in the correct format.");
+
+                if (obj.UserNumber <= 0)
+                    return StatusCode(400, "Valid UserNumber is required.");
+
+                // Verify requested user exists.
+                var userExists = await Database.UserInfos
+                    .AnyAsync(x => x.UserNumber == obj.UserNumber);
+
+                if (!userExists)
+                    return StatusCode(404, "User not found.");
+
+                // Retrieve provider service IDs.
+                var providerServiceIds = await Database.ProviderServiceInfo
+                    .Where(x => x.UserNumber == obj.UserNumber)
+                    .Select(x => x.ProviderServiceId)
+                    .ToListAsync();
+
+                // Retrieve provider service resource IDs.
+                var providerServiceResourceIds = await Database.ProviderServiceResourcesInfo
+                    .Where(x => x.UserNumber == obj.UserNumber)
+                    .Select(x => x.ProviderServiceResourcesId)
+                    .ToListAsync();
+
+                // Retrieve notification IDs.
+                var notificationIds = await Database.NotificationInfos
+                    .Where(x => x.ReceiverNumber == obj.UserNumber)
+                    .Select(x => x.NotId)
+                    .ToListAsync();
+
+                // Retrieve booking IDs.
+                var bookingIds = await Database.BookingInfos
+                    .Where(x => x.UserNumber == obj.UserNumber)
+                    .Select(x => x.BookId)
+                    .ToListAsync();
+
+                // Retrieve rating IDs linked to the user's bookings.
+                var ratingIds = await Database.RatingInfos
+                    .Where(x => bookingIds.Contains(x.BookId))
+                    .Select(x => x.RtingId)
+                    .ToListAsync();
+
+                // Retrieve advance payment IDs linked to the user's bookings.
+                var advancePaymentIds = await Database.AdvancePaymentInfos
+                    .Where(x => bookingIds.Contains(x.BookId))
+                    .Select(x => x.PaymentId)
+                    .ToListAsync();
+
+
+
+                // Retrieve new notification IDs.
+                var newNotificationIds = await Database.NewNotificationInfos
+                    .Where(x => x.ReceiverNumber == obj.UserNumber)
+                    .Select(x => x.NewNotId)
+                    .ToListAsync();
+
+                // Retrieve advance payment QR IDs.
+                var advancePaymentQrIds = await Database.AdvancePaymentQrInfos
+                    .Where(x => x.ProviderNumber == obj.UserNumber)
+                    .Select(x => x.QRId)
+                    .ToListAsync();
+
+                // Retrieve chat IDs.
+                var chatIds = await Database.ChatInfos
+                    .Where(x => x.SenderNumber == obj.UserNumber)
+                    .Select(x => x.ChatId)
+                    .ToListAsync();
+
+                // Retrieve new message status IDs.
+                var newMessageStatusIds = await Database.NewMessageStatusInfos
+                    .Where(x => x.MessageReceiverNumber == obj.UserNumber)
+                    .Select(x => x.NewMsgId)
+                    .ToListAsync();
+
+                // Retrieve shared media IDs.
+                var sharedMediaIds = await Database.SharedMediaInfos
+                    .Where(x => x.SenderNumber == obj.UserNumber)
+                    .Select(x => x.SharedMediaId)
+                    .ToListAsync();
+
+                // Prepare linked resource response.
+                var result = new UserLinkedResourcesDTO
+                {
+                    ProviderServiceInfo = string.Join("&", providerServiceIds),
+                    ProviderServiceResourcesInfo = string.Join("&", providerServiceResourceIds),
+                    NotificationInfos = string.Join("&", notificationIds),
+                    BookingInfos = string.Join("&", bookingIds),
+                    RatingInfos = string.Join("&", ratingIds),
+                    AdvancePaymentInfos = string.Join("&", advancePaymentIds),
+                    NewNotificationInfos = string.Join("&", newNotificationIds),
+                    AdvancePaymentQrInfos = string.Join("&", advancePaymentQrIds),
+                    ChatInfos = string.Join("&", chatIds),
+                    NewMessageStatusInfos = string.Join("&", newMessageStatusIds),
+                    SharedMediaInfos = string.Join("&", sharedMediaIds)
+                };
+
+                return Ok(result);
+            }
+            catch (Exception)
+            {
+                return StatusCode(
+                    500,
+                    "An error occurred while retrieving user linked resources.");
+            }
+        }
+
+       
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

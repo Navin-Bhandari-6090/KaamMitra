@@ -40,18 +40,18 @@ class GreenField extends StatelessWidget {
         minLines: height == null ? 1 : null,
         maxLines: height == null ? 1 : null,
         expands: height != null,
-        style: const TextStyle(fontSize: 14.5, color: AppColors.textDark),
+        style: const TextStyle(fontSize: 14.5, color: Colors.black),
         decoration: InputDecoration(
           filled: true,
           fillColor: backgroundColor,
 
           labelText: label,
           labelStyle: const TextStyle(
-            color: AppColors.textMuted,
+            color: Colors.red,
             fontSize: 13.5,
           ),
 
-          prefixIcon: Icon(icon, size: 19, color: AppColors.textMuted),
+          prefixIcon: Icon(icon, size: 19, color: Colors.brown),
 
           suffixIcon: suffix,
 

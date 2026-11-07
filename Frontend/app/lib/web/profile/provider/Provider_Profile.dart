@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:app/web/footer/Footer.dart';
 import 'package:app/web/profile/provider/Provider_add_Sevice_Resources.dart';
 import 'package:app/web/profile/provider/update_pro_reg_ser_descp.dart';
+import 'package:app/web/profile/provider/update_status.dart';
 import 'package:app/web/profile/provider_user/select_shared_media.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -27,6 +28,7 @@ import 'Provider_Update_Service_File.dart';
 import 'Select_Ser_Res_Update.dart';
 import '../provider_user/Update_Password.dart';
 import 'add_update_fonepay_qr.dart';
+import 'delete_serv_res.dart';
 
 /// ---------------------------------------------------------------------------
 /// THEME TOKENS (dark green, modern)
@@ -117,7 +119,6 @@ class _ProviderProfileState extends State<ProviderProfile>
         body: json.encode(UserDetails),
       );
       if (response.statusCode == 200) {
-        print("profile user info");
         Map<dynamic, dynamic> responseData = await jsonDecode(response.body);
         UserInfoModelList.clear();
         UserInfoModelList.add(UserInfo.fromJson(responseData));
@@ -143,14 +144,11 @@ class _ProviderProfileState extends State<ProviderProfile>
     required List<int> photoBytes,
   }) async {
     try {
-      print("========== UPDATE PHOTO ==========");
-      print("Email: $Email");
-      print("Photo Extension: $photoExtension");
-      print("Photo Size: ${photoBytes.length} bytes");
 
-      // --------------------------------------------------
+
+
       // 1. Validate photo
-      // --------------------------------------------------
+
 
       if (photoBytes.length == 0) {
         print("ERROR: Photo bytes are empty.");
@@ -178,7 +176,7 @@ class _ProviderProfileState extends State<ProviderProfile>
 
       const String url = Backend_Server_Url + "api/Profile/updateprofilephoto";
 
-      print("API URL: $url");
+
 
       // --------------------------------------------------
       // 4. Create multipart request
@@ -216,28 +214,22 @@ class _ProviderProfileState extends State<ProviderProfile>
         ),
       );
 
-      print("Multipart request created.");
-      print("Uploading photo...");
 
-      // --------------------------------------------------
+
+
       // 9. Send request
-      // --------------------------------------------------
+
 
       final streamedResponse = await request.send();
 
-      // --------------------------------------------------
       // 10. Read response
-      // --------------------------------------------------
+
 
       final response = await http.Response.fromStream(streamedResponse);
 
-      // --------------------------------------------------
       // 11. Print response
-      // --------------------------------------------------
 
-      print("Response status: ${response.statusCode}");
 
-      print("Response body: ${response.body}");
 
       // --------------------------------------------------
       // 12. Status handling
@@ -293,14 +285,13 @@ class _ProviderProfileState extends State<ProviderProfile>
     return "$baseUrl$path";
   }
 
-  // ---------------------------------------------------------------------
+
   // Shared onPressed logic for changing the photo — UNCHANGED behavior,
   // just extracted so it can be triggered from the new edit-avatar button.
-  // ---------------------------------------------------------------------
+
   Future<void> _onChangePhotoPressed() async {
     try {
-      int PhotoResult = await change_photo_cont_getx.pickImage();
-      if (PhotoResult == 1) {
+     await PickPhoto();
         bool Result = await UpdatePhoto(
           Email: widget.User_Email,
           jwttoken: widget.User_JwtToken,
@@ -317,18 +308,7 @@ class _ProviderProfileState extends State<ProviderProfile>
           Toast.Toastmsg("Fail to change photo.Try again.");
           return;
         }
-      } else if (PhotoResult == 2) {
-        Toast.Toastmsg("Invalid photo extension(format only jpg,jpeg,png)");
-        return;
-      } else if (PhotoResult == 5) {
-        Toast.Toastmsg("Photo is larger than 100 MB.");
-        return;
-      } else {
-        Toast.Toastmsg(
-          "Pick image fail.Use jpg,jpeg,png format only for photos.",
-        );
-        return;
-      }
+
     } catch (exception) {
       Toast.Toastmsg("Fail to change photo.Try again.");
       return;
@@ -360,47 +340,19 @@ class _ProviderProfileState extends State<ProviderProfile>
     final List<_ActionItem> actions = [
 
       _ActionItem(
-        icon: Icons.add_business_rounded,
-        label: "Add service",
+        icon: Icons.location_city_rounded,
+        label: "Shared media.",
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ProviderAddService(
-              User_Email: widget.User_Email,
-              User_JwtToken: widget.User_JwtToken,
-              User_Role: widget.User_Role,
+            builder: (context) => SelectSharedMedia(
+              Current_User_Jwt_Token: widget.User_JwtToken,
             ),
           ),
         ),
       ),
-      _ActionItem(
-        icon: Icons.inventory_2_rounded,
-        label: "Add service resources",
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ProviderAddSeviceResources(
-              User_Email: widget.User_Email,
-              User_JwtToken: widget.User_JwtToken,
-              User_Role: widget.User_Role,
-            ),
-          ),
-        ),
-      ),
-      _ActionItem(
-        icon: Icons.photo_library_rounded,
-        label: "My gallery",
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ProviderServiceSelect(
-              User_Email: widget.User_Email,
-              User_JwtToken: widget.User_JwtToken,
-              User_Role: widget.User_Role,
-            ),
-          ),
-        ),
-      ),
+
+
       _ActionItem(
         icon: Icons.lock_reset_rounded,
         label: "Update password",
@@ -411,47 +363,8 @@ class _ProviderProfileState extends State<ProviderProfile>
               User_Email: widget.User_Email,
               User_JwtToken: widget.User_JwtToken,
               User_Role: widget.User_Role,
-            ),
-          ),
-        ),
-      ),
-      _ActionItem(
-        icon: Icons.upload_file_rounded,
-        label: "Update service file",
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ProviderUpdateServiceFile(
-              User_Email: widget.User_Email,
-              User_JwtToken: widget.User_JwtToken,
-              User_Role: widget.User_Role,
-            ),
-          ),
-        ),
-      ),
-      _ActionItem(
-        icon: Icons.build_circle_rounded,
-        label: "Update service resources",
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SelectSerResUpdate(
-              User_Email: widget.User_Email,
-              User_JwtToken: widget.User_JwtToken,
-              User_Role: widget.User_Role,
-            ),
-          ),
-        ),
-      ),
-
-      _ActionItem(
-        icon: Icons.email_rounded,
-        label: "Update register service description",
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => UpdateProRegSerDescp(
-              User_JwtToken: widget.User_JwtToken,
+              PhoneNumber: UserInfoModelList[0].phoneNumber!,
+              WhatsappNumber:  UserInfoModelList[0].whatsappPhoneNumber!,
             ),
           ),
         ),
@@ -489,26 +402,6 @@ class _ProviderProfileState extends State<ProviderProfile>
       ),
 
       _ActionItem(
-        icon: Icons.location_city_rounded,
-        label: "Add/Update fonepay QR photo.",
-        onTap: () {
-          final user = UserInfoModelList[0];
-           Navigator.push
-            (
-            context,
-            MaterialPageRoute(
-              builder: (context) =>
-                  AddUpdateFonepayQr(
-                    User_Email: widget.User_Email,
-                    User_JwtToken: widget.User_JwtToken,
-                    User_Role: widget.User_Role,
-                  ),
-            ),
-          );
-        }
-      ),
-
-      _ActionItem(
           icon: Icons.location_city_rounded,
           label: "Update address.",
           onTap: () {
@@ -542,13 +435,102 @@ class _ProviderProfileState extends State<ProviderProfile>
       ),
 
       _ActionItem(
-        icon: Icons.location_city_rounded,
-        label: "Shared media.",
+        icon: Icons.upload_file_rounded,
+        label: "Update status.",
         onTap: () => Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => SelectSharedMedia(
-              Current_User_Jwt_Token: widget.User_JwtToken,
+            builder: (context) => UpdateStatus(
+
+              User_JwtToken: widget.User_JwtToken,
+
+            ),
+          ),
+        ),
+      ),
+
+      _ActionItem(
+        icon: Icons.photo_library_rounded,
+        label: "My gallery",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProviderServiceSelect(
+              User_Email: widget.User_Email,
+              User_JwtToken: widget.User_JwtToken,
+              User_Role: widget.User_Role,
+            ),
+          ),
+        ),
+      ),
+
+      _ActionItem(
+        icon: Icons.add_business_rounded,
+        label: "Add service",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProviderAddService(
+              User_Email: widget.User_Email,
+              User_JwtToken: widget.User_JwtToken,
+              User_Role: widget.User_Role,
+            ),
+          ),
+        ),
+      ),
+      _ActionItem(
+        icon: Icons.email_rounded,
+        label: "Update service description",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => UpdateProRegSerDescp(
+              User_JwtToken: widget.User_JwtToken,
+            ),
+          ),
+        ),
+      ),
+      _ActionItem(
+        icon: Icons.upload_file_rounded,
+        label: "Update service file",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProviderUpdateServiceFile(
+              User_Email: widget.User_Email,
+              User_JwtToken: widget.User_JwtToken,
+              User_Role: widget.User_Role,
+            ),
+          ),
+        ),
+      ),
+      _ActionItem(
+        icon: Icons.inventory_2_rounded,
+        label: "Add service resources",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProviderAddSeviceResources(
+              User_Email: widget.User_Email,
+              User_JwtToken: widget.User_JwtToken,
+              User_Role: widget.User_Role,
+            ),
+          ),
+        ),
+      ),
+
+
+
+      _ActionItem(
+        icon: Icons.build_circle_rounded,
+        label: "Update service resources",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SelectSerResUpdate(
+              User_Email: widget.User_Email,
+              User_JwtToken: widget.User_JwtToken,
+              User_Role: widget.User_Role,
             ),
           ),
         ),
@@ -558,10 +540,41 @@ class _ProviderProfileState extends State<ProviderProfile>
 
 
 
+      _ActionItem(
+        icon: Icons.location_city_rounded,
+        label: "Add/Update fonepay QR photo(Advance payment QR).",
+        onTap: () {
+          final user = UserInfoModelList[0];
+           Navigator.push
+            (
+            context,
+            MaterialPageRoute(
+              builder: (context) =>
+                  AddUpdateFonepayQr(
+                    User_Email: widget.User_Email,
+                    User_JwtToken: widget.User_JwtToken,
+                    User_Role: widget.User_Role,
+                  ),
+            ),
+          );
+        }
+      ),
 
 
+      _ActionItem(
+        icon: Icons.upload_file_rounded,
+        label: "Delete your service and resources.",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DeleteServRes(
 
+              Current_User_JwtToken: widget.User_JwtToken,
 
+            ),
+          ),
+        ),
+      ),
     ];
 
     return Scaffold(
@@ -858,6 +871,47 @@ class _ProviderProfileState extends State<ProviderProfile>
                                           ),
                                           SizedBox(height: shortestval * 0.008),
 
+                                          Text(
+                                            "Status : ${user.status==true?"Reserve":"Free"}",
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontFamily: bold,
+                                              fontSize: shortestval * 0.052,
+                                              fontWeight: FontWeight.w700,
+                                              color: _ProfileTheme.textPrimary,
+                                              letterSpacing: 0.2,
+                                            ),
+                                          ),
+                                          SizedBox(height: shortestval * 0.008),
+
+
+                                          Text(
+                                            "Phone Number : ${user.phoneNumber}",
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontFamily: bold,
+                                              fontSize: shortestval * 0.052,
+                                              fontWeight: FontWeight.w700,
+                                              color: _ProfileTheme.textPrimary,
+                                              letterSpacing: 0.2,
+                                            ),
+                                          ),
+                                          SizedBox(height: shortestval * 0.008),
+
+
+                                          Text(
+                                            "Whatsapp Number : ${user.whatsappPhoneNumber}",
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontFamily: bold,
+                                              fontSize: shortestval * 0.052,
+                                              fontWeight: FontWeight.w700,
+                                              color: _ProfileTheme.textPrimary,
+                                              letterSpacing: 0.2,
+                                            ),
+                                          ),
+                                          SizedBox(height: shortestval * 0.008),
+
 
                                           Container(
                                             padding: const EdgeInsets.symmetric(
@@ -912,6 +966,27 @@ class _ProviderProfileState extends State<ProviderProfile>
                                               ),
                                             ),
                                           ),
+
+                                          SizedBox(height: shortestval * 0.008),
+
+
+                                          Text(
+                                            "Screenshot your ID,Phone Number,Email as they need to recover your password from Login Screen.You cannot reset your password without it. ",
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              fontFamily: bold,
+                                              fontSize: shortestval * 0.052,
+                                              fontWeight: FontWeight.w700,
+                                              color: _ProfileTheme.textPrimary,
+                                              letterSpacing: 0.2,
+                                            ),
+                                          ),
+
+                                          SizedBox(height: shortestval * 0.008),
+
+
+
+
                                         ],
                                       ),
                                     );
@@ -992,7 +1067,7 @@ class _ProviderProfileState extends State<ProviderProfile>
                         ),
                       ),
 
-                      Footer()
+                      Footer(User_JwtToken: widget.User_JwtToken,),
                     ],
                   ),
                 ),

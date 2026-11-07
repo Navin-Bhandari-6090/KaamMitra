@@ -110,6 +110,34 @@ namespace application.Migrations
                     b.ToTable("AdvertisementInfos");
                 });
 
+            modelBuilder.Entity("application.Models.BlackListUsersModel", b =>
+                {
+                    b.Property<int>("BlackListId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("BlackListId"));
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("WhatsappPhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("BlackListId");
+
+                    b.ToTable("BlaclistUsers");
+                });
+
             modelBuilder.Entity("application.Models.BookinInfoModel", b =>
                 {
                     b.Property<int>("BookId")
@@ -247,9 +275,6 @@ namespace application.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("NewMsgId"));
 
                     b.Property<int>("MessageReceiverNumber")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("MessageSenderNumber")
                         .HasColumnType("integer");
 
                     b.Property<bool>("Status")
@@ -529,7 +554,7 @@ namespace application.Migrations
                     b.Property<double>("Latitude")
                         .HasColumnType("double precision");
 
-                    b.Property<bool>("LoginAccess")
+                    b.Property<bool?>("LoginAccess")
                         .HasColumnType("boolean");
 
                     b.Property<double>("Longitude")
@@ -545,13 +570,15 @@ namespace application.Migrations
                         .HasColumnType("character varying(50)");
 
                     b.Property<string>("Photo")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<bool?>("Status")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("WhatsappPhoneNumber")
                         .IsRequired()

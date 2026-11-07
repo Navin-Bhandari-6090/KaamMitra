@@ -4,6 +4,7 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:path/path.dart';
 
 // Adjust the relative import segment counts / folder names to your project.
 import '../../constant/variable.dart';
@@ -75,7 +76,7 @@ class _ProTaskCompleteStatusState extends State<ProTaskCompleteStatus> {
         try {
           if (!mounted) return;
           Navigator.pushAndRemoveUntil(
-            context,
+            context as BuildContext,
             MaterialPageRoute(builder: (context) => ErrorPage()),
                 (route) => false,
           );
@@ -210,7 +211,7 @@ class _ProTaskCompleteStatusState extends State<ProTaskCompleteStatus> {
                               const SizedBox(height: 16),
                               _Entrance(index: 3, child: _ProofsSection(c: c)),
                               const SizedBox(height: 16),
-                              _Entrance(index: 4, child: _UploadSection(c: c)),
+                              _Entrance(index: 4, child: _UploadSection(c: c, context: context,)),
                             ]),
                           ),
                         ),
@@ -1115,7 +1116,8 @@ class _PaymentCard extends StatelessWidget {
 // =============================================================================
 class _UploadSection extends StatelessWidget {
   final ProTaskCompleteGetx c;
-  const _UploadSection({required this.c});
+  final BuildContext context;
+  const _UploadSection({required this.c, required this.context});
 
   Future<void> _pick() async {
     try {
@@ -1152,7 +1154,8 @@ class _UploadSection extends StatelessWidget {
     }
   }
 
-  Future<void> _upload(String method) async {
+  Future<void> _upload(String method) async 
+  {
     try {
       if (c.uploadingMethod.value.isNotEmpty) return;
       if (change_photo_cont_getx.imageBytes.value == null) {
@@ -1170,7 +1173,7 @@ class _UploadSection extends StatelessWidget {
         icon: Icons.cloud_upload_rounded,
       );
       if (!ok) return;
-      await c.submitPayment(method);
+      await c.submitPayment(method, context: context);
     } catch (obj) {
       print(obj.toString());
     }

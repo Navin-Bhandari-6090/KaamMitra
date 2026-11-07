@@ -251,39 +251,7 @@ class MessageScreenGetx extends GetxController {
     }
   }
 
-  // Sends without confirmation. Clears the input only when the save succeeded.
-  // Requires the LastSendSucceeded flag in the chat API file.
-  // Future<void> requestSend() async {
-  //   try {
-  //     final String text = draft.value.trim();
-  //     if (text.isEmpty || isSending.value) return;
-  //
-  //     isSending.value = true;
-  //     LastSendSucceeded = false;
-  //
-  //     await AddChatMessage(
-  //       Message: text,
-  //       ReceiverNumber: otherNumber,
-  //       User_JwtToken: jwtToken,
-  //     );
-  //
-  //     if (LastSendSucceeded) {
-  //       textCont.clear();
-  //       draft.value = '';
-  //     }
-  //
-  //     await refreshMessages(silent: true);
-  //
-  //     // Tell the other user's app to reload, so their screen updates at once.
-  //     if (LastSendSucceeded) {
-  //       await _notifyReceiver(text);
-  //     }
-  //   } catch (e) {
-  //     print('requestSend error: $e');
-  //   } finally {
-  //     isSending.value = false;
-  //   }
-  // }
+
 
   Future<void> requestSend() async {
     final String text = draft.value.trim();

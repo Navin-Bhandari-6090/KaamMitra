@@ -1,15 +1,16 @@
-/// userNumber : 1
-/// firstName : "admm"
-/// lastName : "admm"
-/// email : "sd3@.com"
-/// address : "gdfdgf"
-/// phoneNumber : "+5343434"
-/// whatsappPhoneNumber : "+534354"
-/// latitude : 26.7405285
-/// longitude : 87.54193525
-/// photo : ""
-/// role : "admin"
+/// userNumber : 5
+/// firstName : "aaa55"
+/// lastName : "aaa"
+/// email : "sd2@.com"
+/// address : "gadgs"
+/// phoneNumber : "+97788754754"
+/// whatsappPhoneNumber : "+97756725436"
+/// latitude : 26.740530333333332
+/// longitude : 87.54193883333333
+/// photo : "/uploads/profile/25a9e08de30741b582a775e89848b3e2.png"
+/// role : "provider"
 /// loginAccess : true
+/// status : true
 
 class UserInfo {
   UserInfo({
@@ -24,7 +25,8 @@ class UserInfo {
       num? longitude, 
       String? photo, 
       String? role, 
-      bool? loginAccess,}){
+      bool? loginAccess, 
+      bool? status,}){
     _userNumber = userNumber;
     _firstName = firstName;
     _lastName = lastName;
@@ -37,6 +39,7 @@ class UserInfo {
     _photo = photo;
     _role = role;
     _loginAccess = loginAccess;
+    _status = status;
 }
 
   UserInfo.fromJson(dynamic json) {
@@ -52,6 +55,7 @@ class UserInfo {
     _photo = json['photo'];
     _role = json['role'];
     _loginAccess = json['loginAccess'];
+    _status = json['status'];
   }
   num? _userNumber;
   String? _firstName;
@@ -65,6 +69,7 @@ class UserInfo {
   String? _photo;
   String? _role;
   bool? _loginAccess;
+  bool? _status;
 UserInfo copyWith({  num? userNumber,
   String? firstName,
   String? lastName,
@@ -77,6 +82,7 @@ UserInfo copyWith({  num? userNumber,
   String? photo,
   String? role,
   bool? loginAccess,
+  bool? status,
 }) => UserInfo(  userNumber: userNumber ?? _userNumber,
   firstName: firstName ?? _firstName,
   lastName: lastName ?? _lastName,
@@ -89,6 +95,7 @@ UserInfo copyWith({  num? userNumber,
   photo: photo ?? _photo,
   role: role ?? _role,
   loginAccess: loginAccess ?? _loginAccess,
+  status: status ?? _status,
 );
   num? get userNumber => _userNumber;
   String? get firstName => _firstName;
@@ -102,6 +109,7 @@ UserInfo copyWith({  num? userNumber,
   String? get photo => _photo;
   String? get role => _role;
   bool? get loginAccess => _loginAccess;
+  bool? get status => _status;
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
@@ -117,6 +125,7 @@ UserInfo copyWith({  num? userNumber,
     map['photo'] = _photo;
     map['role'] = _role;
     map['loginAccess'] = _loginAccess;
+    map['status'] = _status;
     return map;
   }
 

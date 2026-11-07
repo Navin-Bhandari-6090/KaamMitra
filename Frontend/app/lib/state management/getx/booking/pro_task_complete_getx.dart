@@ -275,23 +275,15 @@ class ProTaskCompleteGetx extends GetxController {
   // ---------------------------------------------------------------------------
   Future<void> pickPhoto() async {
     try {
-      final int photoResult = await change_photo_cont_getx.pickImage();
-      if (photoResult == 1) {
-        Toast.Toastmsg("Pick photo success.");
-      } else if (photoResult == 2) {
-        Toast.Toastmsg("Only $PhotoExtension format accepted.");
-      } else if (photoResult == 5) {
-        Toast.Toastmsg(
-            "Image is larger than $PhotoSize.Please compressed and upload..");
-      } else {
-        Toast.Toastmsg("Pick photo fail.");
-      }
+
+      await PickPhoto();
+
     } catch (obj) {
       print(obj.toString());
     }
   }
 
-  Future<void> submitPayment(String method) async {
+  Future<void> submitPayment(String method,{required BuildContext context}) async {
     if (uploadingMethod.value.isNotEmpty) return;
     uploadingMethod.value = method;
     try {
@@ -326,11 +318,16 @@ class ProTaskCompleteGetx extends GetxController {
         // Own try/catch so a notification failure never breaks the flow
         // (the payment is already saved at this point).
         try {
+
+
           await AdminAddNotification(
             Message:
             "Provider uploaded a ${method == "Domestic" ? "Nepal (Domestic)" : "International"} payment photo of ${amount.toStringAsFixed(2)} for Book ID ${b.bookId}.",
             jwttoken: _jwt,
           );
+
+          await AdminAddNewNotStatus(context: context, jwttoken: _jwt);
+
         } catch (obj) {
           print(obj.toString());
         }
@@ -395,14 +392,7 @@ class ProTaskCompleteGetx extends GetxController {
       )
           .timeout(const Duration(seconds: 30));
 
-      // print("========== ADMIN ADD NOTIFICATION ==========");
-      // print("URL: $url");
-      // print("JWT Length: ${jwttoken.length}");
-      // print("Message: ${Message.trim()}");
-      // print("Status Code: ${response.statusCode}");
-      // print("Response Body: ${response.body}");
 
-      // Server message (used only for 400, where it explains what is wrong).
       String ResponseMessage = "";
 
       if (response.body.isNotEmpty) {
@@ -447,11 +437,63 @@ class ProTaskCompleteGetx extends GetxController {
     } catch (e) {
       // print("========== ADMIN ADD NOTIFICATION EXCEPTION ==========");
       // print(e);
-
       Toast.Toastmsg(
           "Payment saved, but KaamMitra could not be notified. Check your connection.");
     }
   }
+
+
+  Future<void> AdminAddNewNotStatus({
+    required BuildContext context,
+    required String jwttoken,
+  }) async {
+    try {
+      final String url =
+          "${Backend_Server_Url}api/Booking/adminaddnewnotification";
+
+      final response = await http.put(
+        Uri.parse(url),
+        headers: {
+          "Accept": "application/json",
+          "Authorization": "Bearer $jwttoken",
+        },
+      );
+
+      if (response.statusCode == 200) {
+        Toast.Toastmsg("KaamMitra notification status added successfully.");
+        return ;
+      } else if (response.statusCode == 401) {
+        Toast.Toastmsg("Your session has expired. Please login again.");
+        await Logout(context: context);
+        return ;
+      } else if (response.statusCode == 403) {
+        Toast.Toastmsg("KaamMitra new notification status update failed.You are not authorized to perform this action.");
+        return ;
+      } else if (response.statusCode == 502) {
+        Toast.Toastmsg("KaamMitra new notification status update failed.User information not found.");
+        return ;
+      } else if (response.statusCode == 506) {
+        Toast.Toastmsg("KaamMitra new notification status update failed.Your account has been blocked.");
+        await Logout(context: context);
+        return ;
+      } else if (response.statusCode == 510) {
+        Toast.Toastmsg("KaamMitra new notification status update failed.No active admins found.");
+        return ;
+      } else if (response.statusCode == 500) {
+        Toast.Toastmsg("KaamMitra new notification status update failed.Server error. Please try again later.");
+        return ;
+      } else
+      {
+        Toast.Toastmsg("Unable to update KaamMitra notification status.");
+        return ;
+      }
+    } catch (e) {
+      Toast.Toastmsg("KaamMitra new notification status update failed.Something went wrong. Please try again.");
+      return ;
+    }
+  }
+
+
 
   Future<void> GetAdminQRInfo() async {
     try {
@@ -459,7 +501,7 @@ class ProTaskCompleteGetx extends GetxController {
 
       const String url = Backend_Server_Url + "api/Admin/getadminqr";
 
-      print("========== GET ADMIN QR INFO ==========");
+
 
 
       final response = await http.get(
@@ -514,7 +556,7 @@ class ProTaskCompleteGetx extends GetxController {
     required String PhotoExtension,
   }) async {
     try {
-      print("========== ADD TASK COMPLETE PAYMENT ==========");
+
 
       const String url =
           Backend_Server_Url + "api/Booking/addtaskcompletepayment";
@@ -637,9 +679,6 @@ class ProTaskCompleteGetx extends GetxController {
         return 2;
       }
     } catch (e, stackTrace) {
-      print("========== TASK COMPLETE PAYMENT FLUTTER ERROR ==========");
-      print("Error: $e");
-      print("StackTrace: $stackTrace");
       Toast.Toastmsg("An error occurred while saving task-complete payment.");
       return 0;
     }
@@ -649,7 +688,7 @@ class ProTaskCompleteGetx extends GetxController {
     required String JwtToken,
   }) async {
     try {
-      print("========== GET PROVIDER TASK COMPLETE PAYMENTS ==========");
+
 
       providerPayments.clear();
 
@@ -701,15 +740,13 @@ class ProTaskCompleteGetx extends GetxController {
         await _endSession();
         return;
       } else if (response.statusCode == 500) {
-        print("Backend server error.");
+
       } else {
-        print("Unexpected status code: ${response.statusCode}");
+
         return;
       }
     } catch (e, stackTrace) {
-      print("========== GET PROVIDER TASK COMPLETE PAYMENTS ERROR ==========");
-      print("Error: $e");
-      print("StackTrace: $stackTrace");
+      return;
     }
   }
 }

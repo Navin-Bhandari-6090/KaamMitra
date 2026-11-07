@@ -9,27 +9,70 @@ import '../../../../web/authentication/Error_page.dart';
 import '../../../../web/common method/Commmon_Method.dart';
 import '../../../../web/common widget/toast.dart';
 
-
-
 class ProviderSerSelectGetx extends GetxController {
+  // ============================================================
   // Session state
+  // ============================================================
+
   final RxBool isVerifying = true.obs;
   final RxBool isSessionValid = false.obs;
 
+  // ============================================================
   // Service list state
+  // ============================================================
+
   final RxBool isLoadingServices = true.obs;
   final RxBool hasError = false.obs;
   final RxBool loadFailed = false.obs;
-  final RxList<ProviderRegisterServiceNameModel> serviceList = <ProviderRegisterServiceNameModel>[].obs;
+  final RxList<ProviderRegisterServiceNameModel> serviceList =
+      <ProviderRegisterServiceNameModel>[].obs;
 
-  // UI animation state (replaces setState-driven UI updates)
+  // ============================================================
+  // UI animation state
+  // ============================================================
+
   final RxList<bool> cardVisible = <bool>[].obs;
   final RxList<bool> cardHover = <bool>[].obs;
+
+  // Request inputs kept so retry() can reuse them.
+  String _email = "";
+  String _jwtToken = "";
+  bool _disposed = false;
+
+  // ============================================================
+  // ENTRY POINT — the screen calls only this
+  // ============================================================
+
+  /// Verifies the session, then loads the provider's services.
+  Future<void> init({
+    required String jwtToken,
+    required String providerEmail,
+  }) async {
+    _jwtToken = jwtToken;
+    _email = providerEmail;
+
+    await verifyJwt(jwtToken: jwtToken);
+    if (!isSessionValid.value) return;
+
+    await fetchServices(email: providerEmail, jwtToken: jwtToken);
+  }
+
+  /// Re-runs the service request after a failure.
+  Future<void> retry() async {
+    if (!isSessionValid.value) return;
+    await fetchServices(email: _email, jwtToken: _jwtToken);
+  }
+
+  // ============================================================
+  // SESSION
+  // ============================================================
 
   Future<void> verifyJwt({required String jwtToken}) async {
     isVerifying.value = true;
 
     final int result = await UserProviderJwtVerify(Jwt_Token: jwtToken);
+
+    if (_disposed) return;
 
     if (result == 1) {
       isSessionValid.value = true;
@@ -41,22 +84,26 @@ class ProviderSerSelectGetx extends GetxController {
       await Clear_User_Data();
       await Random_token_Clear();
 
-      Toastget().Toastmsg("Session End.Relogin please.");
+      Toastget().Toastmsg("Session End. Relogin please.");
       Get.offAll(() => ErrorPage());
     }
   }
 
-  Future<void> fetchServices({required String email, required String jwtToken}) async {
+  // ============================================================
+  // SERVICES API
+  // ============================================================
+
+  Future<void> fetchServices({
+    required String email,
+    required String jwtToken,
+  }) async {
     isLoadingServices.value = true;
     hasError.value = false;
     loadFailed.value = false;
 
     try {
-
-
-      const String url = Backend_Server_Url + "api/Profile/getproviderregisterserviceinfo";
-
-      Map<String, dynamic> userDetails = {"Email": email};
+      final String url =
+          Backend_Server_Url + "api/Profile/getproviderregisterserviceinfo";
 
       final response = await http.post(
         Uri.parse(url),
@@ -64,39 +111,49 @@ class ProviderSerSelectGetx extends GetxController {
           "Content-Type": "application/json",
           "Authorization": "Bearer $jwtToken",
         },
-        body: jsonEncode(userDetails),
+        body: jsonEncode({"Email": email}),
       );
 
+      if (_disposed) return;
+
       if (response.statusCode == 200) {
-        List<dynamic> responseData = jsonDecode(response.body);
-        serviceList.assignAll(
-          responseData.map((data) => ProviderRegisterServiceNameModel.fromJson(data)).toList(),
-        );
-        cardVisible.assignAll(List<bool>.filled(serviceList.length, false));
-        cardHover.assignAll(List<bool>.filled(serviceList.length, false));
+        final decoded = jsonDecode(response.body);
+        if (decoded is! List) {
+          throw const FormatException("Expected a list of services.");
+        }
+
+        final services = decoded
+            .map((data) => ProviderRegisterServiceNameModel.fromJson(data))
+            .toList();
+
+        serviceList.assignAll(services);
+        cardVisible.assignAll(List<bool>.filled(services.length, false));
+        cardHover.assignAll(List<bool>.filled(services.length, false));
         isLoadingServices.value = false;
         _playEntranceAnimation();
       } else {
         serviceList.clear();
-        print("Failed to fetch provider register service data. Status code: ${response.statusCode}");
         loadFailed.value = true;
         isLoadingServices.value = false;
       }
     } catch (e) {
+      if (_disposed) return;
       serviceList.clear();
-      print("Error occurred while fetching provider register service data: $e");
       hasError.value = true;
       isLoadingServices.value = false;
     }
   }
 
+  // ============================================================
+  // UI HELPERS
+  // ============================================================
+
   void _playEntranceAnimation() {
     for (int i = 0; i < cardVisible.length; i++) {
       Future.delayed(Duration(milliseconds: 90 * i), () {
-        if (i < cardVisible.length) {
-          cardVisible[i] = true;
-          cardVisible.refresh();
-        }
+        if (_disposed || i >= cardVisible.length) return;
+        cardVisible[i] = true;
+        cardVisible.refresh();
       });
     }
   }
@@ -110,9 +167,7 @@ class ProviderSerSelectGetx extends GetxController {
 
   @override
   void onClose() {
-    serviceList.close();
-    cardVisible.close();
-    cardHover.close();
+    _disposed = true;
     super.onClose();
   }
 }

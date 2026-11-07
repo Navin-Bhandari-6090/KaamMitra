@@ -14,6 +14,7 @@ import '../../state management/getx/booking/ProviderBookingScreenGetX.dart';
 import '../authentication/Error_page.dart';
 import '../common method/Commmon_Method.dart';
 // TODO: point these two imports at the real locations of the details screens.
+import '../common method/notification.dart';
 import 'ProviderBookingInfoDetailsScreen.dart';
 import 'userbookinginfodetailsscreen.dart';
 
@@ -289,175 +290,6 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
   }
 
 
-
-  List<NotificationsInfoModel> NotificationsInfoList = [];
-
-  Future<int> GetNotificationsInfo({required String Email}) async {
-    try {
-      final Map<String, dynamic> userData = {"Email": Email};
-      const String url = Backend_Server_Url + "api/Booking/sendnotification";
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': 'Bearer ${widget.Current_User_JwtToken}',
-        },
-        body: json.encode(userData),
-      );
-      if (response.statusCode == 200) {
-        List<dynamic> responseData = await jsonDecode(response.body);
-        NotificationsInfoList.clear();
-        NotificationsInfoList.addAll(responseData
-            .map((data) => NotificationsInfoModel.fromJson(data))
-            .toList());
-        print("Notification info get success.");
-        return 1;
-      } else if (response.statusCode == 502) {
-        NotificationsInfoList.clear();
-        print("Invalid email.");
-        await Clear_User_Data();
-        await Random_token_Clear();
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => ErrorPage()),
-              (route) => false,
-        );
-        Toastget().Toastmsg("Your register email don't match..");
-        return 3;
-      } else if (response.statusCode == 500) {
-        NotificationsInfoList.clear();
-        print("Exception caught in backend.");
-        return 4;
-      }
-      else if (response.statusCode == 501) {
-        NotificationsInfoList.clear();
-        print("Invalid data format.");
-        return 4;
-      }
-      else {
-        NotificationsInfoList.clear();
-        print("Notification info get fail.");
-        print("Status code = ${response.statusCode}");
-        return 2;
-      }
-    } catch (Obj) {
-      NotificationsInfoList.clear();
-      print("Exception caugh while getting Notification info.");
-      print(Obj.toString());
-      return 0;
-    }
-  }
-
-
-
-  List<NewNotificationsModel> NewNotificationsList = [];
-
-  Future<int> GetNewNotificationInfo({required String Email}) async {
-    try {
-      final Map<String, dynamic> userData = {"Email": Email};
-      const String url = Backend_Server_Url + "api/Booking/sendnewnotification";
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': 'Bearer ${widget.Current_User_JwtToken}',
-        },
-        body: json.encode(userData),
-      );
-      if (response.statusCode == 200) {
-        List<dynamic> responseData = await jsonDecode(response.body);
-        NewNotificationsList.clear();
-        NewNotificationsList.addAll(responseData
-            .map((data) => NewNotificationsModel.fromJson(data))
-            .toList());
-        print("New notification info get success.");
-        return 1;
-      } else if (response.statusCode == 502) {
-        NewNotificationsList.clear();
-        print("Invalid email.");
-        await Clear_User_Data();
-        await Random_token_Clear();
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => ErrorPage()),
-              (route) => false,
-        );
-        Toastget().Toastmsg("Your register email don't match..");
-        return 3;
-      } else if (response.statusCode == 500) {
-        NewNotificationsList.clear();
-        print("Exception caught in backend.");
-        return 4;
-      }
-      else if (response.statusCode == 501) {
-        NewNotificationsList.clear();
-        print("Invalid data format.");
-        return 4;
-      }
-      else {
-        NewNotificationsList.clear();
-        print("New notification  info get fail.");
-        print("Status code = ${response.statusCode}");
-        return 2;
-      }
-    } catch (Obj) {
-      NewNotificationsList.clear();
-      print("Exception caugh while getting New notification  info.");
-      print(Obj.toString());
-      return 0;
-    }
-  }
-
-
-  Future<int> UpdateNewNotificationInfo({required String Email}) async
-  {
-    try {
-      final Map<String, dynamic> userData = {"Email": Email};
-      const String url = Backend_Server_Url + "api/Booking/updatenewnotification";
-      final response = await http.put(
-        Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': 'Bearer ${widget.Current_User_JwtToken}',
-        },
-        body: json.encode(userData),
-      );
-      if (response.statusCode == 200) {
-        print("Update New notification info get success.");
-        return 1;
-      } else if (response.statusCode == 502) {
-        print("Invalid email.");
-        await Clear_User_Data();
-        await Random_token_Clear();
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => ErrorPage()),
-              (route) => false,
-        );
-        Toastget().Toastmsg("Your register email don't match..");
-        return 3;
-      } else if (response.statusCode == 500) {
-        print("Exception caught in backend.");
-        return 4;
-      }
-      else if (response.statusCode == 501) {
-        print("Invalid data format.");
-        return 4;
-      }
-      else {
-
-        print("Update New notification fail.");
-        print("Status code = ${response.statusCode}");
-        return 2;
-      }
-    } catch (Obj) {
-
-      print("Exception caugh while getting New notification  info.");
-      print(Obj.toString());
-      return 0;
-    }
-  }
-
   // ============================================================
   // NEW — orchestrates the three (unchanged) GET calls above, then hands
   // the raw lists to the GetX controller for the UI to react to.
@@ -472,8 +304,8 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
 
       final results = await Future.wait([
         GetBookingInfo(Email: widget.Current_User_Email),
-        GetNotificationsInfo(Email: widget.Current_User_Email),
-        GetNewNotificationInfo(Email: widget.Current_User_Email),
+        GetNotificationsInfo(Email: widget.Current_User_Email, Current_User_JwtToken: widget.Current_User_JwtToken, context: context),
+        GetNewNotificationInfo(Email: widget.Current_User_Email, Current_User_JwtToken: widget.Current_User_JwtToken, context: context),
       ]);
 
       final bool anyFailed = results.any((r) => r != 1);
@@ -520,7 +352,7 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
       if (bookingCont.hasNewNotification.value) {
         bookingCont.setHasNewNotification(false);
         try {
-          await UpdateNewNotificationInfo(Email: widget.Current_User_Email);
+          await UpdateNewNotificationInfo(Email: widget.Current_User_Email, Current_User_JwtToken: widget.Current_User_JwtToken, context: context);
         } catch (e) {
           // Non-critical for the icon state — the toast/nav-reset logic
           // inside UpdateNewNotificationInfo already handles hard failures.
@@ -701,7 +533,7 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
                       ),
                       _animatedSection(
                         animation: _footerAnim,
-                        child: Footer(),
+                        child: Footer(User_JwtToken:widget.Current_User_JwtToken,),
                       ),
                     ],
                   ),
@@ -1108,14 +940,24 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
               height: 1.55,
             ),
           ),
+          const SizedBox(height: 10),
+          Text(
+            "Note:Request to update provider task complete status task(Yes) by visiting request provider task complete status screen from booking details screen after you complete service.If you are not up to date you will be blocked by system.Make sure you are up to date with user booking and services request.",
+            style: TextStyle(
+              color: _Theme.mutedText,
+              fontSize: isMobile ? 13 : 14.5,
+              height: 1.55,
+            ),
+          ),
+
         ],
       ),
     );
   }
 
-  // ============================================================
+
   // SEARCH — filter bookings by booking ID
-  // ============================================================
+
 
   Widget _buildSearchCard(bool isMobile) {
     return Container(

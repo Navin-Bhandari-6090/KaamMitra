@@ -28,7 +28,7 @@ namespace application.Controllers
 
 
         [HttpGet("getfooterinfo")]
-        [Authorize(Policy = "RequireforAllRole")]
+        [Authorize]
         public async Task<IActionResult> GetFooterInfo()
         {
             try
@@ -82,7 +82,7 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         }
 
         [HttpPost()]
-        [Authorize(Policy = "RequireProviderUserRole")]
+        [Authorize(Policy = "RequireforAllRole")]
         [Route("addchatmessage")]
         public async Task<IActionResult> AddChatMessage(
     [FromBody] ChatInfoModel model)
@@ -164,8 +164,8 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         }
 
       
-[HttpPost]
-[Authorize(Policy = "RequireProviderUserRole")]
+        [HttpPost]
+        [Authorize(Policy = "RequireforAllRole")]
         [Route("getchatmessage")]
         public async Task<IActionResult> GetChatMessages([FromBody] UserNumberDTO model)
         {
@@ -232,14 +232,185 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             }
         }
 
+        [Authorize(Policy = "RequireforAllRole")]
+        [HttpPut]
+        [Route("addchatstatus")]
+        public async Task<IActionResult> AddChatStatus(
+  [FromBody] UpdMsgStatusDTOID obj)
+        {
+            try
+            {
+                // Get current user number from JWT token
+                var userNumberClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return Forbid();
+                }
+
+                // Validate request
+                if (obj == null)
+                {
+                    return StatusCode(400, "Request data is required.");
+                }
+
+                if (!ModelState.IsValid)
+                {
+                    return StatusCode(400, "Invalid request data.");
+                }
+
+                if (
+                    obj.MessageReceiverNumber <= 0)
+                {
+                    return StatusCode(400, "Invalid sender or receiver number.");
+                }
 
 
+                // Check whether the sender-receiver status row already exists
+                var messageStatus = await Database.NewMessageStatusInfos
+                    .FirstOrDefaultAsync(x =>
+
+            x.MessageReceiverNumber == obj.MessageReceiverNumber);
+
+                if (messageStatus != null)
+                {
+                    // Update existing status
+                    messageStatus.Status = true;
+                }
+                else
+                {
+                    // Insert new status
+                    var newMessageStatus = new NewMessageInfosModel
+                    {
+                        MessageReceiverNumber = obj.MessageReceiverNumber,
+                        Status = true
+                    };
+
+                    await Database.NewMessageStatusInfos.AddAsync(newMessageStatus);
+                }
+
+                await Database.SaveChangesAsync();
+
+                return Ok("Chat status updated successfully.");
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, "An error occurred while updating chat status.");
+            }
+        }
 
 
+        [Authorize(Policy = "RequireforAllRole")]
+        [HttpPut]
+        [Route("updatechatstatus")]
+        public async Task<IActionResult> UpdateChatStatus(
+    [FromBody] UpdMsgStatusDTOID obj)
+        {
+            try
+            {
+                // Get current user number from JWT token
+                var userNumberClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return Forbid();
+                }
+
+                // Validate request
+                if (obj == null)
+                {
+                    return StatusCode(400, "Request data is required.");
+                }
+
+                if (!ModelState.IsValid)
+                {
+                    return StatusCode(400, "Invalid request data.");
+                }
+
+                if (
+                    obj.MessageReceiverNumber <= 0)
+                {
+                    return StatusCode(400, "Invalid sender or receiver number.");
+                }
+
+    
+                // Check whether the sender-receiver status row already exists
+                var messageStatus = await Database.NewMessageStatusInfos
+                    .FirstOrDefaultAsync(x =>
+                  
+            x.MessageReceiverNumber == obj.MessageReceiverNumber);
+
+                if (messageStatus != null)
+                {
+                    // Update existing status
+                    messageStatus.Status = false;
+                }
+                else
+                {
+                    // Insert new status
+                    var newMessageStatus = new NewMessageInfosModel
+                    {
+                        MessageReceiverNumber = obj.MessageReceiverNumber,
+                        Status = false
+                    };
+
+                    await Database.NewMessageStatusInfos.AddAsync(newMessageStatus);
+                }
+
+                await Database.SaveChangesAsync();
+
+                return Ok("Chat status updated successfully.");
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, "An error occurred while updating chat status.");
+            }
+        }
 
 
+        [Authorize(Policy = "RequireforAllRole")]
+        [HttpGet]
+        [Route("getnewmessagestatus")]
+        public async Task<IActionResult> GetNewMessageStatus()
+        {
+            try
+            {
+                // Get current user number from JWT token
+                var userNumberClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return Forbid();
+                }
 
+                // Check whether the current user exists
+                var currentUser = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (currentUser == null)
+                {
+                    return StatusCode(404, "User information not found.");
+                }
+
+                // Check whether the current user is blocked
+                if (currentUser.LoginAccess == false)
+                {
+                    return StatusCode(506,
+                        "You have been blocked by System. Contact the KaamMitra community.");
+                }
+
+                // Get new message status information for the current user
+                var messageStatusList = await Database.NewMessageStatusInfos
+                    .FirstOrDefaultAsync(x => x.MessageReceiverNumber == currentUserNumber);
+
+                return Ok(messageStatusList);
+            }
+            catch (Exception)
+            {
+                return StatusCode(500,
+                    "An error occurred while getting new message status information.");
+            }
+        }
 
 
 

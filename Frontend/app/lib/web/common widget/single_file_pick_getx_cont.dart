@@ -32,21 +32,21 @@ class FilePickerController extends GetxController {
           fileBytes.value = bytes;
           fileExtension.value = extension;
 
-          print("File Path/Name: $path");
-          print("File Extension: $extension");
-          print("File Size: ${fileSize / (1024 * 1024)} MB");
+          // print("File Path/Name: $path");
+          // print("File Extension: $extension");
+          // print("File Size: ${fileSize / (1024 * 1024)} MB");
 
           return 1; // Success
         } else {
-          print("File exceeds size limit.");
+          // print("File exceeds size limit.");
           return 2; // File too large
         }
       } else {
-        print("No file selected.");
+        // print("No file selected.");
         return 3; // Cancelled
       }
     } catch (e) {
-      print("Error picking file: $e");
+      // print("Error picking file: $e");
       return 4; // Error occurred
     }
   }

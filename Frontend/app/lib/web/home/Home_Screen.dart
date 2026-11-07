@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:app/web/footer/Footer.dart';
 import 'package:flutter/material.dart';
 import 'package:app/web/header/Header.dart';
@@ -11,8 +10,6 @@ import 'package:velocity_x/velocity_x.dart';
 import '../../constant/Server_Database.dart';
 import '../../constant/variable.dart';
 import '../../models/AdvertisementInfoModel.dart';
-import '../../models/FooterInfosModel.dart';
-import '../authentication/Error_page.dart';
 import '../authentication/Login.dart';
 import '../common method/Commmon_Method.dart';
 import '../communi_services/services.dart';
@@ -102,86 +99,6 @@ class _HomeScreenUiState extends State<HomeScreenUi>
       );
     } catch (e) {
       print("HomeScreen SignalR error: $e");
-    }
-  }
-
-  List<FooterInfosModel> FooterInfosList=[];
-
-  Future<void> GetFooterInfos({
-    required String jwttoken,
-  }) async {
-    try {
-      final String url =
-          Backend_Server_Url + "api/Home/getfooterinfo";
-
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $jwttoken",
-        },
-      );
-
-
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        // Clear old data before adding new data
-        FooterInfosList.clear();
-
-        // Backend returns a single object because the table has only one row
-        FooterInfosList.add(
-          FooterInfosModel.fromJson(data),
-        );
-
-        // print("Footer information loaded successfully.");
-      } else if (response.statusCode == 400) {
-        // Toast.Toastmsg("Data are not in correct format.");
-        // print("Footer info request returned 400.");
-      } else if (response.statusCode == 401) {
-        // Toast.Toastmsg("Unauthorized access.");
-        // print("Footer info request returned 401.");
-     Logout(context: context);
-      } else if (response.statusCode == 403) {
-        // Toast.Toastmsg("You do not have permission to access footer information.");
-        // print("Footer info request returned 403.");
-      } else if (response.statusCode == 404) {
-        // Toast.Toastmsg("Footer information not found.");
-        // print("Footer information not found.");
-      } else if (response.statusCode == 502) {
-        // Toast.Toastmsg("User not found.");
-        // print("User not found.");
-        await Clear_User_Data();
-        await Random_token_Clear();
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => ErrorPage()),
-              (route) => false,
-        );
-        Toast.Toastmsg("Session End.Relogin please.");
-      } else if (response.statusCode == 506) {
-        Toast.Toastmsg(
-          "You have been blocked by the system. Please contact the KaamMitra community.",
-        );
-        print("User has been blocked.");
-    Logout(context: context);
-
-      } else if (response.statusCode == 500) {
-        // Toast.Toastmsg(
-        //   "Something went wrong while getting footer information.",
-        // );
-        // print("Server error while getting footer information.");
-      } else {
-        // Toast.Toastmsg("Something went wrong.");
-        // print("Unexpected status code: ${response.statusCode}");
-      }
-    } catch (e) {
-      // Toast.Toastmsg("Something went wrong.");
-      // print("========== GET FOOTER INFO ERROR ==========");
-      // print(e);
-
-      return;
     }
   }
 
@@ -304,9 +221,7 @@ class _HomeScreenUiState extends State<HomeScreenUi>
                         ElevatedButton(
                           onPressed: () async {
                             try {
-                              await GetFooterInfos(
-                                jwttoken: widget.User_JwtToken,
-                              );
+
 
                               await GetAllAdvertisementInfos(
                                 jwttoken: widget.User_JwtToken,
@@ -331,7 +246,7 @@ class _HomeScreenUiState extends State<HomeScreenUi>
                       ],
                     ),
 
-                    Footer(),
+                    Footer(User_JwtToken: widget.User_JwtToken,),
 
                   ],
                 ),
@@ -385,6 +300,42 @@ class _HomeScreenUiState extends State<HomeScreenUi>
                   if (!widget.UserLogin) _buildLoginNotice(),
 
                   if (!widget.UserLogin) const SizedBox(height: 24),
+
+                  ElevatedButton(onPressed: ()async{
+                    try{
+
+                      int Result=await AddChatStatus(JwtToken: widget.User_JwtToken, MessageReceiverNumber: 5, context: context);
+
+                    }catch(obj){
+                      print(obj.toString());
+                      return;
+                    }
+
+                  }, child: Text("Add new msg status.")),
+
+                  ElevatedButton(onPressed: ()async{
+                    try{
+
+                      int Result=await UpdateChatStatus(JwtToken: widget.User_JwtToken, MessageReceiverNumber: 5, context: context);
+
+                    }catch(obj){
+                      print(obj.toString());
+                      return;
+                    }
+
+                  }, child: Text("Update msg status.")),
+
+                  ElevatedButton(onPressed: ()async{
+                    try{
+
+                      int Result=await GetNewMsgStatus(JwtToken: widget.User_JwtToken, context: context);
+
+                    }catch(obj){
+                      print(obj.toString());
+                      return;
+                    }
+
+                  }, child: Text("Get msg status.")),
 
 
                   // WELCOME / HERO

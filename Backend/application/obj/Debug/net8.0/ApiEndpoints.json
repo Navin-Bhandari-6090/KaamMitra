@@ -134,6 +134,22 @@
   {
     "ContainingType": "application.Controllers.AdminController",
     "Method": "DeleteService",
+    "RelativePath": "api/Admin/deleteproserviceares",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.serv_res_id_DTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "DeleteService",
     "RelativePath": "api/Admin/deleteservice",
     "HttpMethod": "DELETE",
     "IsController": true,
@@ -158,7 +174,7 @@
       {
         "Name": "obj",
         "Type": "application.Models.DTOModels.ProviderServiceIdDTO",
-        "IsRequired": false
+        "IsRequired": true
       }
     ],
     "ReturnTypes": []
@@ -309,6 +325,22 @@
     "IsController": true,
     "Order": 0,
     "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "GetUserLinkedResources",
+    "RelativePath": "api/Admin/getuserlinkedresources",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UserNumberDTO",
+        "IsRequired": true
+      }
+    ],
     "ReturnTypes": []
   },
   {
@@ -547,7 +579,7 @@
       },
       {
         "Name": "PaymentDate",
-        "Type": "System.DateTime",
+        "Type": "System.Nullable\u00601[[System.DateTime, System.Private.CoreLib, Version=8.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]",
         "IsRequired": false
       },
       {
@@ -566,6 +598,16 @@
         "IsRequired": false
       }
     ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.BookingController",
+    "Method": "AdminAddNewNotification",
+    "RelativePath": "api/Booking/adminaddnewnotification",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
     "ReturnTypes": []
   },
   {
@@ -873,6 +915,22 @@
   },
   {
     "ContainingType": "application.Controllers.HomeController",
+    "Method": "AddChatStatus",
+    "RelativePath": "api/Home/addchatstatus",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UpdMsgStatusDTOID",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.HomeController",
     "Method": "GetChatMessages",
     "RelativePath": "api/Home/getchatmessage",
     "HttpMethod": "POST",
@@ -895,6 +953,32 @@
     "IsController": true,
     "Order": 0,
     "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.HomeController",
+    "Method": "GetNewMessageStatus",
+    "RelativePath": "api/Home/getnewmessagestatus",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.HomeController",
+    "Method": "UpdateChatStatus",
+    "RelativePath": "api/Home/updatechatstatus",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.UpdMsgStatusDTOID",
+        "IsRequired": true
+      }
+    ],
     "ReturnTypes": []
   },
   {
@@ -1062,6 +1146,32 @@
         "Name": "FileExtension",
         "Type": "System.String",
         "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "ChangeStatus",
+    "RelativePath": "api/Profile/changestatus",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ProfileController",
+    "Method": "DeleteService",
+    "RelativePath": "api/Profile/deleteproserviceares",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.serv_res_id_DTO",
+        "IsRequired": true
       }
     ],
     "ReturnTypes": []

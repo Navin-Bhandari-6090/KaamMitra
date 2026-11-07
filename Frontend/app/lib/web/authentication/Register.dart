@@ -1,50 +1,30 @@
 import 'dart:math' as math;
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
-import 'package:velocity_x/velocity_x.dart';
-import '../../constant/Server_Database.dart';
-import '../../state management/bloc/common state/common_variable_bloc.dart';
+
+import '../../state management/getx/authentication/register_getx.dart';
 import '../common method/Commmon_Method.dart';
-import '../common widget/location/get_location_getx.dart';
-import '../common widget/toast.dart';
-import '../common widget/toast_long_period.dart';
-import 'Error_page.dart';
+import '../common widget/design/bolbs_background.dart';
 import 'Login.dart';
 
-// Adjust the get_location_getx.dart import path above to wherever you
-// actually place that file relative to this one.
 
 /// ============================================================
-/// GREEN REGISTER SCREEN — fully responsive (mobile / tablet /
-/// desktop, portrait / landscape) with wave animation + staggered
-/// entrance animations. Matches LoginScreen's visual language.
-///
-/// Fields: First name, Last name, Email, Phone number, WhatsApp
-/// number, Role (User / Provider), Latitude, Longitude, Password,
-/// Retype password.
-///
-/// Latitude/Longitude can be typed manually OR auto-filled via the
-/// "Use my current location" button, which is backed by the same
-/// GetLocationGetx controller/service used on the UpdateLocation
-/// screen (GetX-only for this piece; everything else on this screen
-/// still uses Bloc).
-///
-/// Uses your existing logo:
-///   assets/images/logo/app_logo.png
+/// DARK GREEN REGISTER SCREEN
+/// Forest background + AmbientBackground blobs + glass form card.
+/// Fully responsive (any size, portrait / landscape), GetX only.
 /// ============================================================
 
-class AppColors {
-  static const bgDeep = Color(0xFF07271B);
-  static const bgMid = Color(0xFF0E4430);
-  static const bgSoft = Color(0xFF14603F);
-  static const accent = Color(0xFF3DDC97);
-  static const accentSoft = Color(0xFFB9F3D6);
-  static const card = Color(0xFFF6FBF8);
-  static const textDark = Color(0xFF0B2A1D);
-  static const textMuted = Color(0xFF5E7A6C);
-  static const fieldFill = Color(0xFFEFF6F2);
+class RegColors {
+  static const bg = Color(0xFF0F1F17);
+  static const surface = Color(0xFF162E22);
+  static const header = Color(0xFF12261C);
+  static const text = Color(0xFFE6F4EA);
+  static const muted = Color(0xFF8A9A90);
+  static const accent = Color(0xFF22C55E);
+  static const mint = Color(0xFF34D399);
+  static const border = Color(0xFF234232);
 }
 
 class RegisterScreen extends StatefulWidget {
@@ -55,601 +35,846 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen>
-    with TickerProviderStateMixin {
-
-  late final AnimationController _entrance;
-  late final AnimationController _wave;
-
-  final _firstNameCtrl = TextEditingController();
-  final _lastNameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
-  final _whatsappCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
-  final _retypeCtrl = TextEditingController();
-  final _latitude = TextEditingController();
-  final _address = TextEditingController();
-  final _longitude = TextEditingController();
-  final _toast = Toastget_Long_Period();
-
-  // ---------------------------------------------------------------
-  // GetX — "use my current location" piece only. Same controller/
-  // service used by UpdateLocation, put/deleted with a tag unique to
-  // this screen instance so it never collides with any other screen.
-  // ---------------------------------------------------------------
-  late final GetLocationGetx locationCont;
-  final String _tag = UniqueKey().toString();
+class _RegisterScreenState extends State<RegisterScreen> {
+  late final String _tag;
+  late final RegisterController c;
 
   @override
   void initState() {
     super.initState();
-    JwtVerify(Jwt_Token:widget.User_JwtToken);
-
-    locationCont = Get.put(GetLocationGetx(), tag: _tag);
-
-    _entrance = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1100),
-    )..forward();
-    _wave = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 8),
-    )..repeat();
-  }
-
-  Future<void> JwtVerify({required String Jwt_Token})async
-  {
-    int Result=await RandomJwtVerify(Jwt_Token: Jwt_Token);
-    if (Result==1)
-    {
-      return;
-    } else
-    {
-      Navigator.pushAndRemoveUntil(context,
-        MaterialPageRoute(builder: (context) => ErrorPage()
-        )
-        ,
-            (route) => false,
-      );
-      Toastget().Toastmsg("Session End.Relogin please.");
-      return;
-    }
+    _tag = UniqueKey().toString();
+    c = Get.put(RegisterController(userJwtToken: widget.User_JwtToken),
+        tag: _tag);
+    Random_Jwt_Verify(Jwt_Token: widget.User_JwtToken, context: context);
   }
 
   @override
   void dispose() {
-    _entrance.dispose();
-    _wave.dispose();
-    _firstNameCtrl.dispose();
-    _lastNameCtrl.dispose();
-    _emailCtrl.dispose();
-    _phoneCtrl.dispose();
-    _whatsappCtrl.dispose();
-    _passCtrl.dispose();
-    _retypeCtrl.dispose();
-    _latitude.dispose();
-    _longitude.dispose();
-    Get.delete<GetLocationGetx>(tag: _tag);
+    Get.delete<RegisterController>(tag: _tag);
     super.dispose();
   }
-
-  Animation<double> _stagger(double start, double end) {
-    return CurvedAnimation(
-      parent: _entrance,
-      curve: Interval(start, end, curve: Curves.easeOutCubic),
-    );
-  }
-
-  // ---------------------------------------------------------------
-  // NEW — "Use my current location" flow. Fetches via GetLocationGetx,
-  // then fills the two text fields with the result so the person can
-  // still see/edit the value before submitting the form.
-  //
-  // GetLocationGetx.fetchCurrentLocation() already catches every
-  // failure internally and reports it via toast, so this only needs
-  // to guard against the widget having been disposed while the await
-  // was pending (e.g. user navigated back mid-fetch) before touching
-  // State.
-  // ---------------------------------------------------------------
-  Future<void> _handleUseCurrentLocation() async {
-    try {
-      final bool success = await locationCont.fetchCurrentLocation();
-      if (!success || !mounted) return;
-
-      final double? lat = locationCont.latitude.value;
-      final double? lng = locationCont.longitude.value;
-      if (lat == null || lng == null) return;
-
-      _latitude.text = lat.toString();
-      _longitude.text = lng.toString();
-    } catch (e) {
-      // Defensive fallback only — fetchCurrentLocation() shouldn't
-      // throw, but this keeps a stray exception from ever crashing
-      // the screen.
-      print("Unexpected error in _handleUseCurrentLocation: $e");
-    }
-  }
-
-
-  Future<int> _handleCreateAccount(BuildContext context) async {
-    try {
-      // ---------------------------------------------------------
-      // Get values from text fields
-      // ---------------------------------------------------------
-      final firstName = _firstNameCtrl.text.trim();
-      final lastName = _lastNameCtrl.text.trim();
-      final email = _emailCtrl.text.trim();
-      final phone = _phoneCtrl.text.trim();
-      final whatsapp = _whatsappCtrl.text.trim();
-      final password = _passCtrl.text.trim();
-      final retype = _retypeCtrl.text.trim();
-      final latitude = _latitude.text.trim();
-      final longitude = _longitude.text.trim();
-      final address = _address.text.trim();
-
-      // Get role from Bloc
-      final blocState = context.read<CommonVariableBloc>().state;
-      final role = blocState.Role;
-
-      // ---------------------------------------------------------
-      // Validation
-      // ---------------------------------------------------------
-
-      if (firstName.isEmpty) {
-        _toast.Toastmsg('First name is required');
-        print('First name is required');
-        return 1;
-      }
-
-      if (lastName.isEmpty) {
-        _toast.Toastmsg('Last name is required');
-        print('Last name is required');
-        return 2;
-      }
-
-      if (email.isEmpty) {
-        _toast.Toastmsg('Email is required');
-        print('Email is required');
-        return 3;
-      }
-
-      if (address.isEmptyOrNull) {
-        _toast.Toastmsg('Address is required');
-        print('Address is required');
-        return 3;
-      }
-
-      if (!email.contains('@') || !email.contains('.com')) {
-        _toast.Toastmsg('Enter a valid email address');
-        print('Enter a valid email address');
-        return 4;
-      }
-
-      if (phone.isEmpty) {
-        _toast.Toastmsg('Phone number is required');
-        print('Phone number is required');
-        return 5;
-      }
-
-      if (!phone.startsWith('+')) {
-        _toast.Toastmsg('Phone number must start with +');
-        print('Phone number must start with +');
-        return 6;
-      }
-
-      if (whatsapp.isEmpty) {
-        _toast.Toastmsg('WhatsApp number is required');
-        print('WhatsApp number is required');
-        return 7;
-      }
-
-      if (!whatsapp.startsWith('+')) {
-        _toast.Toastmsg('WhatsApp number must start with +');
-        print('WhatsApp number must start with +');
-        return 8;
-      }
-
-      if (password.isEmpty) {
-        _toast.Toastmsg('Password is required');
-        print('Password is required');
-        return 9;
-      }
-
-      if (retype.isEmpty) {
-        _toast.Toastmsg('Please retype your password');
-        print('Please retype your password');
-        return 10;
-      }
-
-      if (role == null || role.isEmpty) {
-        _toast.Toastmsg('Role is required.');
-        print('Role is required.');
-        return 10;
-      }
-
-      if (latitude.isEmpty) {
-        _toast.Toastmsg('Latitude is required.');
-        print('Latitude is required.');
-        return 10;
-      }
-
-      if (longitude.isEmpty) {
-        _toast.Toastmsg('Longitude is required.');
-        print('Longitude is required.');
-        return 10;
-      }
-
-      if (password != retype) {
-        _toast.Toastmsg('Passwords do not match');
-        print('Passwords do not match');
-        return 11;
-      }
-
-      // ---------------------------------------------------------
-      // Validate latitude and longitude
-      // ---------------------------------------------------------
-
-      final latitudeValue = double.tryParse(latitude);
-      final longitudeValue = double.tryParse(longitude);
-
-      if (latitudeValue == null) {
-        _toast.Toastmsg('Invalid latitude');
-        print('Invalid latitude');
-        return 10;
-      }
-
-      if (longitudeValue == null) {
-        _toast.Toastmsg('Invalid longitude');
-        print('Invalid longitude');
-        return 10;
-      }
-
-      // ---------------------------------------------------------
-      // API URL
-      // ---------------------------------------------------------
-
-      const String url =
-          Backend_Server_Url + "api/Authentication/signin";
-
-
-
-      // Create Multipart Request
-
-
-      final request = http.MultipartRequest(
-        'POST',
-        Uri.parse(url),
-      );
-
-
-      // Authorization
-
-
-      request.headers['Authorization'] =
-      'Bearer ${widget.User_JwtToken}';
-
-      // ---------------------------------------------------------
-      // Add form fields
-      // ---------------------------------------------------------
-
-      request.fields['FirstName'] = firstName;
-      request.fields['LastName'] = lastName;
-      request.fields['Email'] = email;
-      request.fields['PhoneNumber'] = phone;
-      request.fields['WhatsappPhoneNumber'] = whatsapp;
-      request.fields['Address'] = address;
-      request.fields['Password'] = password;
-      request.fields['Latitude'] = latitudeValue.toString();
-      request.fields['Longitude'] = longitudeValue.toString();
-      request.fields['Role'] = role;
-
-      // ---------------------------------------------------------
-      // Send request
-      // ---------------------------------------------------------
-
-      print('Sending signup request...');
-
-      final response = await request.send();
-
-      print('Signup response status code: ${response.statusCode}');
-
-      // Read backend response body
-      final responseBody = await response.stream.bytesToString();
-
-      print('Signup response body: $responseBody');
-
-      // ---------------------------------------------------------
-      // 200 - Account created successfully
-      // ---------------------------------------------------------
-
-      if (response.statusCode == 200) {
-        _toast.Toastmsg(
-          'Account created successfully',
-        );
-
-        print('Account created successfully');
-        print('Data insert in userinfo table success.');
-
-        return 1;
-      }
-
-      // ---------------------------------------------------------
-      // 400 - Invalid role
-      // Backend:
-      // return BadRequest("Invalid role.");
-      // ---------------------------------------------------------
-
-      else if (response.statusCode == 400) {
-        _toast.Toastmsg(
-          responseBody.isNotEmpty
-              ? responseBody
-              : 'Invalid role.',
-        );
-
-        print(
-          'Account created fail. Invalid role.',
-        );
-
-        return 2;
-      }
-
-      // ---------------------------------------------------------
-      // 501 - Invalid data
-      // Backend:
-      // ModelState invalid
-      // Password invalid
-      // Email invalid
-      // ---------------------------------------------------------
-
-      else if (response.statusCode == 501) {
-        _toast.Toastmsg(
-          responseBody.isNotEmpty
-              ? responseBody
-              : 'Provided data are not in correct format.',
-        );
-
-        print(
-          'Account created fail. Provided data are not in correct format.',
-        );
-
-        return 4;
-      }
-
-      // ---------------------------------------------------------
-      // 502 - Email already exists
-      // ---------------------------------------------------------
-
-      else if (response.statusCode == 502) {
-        _toast.Toastmsg(
-          responseBody.isNotEmpty
-              ? responseBody
-              : 'Email already exists.',
-        );
-
-        print(
-          'Account created fail. Email already exists.',
-        );
-
-        return 3;
-      }
-
-      // ---------------------------------------------------------
-      // 500 - Backend exception
-      // ---------------------------------------------------------
-
-      else if (response.statusCode == 500) {
-        _toast.Toastmsg(
-          responseBody.isNotEmpty
-              ? responseBody
-              : 'Something went wrong. Please try again.',
-        );
-
-        print(
-          'Account created fail. Exception caught in backend.',
-        );
-
-        return 5;
-      }
-
-      // ---------------------------------------------------------
-      // Other status codes
-      // ---------------------------------------------------------
-
-      else {
-        print(
-          'Unexpected status code = ${response.statusCode}',
-        );
-
-        _toast.Toastmsg(
-          'Account created fail. Status code: ${response.statusCode}',
-        );
-
-        return 2;
-      }
-    } catch (E) {
-      // ---------------------------------------------------------
-      // Connection / Flutter / unexpected error
-      // ---------------------------------------------------------
-
-      print('Signup exception: $E');
-
-      _toast.Toastmsg(
-        'Account created fail. Please try again. Server error.',
-      );
-
-      print(
-        'Account created fail. Please try again. Server error.',
-      );
-
-      return 0;
-    }
-  }
-
-
-
-
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final height = constraints.maxHeight;
-          final isWide = width >= 980;
-          final isPortraitCompact = width < 620;
-
-          return SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: height),
-              child: isWide
-                  ? _WideLayout(state: this, panelFlex: width > 1300 ? 5 : 4)
-                  : _CompactLayout(
-                state: this,
-                isPortraitCompact: isPortraitCompact,
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  // ---- shared pieces -----------------------------------------------
-
-  Widget wavePanel({
-    required double height,
-    double? width,
-    bool showText = true,
-  }) {
-    return SizedBox(
-      height: height,
-      width: width,
-      child: Stack(
-        fit: StackFit.expand,
+      backgroundColor: RegColors.bg,
+      resizeToAvoidBottomInset: true,
+      body: Stack(
         children: [
-          AnimatedBuilder(
-            animation: _wave,
-            builder: (context, _) =>
-                CustomPaint(painter: _WavePainter(progress: _wave.value)),
-          ),
-          if (showText)
-            SingleChildScrollView(
-              physics: const ClampingScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(40, 36, 40, 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  FadeTransition(
-                    opacity: _stagger(0.0, 0.5),
-                    child: SlideTransition(
-                      position: _stagger(0.0, 0.5).drive(
-                        Tween(begin: const Offset(0, 0.15), end: Offset.zero),
-                      ),
-                      child: Image.asset(
-                        'assets/images/logo/app_logo.png',
-                        width: 84,
-                        height: 84,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-                  FadeTransition(
-                    opacity: _stagger(0.1, 0.6),
-                    child: SlideTransition(
-                      position: _stagger(0.1, 0.6).drive(
-                        Tween(begin: const Offset(0, 0.2), end: Offset.zero),
-                      ),
-                      child: const Text(
-                        'Join\nKaamMitra.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          height: 1.2,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  FadeTransition(
-                    opacity: _stagger(0.2, 0.7),
-                    child: SizedBox(
-                      width: 320,
-                      child: Text(
-                        'Create your account to book trusted services, or sign up as a provider to start offering yours.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.75),
-                          fontSize: 14,
-                          height: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+          const Positioned.fill(child: AmbientBackground()),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: c.wave,
+                builder: (_, __) => CustomPaint(
+                  painter: _WavePainter(progress: c.wave.value),
+                ),
               ),
             ),
+          ),
+          SafeArea(
+            child: LayoutBuilder(
+              builder: (context, box) {
+                final w = box.maxWidth;
+                final h = box.maxHeight.isFinite ? box.maxHeight : 0.0;
+                return w >= 980 ? _wide(w, h) : _compact(w, h);
+              },
+            ),
+          ),
         ],
       ),
     );
   }
 
-  // ---------------------------------------------------------------
-  // NEW — "Use my current location" button. Outlined style so it
-  // stays visually distinct from the filled _GreenField boxes and
-  // the primary "Create account" button, built from the same
-  // AppColors palette as the rest of the form.
-  // ---------------------------------------------------------------
-  Widget _buildUseLocationButton() {
-    return Obx(() {
-      final bool fetching = locationCont.isFetchingLocation.value;
+  // ---- layouts ------------------------------------------------------
 
+  /// Wide: brand panel stays fixed on the left, the long form scrolls on the right.
+  Widget _wide(double w, double h)
+  {
+    return Row(
+      children: [
+        Expanded(
+          flex: 5,
+          child: Stack(
+            children: [
+              SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: h),
+                  child: Center(
+                    child: Padding(
+                      padding:
+                      const EdgeInsets.symmetric(horizontal: 48, vertical: 40),
+                      child: _hero(w),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(top: 18, left: 24, child: _backButton()),
+            ],
+          ),
+        ),
+        Expanded(
+          flex: 6,
+          child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: h),
+              child: Center(
+                child: Padding(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
+                  child: _formCard(compact: false, availableWidth: w * 6 / 11 - 64),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _compact(double w, double h) {
+    final pad = (w * 0.05).clamp(8.0, 28.0);
+    final cardWidth = math.max(0.0, math.min(520.0, w - pad * 2));
+    return SingleChildScrollView(
+      physics: const ClampingScrollPhysics(),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: h),
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: pad, vertical: 16),
+            child: SizedBox(
+              width: cardWidth,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Align(alignment: Alignment.centerLeft, child: _backButton()),
+                  const SizedBox(height: 8),
+                  _reveal(0.0, 0.5, _logo(w < 380 ? 80 : 104)),
+                  const SizedBox(height: 14),
+                  _reveal(0.1, 0.6, _brandTitle(fontSize: w < 380 ? 26 : 32, center: true)),
+                  const SizedBox(height: 8),
+                  _reveal(
+                    0.2,
+                    0.7,
+                    const Text(
+                      'Create your account in a minute.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: RegColors.muted, fontSize: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _formCard(compact: true, availableWidth: cardWidth),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---- hero (wide) ----------------------------------------------------
+
+  Widget _hero(double w) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 480),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _reveal(0.0, 0.5, _logo(140)),
+          const SizedBox(height: 28),
+          _reveal(0.1, 0.6, _brandTitle(fontSize: w > 1300 ? 52 : 42, center: false)),
+          const SizedBox(height: 16),
+          _reveal(
+            0.2,
+            0.7,
+            const Text(
+              'Create your account to book trusted services, or sign up as a provider to start offering yours.',
+              style: TextStyle(color: RegColors.muted, fontSize: 16, height: 1.6),
+            ),
+          ),
+          const SizedBox(height: 26),
+          _reveal(
+            0.3,
+            0.8,
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: const [
+                _Chip(icon: Icons.search_rounded, text: 'Find trusted help'),
+                _Chip(icon: Icons.work_outline_rounded, text: 'Become a provider'),
+                _Chip(icon: Icons.lock_rounded, text: 'Private & secure'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _brandTitle({required double fontSize, required bool center}) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: center ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Join',
+          style: TextStyle(
+            color: RegColors.text.withOpacity(0.85),
+            fontSize: fontSize * 0.5,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.3,
+          ),
+        ),
+        ShaderMask(
+          shaderCallback: (r) => const LinearGradient(
+            colors: [RegColors.mint, RegColors.accent],
+          ).createShader(r),
+          child: Text(
+            'KaamMitra',
+            textAlign: center ? TextAlign.center : TextAlign.start,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: fontSize,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -1,
+              height: 1.15,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _logo(double size) {
+    return AnimatedBuilder(
+      animation: c.wave,
+      builder: (_, child) => Transform.translate(
+        offset: Offset(0, math.sin(c.wave.value * 2 * math.pi) * 5),
+        child: child,
+      ),
+      child: Container(
+        width: size + 20,
+        height: size + 20,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: RegColors.surface.withOpacity(0.7),
+          border: Border.all(color: RegColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: RegColors.accent.withOpacity(0.35),
+              blurRadius: 36,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Image.asset(
+          'assets/images/logo/app_logo.png',
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) =>
+          const Icon(Icons.handyman_rounded, color: RegColors.mint),
+        ),
+      ),
+    );
+  }
+
+  Widget _backButton() {
+    if (!Navigator.of(context).canPop()) return const SizedBox.shrink();
+    return _reveal(
+      0.0,
+      0.4,
+      Tooltip(
+        message: 'Back',
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => Navigator.maybePop(context),
+          child: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: RegColors.surface.withOpacity(0.6),
+              border: Border.all(color: RegColors.text.withOpacity(0.45), width: 1.2),
+            ),
+            child: const Icon(Icons.arrow_back_rounded,
+                color: RegColors.text, size: 20),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---- form card -----------------------------------------------------
+
+  Widget _formCard({required bool compact, required double availableWidth}) {
+    final hPad = availableWidth < 340 ? 16.0 : (compact ? 22.0 : 36.0);
+    return _reveal(
+      0.15,
+      0.8,
+      ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(
+                  horizontal: hPad, vertical: compact ? 26 : 36),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    RegColors.surface.withOpacity(0.80),
+                    RegColors.header.withOpacity(0.70),
+                  ],
+                ),
+                border: Border.all(color: RegColors.border, width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.35),
+                    blurRadius: 40,
+                    offset: const Offset(0, 20),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Create account',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: compact ? 25 : 30,
+                      fontWeight: FontWeight.w800,
+                      color: RegColors.text,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Fill in your details to get started.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: RegColors.muted, fontSize: 13.5),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // ---- Personal ----
+                  const _Section(icon: Icons.person_rounded, title: 'Personal'),
+                  LayoutBuilder(builder: (context, box) {
+                    final first = _DarkField(
+                      controller: c.firstNameCtrl,
+                      ff: c.firstF,
+                      label: 'First name',
+                      icon: Icons.person_outline_rounded,
+                      action: TextInputAction.next,
+                    );
+                    final last = _DarkField(
+                      controller: c.lastNameCtrl,
+                      ff: c.lastF,
+                      label: 'Last name',
+                      icon: Icons.person_outline_rounded,
+                      action: TextInputAction.next,
+                    );
+                    if (box.maxWidth < 380) {
+                      return Column(children: [first, const SizedBox(height: 14), last]);
+                    }
+                    return Row(children: [
+                      Expanded(child: first),
+                      const SizedBox(width: 12),
+                      Expanded(child: last),
+                    ]);
+                  }),
+                  const SizedBox(height: 14),
+                  _DarkField(
+                    controller: c.emailCtrl,
+                    ff: c.emailF,
+                    label: 'Email address',
+                    hint: 'you@example.com',
+                    icon: Icons.mail_outline_rounded,
+                    keyboardType: TextInputType.emailAddress,
+                    action: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 14),
+                  _RoleField(c: c),
+
+                  // ---- Contact ----
+                  const _Section(icon: Icons.call_rounded, title: 'Contact'),
+                  _DarkField(
+                    controller: c.phoneCtrl,
+                    ff: c.phoneF,
+                    label: 'Phone number',
+                    hint: '+91 98765 43210',
+                    icon: Icons.call_outlined,
+                    keyboardType: TextInputType.phone,
+                    action: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 14),
+                  _DarkField(
+                    controller: c.whatsappCtrl,
+                    ff: c.whatsappF,
+                    label: 'WhatsApp number',
+                    hint: '+91 98765 43210',
+                    icon: Icons.chat_outlined,
+                    keyboardType: TextInputType.phone,
+                    action: TextInputAction.next,
+                  ),
+
+                  // ---- Location ----
+                  const _Section(icon: Icons.location_on_rounded, title: 'Location'),
+                  _DarkField(
+                    controller: c.addressCtrl,
+                    ff: c.addressF,
+                    label: 'Address',
+                    hint: 'Street, city',
+                    icon: Icons.home_outlined,
+                    keyboardType: TextInputType.streetAddress,
+                    action: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 14),
+                  _LocationButton(c: c),
+                  _DetectedChip(c: c),
+                  const SizedBox(height: 14),
+                  LayoutBuilder(builder: (context, box) {
+                    final lat = _DarkField(
+                      controller: c.latitudeCtrl,
+                      ff: c.latF,
+                      label: 'Latitude',
+                      hint: 'e.g. 26.8123',
+                      icon: Icons.explore_outlined,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true, signed: true),
+                      action: TextInputAction.next,
+                    );
+                    final lng = _DarkField(
+                      controller: c.longitudeCtrl,
+                      ff: c.lngF,
+                      label: 'Longitude',
+                      hint: 'e.g. 87.2810',
+                      icon: Icons.explore_outlined,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true, signed: true),
+                      action: TextInputAction.next,
+                    );
+                    if (box.maxWidth < 380) {
+                      return Column(children: [lat, const SizedBox(height: 14), lng]);
+                    }
+                    return Row(children: [
+                      Expanded(child: lat),
+                      const SizedBox(width: 12),
+                      Expanded(child: lng),
+                    ]);
+                  }),
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Icon(Icons.info_outline_rounded,
+                          size: 14, color: RegColors.muted),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'Tip: long-press your location in Google Maps and copy the two decimal values (latitude first, then longitude).',
+                          style: TextStyle(
+                              color: RegColors.muted, fontSize: 11.5, height: 1.4),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // ---- Security ----
+                  const _Section(icon: Icons.shield_rounded, title: 'Security'),
+                  _DarkField(
+                    controller: c.passCtrl,
+                    ff: c.passF,
+                    label: 'Password',
+                    icon: Icons.lock_outline_rounded,
+                    keyboardType: TextInputType.visiblePassword,
+                    obscure: c.obscurePass,
+                    onToggleObscure: c.toggleObscurePass,
+                    action: TextInputAction.next,
+                  ),
+                  const SizedBox(height: 14),
+                  _DarkField(
+                    controller: c.retypeCtrl,
+                    ff: c.retypeF,
+                    label: 'Retype password',
+                    icon: Icons.lock_reset_rounded,
+                    keyboardType: TextInputType.visiblePassword,
+                    obscure: c.obscureRetype,
+                    onToggleObscure: c.toggleObscureRetype,
+                    action: TextInputAction.done,
+                  ),
+                  const SizedBox(height: 26),
+                  _GlowButton(
+                    label: 'Create account',
+                    pressed: c.buttonPressed,
+                    loading: c.isLoading,
+                    onTap: () async {
+                      try {
+                        final ok = await _confirmCreate(context);
+                        if (ok == true && context.mounted) {
+                          await c.createAccountFlow(context);
+                        }
+                      } catch (e) {
+                        print("Exception in create account tap: $e");
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      const Text(
+                        'Already have an account? ',
+                        style: TextStyle(color: RegColors.muted, fontSize: 13),
+                      ),
+                      TextButton(
+                        style: TextButton.styleFrom(
+                          foregroundColor: RegColors.mint,
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => LoginScreen(
+                                  User_JwtToken: widget.User_JwtToken),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'Sign in',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _reveal(double start, double end, Widget child) {
+    final a = c.stagger(start, end);
+    return FadeTransition(
+      opacity: a,
+      child: SlideTransition(
+        position: a.drive(Tween(begin: const Offset(0, 0.12), end: Offset.zero)),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// Confirm / cancel before writing to the database.
+Future<bool?> _confirmCreate(BuildContext context) {
+  return showDialog<bool>(
+    context: context,
+    barrierColor: Colors.black.withOpacity(0.6),
+    builder: (ctx) => AlertDialog(
+      backgroundColor: RegColors.surface,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: RegColors.border),
+      ),
+      title: const Text('Create account?',
+          style: TextStyle(color: RegColors.text, fontWeight: FontWeight.w800)),
+      content: const Text(
+        'Please make sure your details are correct before continuing.',
+        style: TextStyle(color: RegColors.muted, height: 1.4),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Cancel', style: TextStyle(color: RegColors.muted)),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: RegColors.accent,
+            foregroundColor: RegColors.bg,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Confirm', style: TextStyle(fontWeight: FontWeight.w800)),
+        ),
+      ],
+    ),
+  );
+}
+
+// ====================================================================
+// Reusable pieces (stateless, Rx driven)
+// ====================================================================
+
+class _Section extends StatelessWidget {
+  const _Section({required this.icon, required this.title});
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 26, bottom: 14),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: RegColors.mint),
+          const SizedBox(width: 8),
+          Text(
+            title.toUpperCase(),
+            style: const TextStyle(
+              color: RegColors.mint,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(child: Divider(color: RegColors.border, height: 1)),
+        ],
+      ),
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+      decoration: BoxDecoration(
+        color: RegColors.surface.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: RegColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: RegColors.mint),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              text,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  color: RegColors.text, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DarkField extends StatelessWidget {
+  const _DarkField({
+    required this.controller,
+    required this.ff,
+    required this.label,
+    required this.icon,
+    this.hint,
+    this.keyboardType,
+    this.obscure,
+    this.onToggleObscure,
+    this.action,
+  });
+
+  final TextEditingController controller;
+  final FieldFocus ff;
+  final String label;
+  final String? hint;
+  final IconData icon;
+  final TextInputType? keyboardType;
+  final RxBool? obscure;
+  final VoidCallback? onToggleObscure;
+  final TextInputAction? action;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final f = ff.focused.value;
+      final hidden = obscure?.value ?? false;
+      return AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+              color: f ? RegColors.accent : RegColors.border, width: 1.4),
+          boxShadow: f
+              ? [
+            BoxShadow(
+              color: RegColors.accent.withOpacity(0.25),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ]
+              : const [],
+        ),
+        child: TextField(
+          controller: controller,
+          focusNode: ff.node,
+          obscureText: hidden,
+          keyboardType: keyboardType,
+          textInputAction: action,
+          cursorColor: RegColors.mint,
+          style: const TextStyle(fontSize: 14.5, color: RegColors.text),
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: RegColors.bg.withOpacity(0.65),
+            labelText: label,
+            hintText: hint,
+            hintStyle: TextStyle(
+                color: RegColors.muted.withOpacity(0.6), fontSize: 13),
+            labelStyle: TextStyle(
+                color: f ? RegColors.mint : RegColors.muted, fontSize: 13.5),
+            prefixIcon:
+            Icon(icon, size: 19, color: f ? RegColors.mint : RegColors.muted),
+            suffixIcon: onToggleObscure == null
+                ? null
+                : IconButton(
+              splashRadius: 18,
+              onPressed: onToggleObscure,
+              icon: Icon(
+                hidden
+                    ? Icons.visibility_off_rounded
+                    : Icons.visibility_rounded,
+                size: 19,
+                color: RegColors.muted,
+              ),
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding:
+            const EdgeInsets.symmetric(vertical: 15, horizontal: 12),
+          ),
+        ),
+      );
+    });
+  }
+}
+
+class _RoleField extends StatelessWidget {
+  const _RoleField({required this.c});
+  final RegisterController c;
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      onFocusChange: (v) => c.roleFocused.value = v,
+      child: Obx(() {
+        final f = c.roleFocused.value;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+                color: f ? RegColors.accent : RegColors.border, width: 1.4),
+            boxShadow: f
+                ? [
+              BoxShadow(
+                color: RegColors.accent.withOpacity(0.25),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
+              ),
+            ]
+                : const [],
+          ),
+          child: DropdownButtonFormField<String>(
+            value: c.role.value,
+            isExpanded: true,
+            icon: const Icon(Icons.keyboard_arrow_down_rounded,
+                color: RegColors.muted),
+            style: const TextStyle(fontSize: 14.5, color: RegColors.text),
+            dropdownColor: RegColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: RegColors.bg.withOpacity(0.65),
+              labelText: 'I am signing up as',
+              labelStyle: TextStyle(
+                  color: f ? RegColors.mint : RegColors.muted, fontSize: 13.5),
+              prefixIcon: Icon(Icons.badge_outlined,
+                  size: 19, color: f ? RegColors.mint : RegColors.muted),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding:
+              const EdgeInsets.symmetric(vertical: 15, horizontal: 12),
+            ),
+            items: const ['User', 'Provider']
+                .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                .toList(),
+            onChanged: c.selectRole,
+          ),
+        );
+      }),
+    );
+  }
+}
+
+class _LocationButton extends StatelessWidget {
+  const _LocationButton({required this.c});
+  final RegisterController c;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final fetching = c.locationCont.isFetchingLocation.value;
       return Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: fetching ? null : _handleUseCurrentLocation,
+          onTap: fetching ? null : c.handleUseCurrentLocation,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             height: 48,
             decoration: BoxDecoration(
-              color: AppColors.fieldFill,
+              color: RegColors.accent.withOpacity(fetching ? 0.06 : 0.10),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: AppColors.bgMid.withOpacity(fetching ? 0.35 : 0.6),
-                width: 1.4,
-              ),
+                  color: RegColors.mint.withOpacity(fetching ? 0.35 : 0.7),
+                  width: 1.4),
             ),
             child: Center(
               child: fetching
                   ? Row(
                 mainAxisSize: MainAxisSize.min,
-                children: [
-                  const SizedBox(
+                children: const [
+                  SizedBox(
                     width: 17,
                     height: 17,
                     child: CircularProgressIndicator(
-                      strokeWidth: 2.4,
-                      valueColor:
-                      AlwaysStoppedAnimation<Color>(AppColors.bgMid),
-                    ),
+                        strokeWidth: 2.4, color: RegColors.mint),
                   ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'Getting your location...',
-                    style: TextStyle(
-                      color: AppColors.textDark,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13.5,
-                    ),
+                  SizedBox(width: 10),
+                  Flexible(
+                    child: Text('Getting your location...',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            color: RegColors.text,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13.5)),
                   ),
                 ],
               )
@@ -657,15 +882,15 @@ class _RegisterScreenState extends State<RegisterScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: const [
                   Icon(Icons.my_location_rounded,
-                      color: AppColors.bgMid, size: 18),
+                      color: RegColors.mint, size: 18),
                   SizedBox(width: 9),
-                  Text(
-                    'Use my current location',
-                    style: TextStyle(
-                      color: AppColors.bgMid,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13.5,
-                    ),
+                  Flexible(
+                    child: Text('Use my current location',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            color: RegColors.mint,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13.5)),
                   ),
                 ],
               ),
@@ -675,14 +900,17 @@ class _RegisterScreenState extends State<RegisterScreen>
       );
     });
   }
+}
 
-  /// Small chip that appears under the button once a live fix has been
-  /// captured, confirming what just got filled into the fields.
-  Widget _buildDetectedLocationChip() {
+class _DetectedChip extends StatelessWidget {
+  const _DetectedChip({required this.c});
+  final RegisterController c;
+
+  @override
+  Widget build(BuildContext context) {
     return Obx(() {
-      final double? lat = locationCont.latitude.value;
-      final double? lng = locationCont.longitude.value;
-
+      final lat = c.locationCont.latitude.value;
+      final lng = c.locationCont.longitude.value;
       return AnimatedSwitcher(
         duration: const Duration(milliseconds: 220),
         child: (lat == null || lng == null)
@@ -690,27 +918,25 @@ class _RegisterScreenState extends State<RegisterScreen>
             : Container(
           key: const ValueKey('fix'),
           margin: const EdgeInsets.only(top: 10),
-          padding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           decoration: BoxDecoration(
-            color: AppColors.accent.withOpacity(0.12),
+            color: RegColors.accent.withOpacity(0.12),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.accent.withOpacity(0.3)),
+            border: Border.all(color: RegColors.accent.withOpacity(0.3)),
           ),
           child: Row(
             children: [
               const Icon(Icons.check_circle_rounded,
-                  color: AppColors.bgMid, size: 15),
+                  color: RegColors.mint, size: 15),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'Detected: $lat, $lng',
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: AppColors.textDark,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                      color: RegColors.text,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600),
                 ),
               ),
             ],
@@ -719,427 +945,110 @@ class _RegisterScreenState extends State<RegisterScreen>
       );
     });
   }
+}
 
-  Widget formCard(BuildContext context, {required bool compact}) {
-    return FadeTransition(
-      opacity: _stagger(0.15, 0.7),
-      child: SlideTransition(
-        position: _stagger(
-          0.15,
-          0.7,
-        ).drive(Tween(begin: const Offset(0, 0.06), end: Offset.zero)),
-        child: Container(
-          width: double.infinity,
-          constraints: const BoxConstraints(maxWidth: 460),
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? 22 : 40,
-            vertical: compact ? 28 : 40,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.18),
-                blurRadius: 40,
-                offset: const Offset(0, 20),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (compact) ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Image.asset(
-                      'assets/images/logo/app_logo.png',
-                      width: 38,
-                      height: 38,
-                      fit: BoxFit.contain,
-                    ),
-                    const SizedBox(width: 10),
-                    const Text(
-                      'KaamMitra',
-                      style: TextStyle(
-                        color: AppColors.textDark,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                  ],
+class _GlowButton extends StatelessWidget {
+  const _GlowButton({
+    required this.label,
+    required this.pressed,
+    required this.loading,
+    required this.onTap,
+  });
+
+  final String label;
+  final RxBool pressed;
+  final RxBool loading;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final isLoading = loading.value;
+      return GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => pressed.value = true,
+        onTapUp: (_) => pressed.value = false,
+        onTapCancel: () => pressed.value = false,
+        onTap: isLoading ? null : onTap,
+        child: AnimatedScale(
+          scale: pressed.value ? 0.97 : 1,
+          duration: const Duration(milliseconds: 120),
+          child: AnimatedOpacity(
+            opacity: isLoading ? 0.8 : 1,
+            duration: const Duration(milliseconds: 200),
+            child: Container(
+              height: 52,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                gradient: const LinearGradient(
+                  colors: [RegColors.accent, RegColors.mint],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
                 ),
-                const SizedBox(height: 20),
-              ],
-              Text(
-                'Create account',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: compact ? 22 : 26,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textDark,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Fill in your details to get started.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textMuted, fontSize: 13.5),
-              ),
-              const SizedBox(height: 26),
-
-              // First / last name — side by side on wider screens, stacked on narrow
-              Builder(
-                builder: (context) {
-                  final stack = MediaQuery.of(context).size.width < 420;
-                  final firstField = _GreenField(
-                    controller: _firstNameCtrl,
-                    label: 'First name',
-                    icon: Icons.person_outline_rounded,
-                  );
-                  final lastField = _GreenField(
-                    controller: _lastNameCtrl,
-                    label: 'Last name',
-                    icon: Icons.person_outline_rounded,
-                  );
-                  if (stack) {
-                    return Column(
-                      children: [
-                        firstField,
-                        const SizedBox(height: 16),
-                        lastField,
-                      ],
-                    );
-                  }
-                  return Row(
-                    children: [
-                      Expanded(child: firstField),
-                      const SizedBox(width: 14),
-                      Expanded(child: lastField),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-
-              _GreenField(
-                controller: _emailCtrl,
-                label: 'Email address',
-                hintText: 'you@example.com',
-                icon: Icons.mail_outline_rounded,
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16),
-
-              _GreenField(
-                controller: _address,
-                label: 'Address',
-                hintText:
-                'Address',
-                icon: Icons.map,
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 16),
-
-              _GreenField(
-                controller: _phoneCtrl,
-                label: 'Phone number',
-                hintText: '+91 98765 43210',
-                icon: Icons.call_outlined,
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 16),
-
-              _GreenField(
-                controller: _whatsappCtrl,
-                label: 'WhatsApp number',
-                hintText: '+91 98765 43210',
-                icon: Icons.chat_outlined,
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 16),
-
-              // --- Use my current location ---
-              _buildUseLocationButton(),
-              _buildDetectedLocationChip(),
-              const SizedBox(height: 16),
-
-              _GreenField(
-                controller: _latitude,
-                label: 'Latitude',
-                hintText:
-                '23.567(Long press on your current location in google map.First decimal value of google map)',
-                icon: Icons.map,
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 16),
-
-              _GreenField(
-                controller: _longitude,
-                label: 'Longitude',
-                hintText:
-                '23.567(Long press on your current location in google map.Second decimal value of google map)',
-                icon: Icons.map,
-                keyboardType: TextInputType.phone,
-              ),
-              const SizedBox(height: 16),
-
-              BlocBuilder<CommonVariableBloc, CommonVariableState>(
-                builder: (context, state) {
-                  return _GreenDropdown(
-                    value: state.Role!,
-                    items: const ['User', 'Provider'],
-                    label: 'I am signing up as',
-                    icon: Icons.badge_outlined,
-                    onChanged: (value) {
-                      context.read<CommonVariableBloc>().add(
-                        SelectUserRole(Role: value),
-                      );
-                    },
-                  );
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              BlocBuilder<CommonVariableBloc, CommonVariableState>(
-                builder: (context, state) {
-                  return _GreenField(
-                    controller: _passCtrl,
-                    label: 'Password',
-                    icon: Icons.lock_outline_rounded,
-                    obscure: state.ObscureValuePassword!,
-                    suffix: IconButton(
-                      splashRadius: 18,
-                      icon: Icon(
-                        state.ObscureValuePassword!
-                            ? Icons.visibility_off_rounded
-                            : Icons.visibility_rounded,
-                        size: 19,
-                        color: AppColors.textMuted,
-                      ),
-                      onPressed: () {
-                        context.read<CommonVariableBloc>().add(
-                          ChangeObscureValuePassword(),
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-
-              BlocBuilder<CommonVariableBloc, CommonVariableState>(
-                builder: (context, state) {
-                  return _GreenField(
-                    controller: _retypeCtrl,
-                    label: 'Retype password',
-                    icon: Icons.lock_reset_rounded,
-                    obscure: state.ObscureValueRetypePassword!,
-                    suffix: IconButton(
-                      splashRadius: 18,
-                      icon: Icon(
-                        state.ObscureValueRetypePassword!
-                            ? Icons.visibility_off_rounded
-                            : Icons.visibility_rounded,
-                        size: 19,
-                        color: AppColors.textMuted,
-                      ),
-                      onPressed: () {
-                        context.read<CommonVariableBloc>().add(
-                          ChangeObscureValueRetypePassword(),
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-
-              const SizedBox(height: 24),
-
-              _GreenButton(
-                label: 'Create account',
-                onTap: () async {
-                  final result = await _handleCreateAccount(context);
-                  print(
-                    "Handle create account methode executed.Result = ${result}",
-                  );
-                },
-              ),
-              const SizedBox(height: 22),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    'Already have an account? ',
-                    style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-                  ),
-                  TextButton(
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.bgMid,
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size(0, 0),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => LoginScreen(User_JwtToken:widget.User_JwtToken,
-                          ),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      'Sign in',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                boxShadow: [
+                  BoxShadow(
+                    color: RegColors.accent.withOpacity(0.40),
+                    blurRadius: 22,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Desktop / wide-tablet: split panel layout.
-class _WideLayout extends StatelessWidget {
-  const _WideLayout({required this.state, required this.panelFlex});
-  final _RegisterScreenState state;
-  final int panelFlex;
-
-  @override
-  Widget build(BuildContext context) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(
-            flex: panelFlex,
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.bgDeep, AppColors.bgMid],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+              child: isLoading
+                  ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2.4, color: RegColors.bg),
+              )
+                  : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: RegColors.bg,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15.5,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.arrow_forward_rounded,
+                      size: 18, color: RegColors.bg),
+                ],
               ),
-              child: state.wavePanel(height: double.infinity, showText: true),
             ),
           ),
-          Expanded(
-            flex: 10 - panelFlex,
-            child: Container(
-              color: AppColors.fieldFill,
-              alignment: Alignment.center,
-              padding: const EdgeInsets.all(32),
-              child: state.formCard(context, compact: false),
-            ),
-          ),
-        ],
-      ),
-    );
+        ),
+      );
+    });
   }
 }
 
-/// Mobile / portrait / narrow-tablet: stacked layout.
-class _CompactLayout extends StatelessWidget {
-  const _CompactLayout({required this.state, required this.isPortraitCompact});
-  final _RegisterScreenState state;
-  final bool isPortraitCompact;
-
-  @override
-  Widget build(BuildContext context) {
-    final bannerHeight = isPortraitCompact ? 200.0 : 300.0;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        DecoratedBox(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [AppColors.bgDeep, AppColors.bgMid],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: state.wavePanel(
-            height: bannerHeight,
-            showText: !isPortraitCompact,
-          ),
-        ),
-        Container(
-          color: AppColors.fieldFill,
-          padding: EdgeInsets.symmetric(
-            horizontal: isPortraitCompact ? 16 : 28,
-            vertical: 24,
-          ),
-          alignment: Alignment.topCenter,
-          child: state.formCard(context, compact: true),
-        ),
-      ],
-    );
-  }
-}
-
-/// ---------------------------------------------------------------
-/// Signature element: layered sine-wave animation.
-/// ---------------------------------------------------------------
+/// Soft animated waves along the bottom (very low opacity, never blocks content).
 class _WavePainter extends CustomPainter {
   _WavePainter({required this.progress});
   final double progress;
 
   @override
   void paint(Canvas canvas, Size size) {
-    _layer(
-      canvas,
-      size,
-      phase: progress * 2 * math.pi,
-      amp: 22,
-      color: AppColors.accent.withOpacity(0.16),
-      baseline: 0.62,
-    );
-    _layer(
-      canvas,
-      size,
-      phase: progress * 2 * math.pi + 2,
-      amp: 16,
-      color: AppColors.accentSoft.withOpacity(0.10),
-      baseline: 0.74,
-    );
-    _layer(
-      canvas,
-      size,
-      phase: progress * 2 * math.pi + 4,
-      amp: 28,
-      color: AppColors.bgSoft.withOpacity(0.55),
-      baseline: 0.85,
-    );
+    _layer(canvas, size, progress * 2 * math.pi, 18, 0.86,
+        RegColors.accent.withOpacity(0.07));
+    _layer(canvas, size, progress * 2 * math.pi + 2.2, 24, 0.92,
+        RegColors.mint.withOpacity(0.06));
   }
 
-  void _layer(
-      Canvas canvas,
-      Size size, {
-        required double phase,
-        required double amp,
-        required Color color,
-        required double baseline,
-      }) {
+  void _layer(Canvas canvas, Size size, double phase, double amp,
+      double baseline, Color color) {
     final path = Path();
     final base = size.height * baseline;
     path.moveTo(0, base);
     for (double x = 0; x <= size.width; x += 8) {
-      final y = base + amp * math.sin((x / size.width * 2 * math.pi) + phase);
-      path.lineTo(x, y);
+      path.lineTo(
+          x,
+          base +
+              amp * math.sin((x / math.max(size.width, 1) * 2 * math.pi) + phase));
     }
     path.lineTo(size.width, size.height);
     path.lineTo(0, size.height);
@@ -1148,222 +1057,5 @@ class _WavePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _WavePainter oldDelegate) =>
-      oldDelegate.progress != progress;
-}
-
-/// ---------------------------------------------------------------
-/// Reusable pieces
-/// ---------------------------------------------------------------
-class _GreenField extends StatefulWidget {
-  const _GreenField({
-    required this.controller,
-    required this.label,
-    required this.icon,
-    this.hintText,
-    this.obscure = false,
-    this.suffix,
-    this.keyboardType,
-  });
-
-  final TextEditingController controller;
-  final String label;
-  final String? hintText;
-  final IconData icon;
-  final bool obscure;
-  final Widget? suffix;
-  final TextInputType? keyboardType;
-
-  @override
-  State<_GreenField> createState() => _GreenFieldState();
-}
-
-class _GreenFieldState extends State<_GreenField> {
-  bool _focused = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Focus(
-      onFocusChange: (f) => setState(() => _focused = f),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: _focused ? AppColors.bgMid : Colors.transparent,
-            width: 1.6,
-          ),
-          boxShadow: _focused
-              ? [
-            BoxShadow(
-              color: AppColors.bgMid.withOpacity(0.15),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ]
-              : [],
-        ),
-        child: TextField(
-          controller: widget.controller,
-          obscureText: widget.obscure,
-          keyboardType: widget.keyboardType,
-          style: const TextStyle(fontSize: 14.5, color: AppColors.textDark),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: AppColors.fieldFill,
-            labelText: widget.label,
-            hintText: widget.hintText,
-            hintStyle: const TextStyle(
-              color: AppColors.textMuted,
-              fontSize: 13,
-            ),
-            labelStyle: const TextStyle(
-              color: AppColors.textMuted,
-              fontSize: 13.5,
-            ),
-            prefixIcon: Icon(widget.icon, size: 19, color: AppColors.textMuted),
-            suffixIcon: widget.suffix,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide.none,
-            ),
-            contentPadding: const EdgeInsets.symmetric(vertical: 14),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-
-/// Styled dropdown matching the green field look — used for the
-/// User / Provider role selector.
-class _GreenDropdown extends StatefulWidget
-{
-  const _GreenDropdown({
-    required this.value,
-    required this.items,
-    required this.label,
-    required this.icon,
-    required this.onChanged,
-  });
-
-  final String value;
-  final List<String> items;
-  final String label;
-  final IconData icon;
-  final ValueChanged<String?> onChanged;
-
-  @override
-  State<_GreenDropdown> createState() => _GreenDropdownState();
-}
-
-class _GreenDropdownState extends State<_GreenDropdown>
-{
-  bool _focused = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Focus(
-      onFocusChange: (f) => setState(() => _focused = f),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: _focused ? AppColors.bgMid : Colors.transparent,
-            width: 1.6,
-          ),
-        ),
-        child: DropdownButtonFormField<String>(
-          value: widget.value,
-          icon: const Icon(
-            Icons.keyboard_arrow_down_rounded,
-            color: AppColors.textMuted,
-          ),
-          style: const TextStyle(fontSize: 14.5, color: AppColors.textDark),
-          dropdownColor: AppColors.card,
-          borderRadius: BorderRadius.circular(14),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: AppColors.fieldFill,
-            labelText: widget.label,
-            labelStyle: const TextStyle(
-              color: AppColors.textMuted,
-              fontSize: 13.5,
-            ),
-            prefixIcon: Icon(widget.icon, size: 19, color: AppColors.textMuted),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide.none,
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              vertical: 14,
-              horizontal: 12,
-            ),
-          ),
-          items: widget.items
-              .map((item) => DropdownMenuItem(value: item, child: Text(item)))
-              .toList(),
-          onChanged: widget.onChanged,
-        ),
-      ),
-    );
-  }
-}
-
-
-class _GreenButton extends StatefulWidget {
-  const _GreenButton({required this.label, this.onTap});
-  final String label;
-  final VoidCallback? onTap;
-
-  @override
-  State<_GreenButton> createState() => _GreenButtonState();
-}
-
-class _GreenButtonState extends State<_GreenButton> {
-  double _scale = 1;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _scale = 0.97),
-      onTapUp: (_) => setState(() => _scale = 1),
-      onTapCancel: () => setState(() => _scale = 1),
-      onTap: widget.onTap ?? () {},
-      child: AnimatedScale(
-        scale: _scale,
-        duration: const Duration(milliseconds: 120),
-        child: Container(
-          height: 50,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            gradient: const LinearGradient(
-              colors: [AppColors.bgMid, AppColors.bgSoft],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.bgMid.withOpacity(0.35),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            widget.label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 15,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  bool shouldRepaint(covariant _WavePainter old) => old.progress != progress;
 }

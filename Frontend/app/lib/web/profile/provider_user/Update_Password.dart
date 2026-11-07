@@ -1,7 +1,9 @@
+import 'package:app/constant/variable.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../state management/getx/profile/provider_user/update_password_getx.dart';
+import '../../common method/forget_pswd_credentials_download.dart';
 
 
 
@@ -23,12 +25,17 @@ class UpdatePasswordScreen extends StatefulWidget {
   final String User_Email;
   final String User_JwtToken;
   final String User_Role;
+  final String PhoneNumber;
+  final String WhatsappNumber;
+
 
   const UpdatePasswordScreen({
     super.key,
     required this.User_Email,
     required this.User_JwtToken,
     required this.User_Role,
+    required this.PhoneNumber,
+    required this.WhatsappNumber,
   });
 
   @override
@@ -197,34 +204,53 @@ class _UpdatePasswordScreenState extends State<UpdatePasswordScreen>
     );
   }
 
-  Future<void> _handleSubmit() async {
-    final String newPassword = _newPasswordController.text;
-    final String confirmPassword = _confirmPasswordController.text;
+  Future<void> _handleSubmit() async
+  {
+    try {
+      final String newPassword = _newPasswordController.text;
+      final String confirmPassword = _confirmPasswordController.text;
 
-    final String? validationError = controller.validate(
-      newPassword: newPassword,
-      confirmPassword: confirmPassword,
-    );
+      final String? validationError = controller.validate(
+        newPassword: newPassword,
+        confirmPassword: confirmPassword,
+      );
 
-    if (validationError != null) {
-      controller.errorText.value = validationError;
-      return;
+      if (validationError != null) {
+        controller.errorText.value = validationError;
+        return;
+      }
+
+      controller.errorText.value = '';
+      FocusScope.of(context).unfocus();
+
+      final bool success = await controller.UpdatePassword(
+          NewPassword: newPassword);
+
+      if (!mounted) return;
+
+      if (success)
+      {
+
+        await downloadCredentialsPdf(
+          email: widget.User_Email,
+          phone:widget.PhoneNumber,
+          whatsapp:widget.WhatsappNumber,
+          password: _confirmPasswordController.text.trim(),
+        );
+
+        _newPasswordController.clear();
+        _confirmPasswordController.clear();
+        _showSnack("Password updated successfully.", isError: false);
+      } else {
+        _showSnack(
+            "Failed to update password. Please try again.", isError: true);
+      }
+    }catch(e){
+      Toast.Toastmsg("Update password failed. Please try again later.");
+      return ;
     }
 
-    controller.errorText.value = '';
-    FocusScope.of(context).unfocus();
 
-    final bool success = await controller.UpdatePassword(NewPassword: newPassword);
-
-    if (!mounted) return;
-
-    if (success) {
-      _newPasswordController.clear();
-      _confirmPasswordController.clear();
-      _showSnack("Password updated successfully.", isError: false);
-    } else {
-      _showSnack("Failed to update password. Please try again.", isError: true);
-    }
   }
 
   void _showSnack(String message, {required bool isError}) {

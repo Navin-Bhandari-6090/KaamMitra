@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' show ImageFilter;
@@ -6,7 +5,6 @@ import 'package:app/web/bookings/view_book_file.dart';
 import 'package:app/web/bookings/view_book_video.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 import 'package:velocity_x/velocity_x.dart';
 import '../../constant/Server_Database.dart';
 import '../../constant/variable.dart';
@@ -14,9 +12,7 @@ import '../../models/BookingInfoModel.dart';
 import '../../state management/getx/booking/user_booking_details_getx.dart';
 import '../common method/Commmon_Method.dart';
 
-
-// PALETTE — Dark Forest / Emerald Glow
-
+// Palette: Dark Forest / Emerald Glow
 class _C {
   static const Color bg = Color(0xFF0F1F17);
   static const Color surface = Color(0xFF162E22);
@@ -30,9 +26,7 @@ class _C {
   static const Color frame = Color(0xFF0B1711);
 }
 
-// =============================================================================
-// SCREEN
-// =============================================================================
+// Screen
 class Userbookinginfodetailsscreen extends StatefulWidget {
   final String Current_User_Email;
   final String Current_User_JwtToken;
@@ -55,27 +49,25 @@ class _UserbookinginfodetailsscreenState
     extends State<Userbookinginfodetailsscreen> {
   final RatingValueCont = TextEditingController();
 
-
-
   late final UserBookingDetailsGetx c;
   final String _tag = UniqueKey().toString();
-
-  // Cached futures: the network call runs once (and again only when the photo
-  // reload flag toggles), not on every resize / rebuild.
-  bool? _photoFutureKey;
-  Future<int>? _photoFuture;
-  Future<int>? _qrFuture;
-
-  BookingInfoModel? get _booking => widget.BookingInfoListInfo.isEmpty
-      ? null
-      : widget.BookingInfoListInfo[0];
 
   @override
   void initState() {
     super.initState();
-    User_Jwt_Verify(Jwt_Token: widget.Current_User_JwtToken, context: context);
     c = Get.put(UserBookingDetailsGetx(), tag: _tag);
-    c.seed(_booking);
+    // Start from the passed data; afterwards c.booking (API refreshed) drives the UI.
+    c.init(
+      bookings: widget.BookingInfoListInfo,
+      email: widget.Current_User_Email,
+      jwt: widget.Current_User_JwtToken,
+    );
+    c.verifyJwt(context);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      c.fetchPhoto(context);
+      c.fetchQr(context);
+    });
   }
 
   @override
@@ -84,354 +76,21 @@ class _UserbookinginfodetailsscreenState
       change_photo_cont_getx.imageBytes.value = null;
       change_photo_cont_getx.imageExtension.value = "";
       change_photo_cont_getx.imagePath.value = "";
-    } catch (obj) {
-      print(obj.toString());
-    }
+    } catch (_) {}
     try {
       RatingValueCont.dispose();
-    } catch (obj) {
-      print(obj.toString());
-    }
+    } catch (_) {}
     try {
       Get.delete<UserBookingDetailsGetx>(tag: _tag);
-    } catch (obj) {
-      print(obj.toString());
-    }
+    } catch (_) {}
     super.dispose();
   }
 
-
-
-
-
-  Future<int> UploadAdvancePaymentPhoto({
-    required num BookId,
-    required List<int> ImageBytes,
-    required String UserJwtToken,
-    required String PhotoExtension,
-  }) async {
-    try {
-      if (BookId <= 0) {
-        Toast.Toastmsg("Invalid BookId.");
-        print("Invalid BookId: $BookId");
-        return 1;
-      }
-
-      if (ImageBytes.isEmpty) {
-        Toast.Toastmsg("Payment photo is required.");
-        print("Payment photo is required.");
-        return 2;
-      }
-
-      final String photoExtension =
-      PhotoExtension.trim().toLowerCase().replaceFirst('.', '');
-
-      if (photoExtension.isEmpty) {
-        Toast.Toastmsg("Photo extension is required.");
-        print("Photo extension is required.");
-        return 3;
-      }
-
-      if (photoExtension != "jpg" &&
-          photoExtension != "jpeg" &&
-          photoExtension != "png") {
-        Toast.Toastmsg(
-          "Invalid photo format. Only JPG, JPEG and PNG are allowed.",
-        );
-        print("Invalid photo format: $photoExtension");
-        return 3;
-      }
-
-      const String url =
-          Backend_Server_Url + "api/Booking/uploadadvancepaymentphoto";
-
-      print("API URL: $url");
-
-      final request = http.MultipartRequest(
-        "POST",
-        Uri.parse(url),
-      );
-
-      request.headers["Authorization"] = "Bearer $UserJwtToken";
-
-      request.fields["BookId"] = BookId.toInt().toString();
-
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          "PaymentPhoto",
-          ImageBytes,
-          filename: "payment_photo.$photoExtension",
-        ),
-      );
-
-      print("Payment photo filename: payment_photo.$photoExtension");
-      print("Uploading advance payment photo...");
-
-      final streamedResponse = await request.send();
-
-      final response = await http.Response.fromStream(streamedResponse);
-
-      print("Response status: ${response.statusCode}");
-      print("Response body: ${response.body}");
-
-      if (response.statusCode == 200) {
-        Toast.Toastmsg("Advance payment photo uploaded successfully.");
-        print("Advance payment photo uploaded successfully.");
-
-        change_photo_cont_getx.imageBytes.value = null;
-        change_photo_cont_getx.imageExtension.value = "";
-        change_photo_cont_getx.imagePath.value = "";
-
-        return 0;
-      }
-
-      if (response.statusCode == 400) {
-        Toast.Toastmsg(response.body);
-        print("Invalid data: ${response.body}");
-        return 4;
-      }
-
-      if (response.statusCode == 404) {
-        Toast.Toastmsg(response.body);
-        print("Booking not found: ${response.body}");
-        return 5;
-      }
-
-      if (response.statusCode == 401) {
-        Toast.Toastmsg("Unauthorized. Please login again.");
-        print("Unauthorized.");
-        return 6;
-      }
-
-      if (response.statusCode == 403) {
-        Toast.Toastmsg("You are not authorized.");
-        print("Forbidden.");
-        return 7;
-      }
-
-      if (response.statusCode == 500) {
-        Toast.Toastmsg("Server error while uploading payment photo.");
-        print("Server error: ${response.body}");
-        return 8;
-      }
-
-      print("Unexpected status code: ${response.statusCode}");
-      Toast.Toastmsg("Upload failed. Try again.");
-      return 9;
-    } catch (obj) {
-      print("Exception caught while uploading advance payment photo.");
-      print(obj.toString());
-      Toast.Toastmsg("Upload failed. Try again.");
-      return 10;
-    }
-  }
-
-  Future<int> UpdateRating({
-    required String RatingGiver,
-    required num BookId,
-    required String RatingReceiver,
-    required int RatingValue,
-    required String ServiceName,
-  }) async {
-    try {
-      final Map<String, dynamic> userData = {
-        "RatingGiver": RatingGiver,
-        "BookId": BookId,
-        "RatingReceiver": RatingReceiver,
-        "RatingValue": RatingValue,
-        "ServiceName": ServiceName
-      };
-      const String url = Backend_Server_Url + "api/Booking/updateuserrating";
-      final response = await http.put(
-        Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': 'Bearer ${widget.Current_User_JwtToken}',
-        },
-        body: json.encode(userData),
-      );
-      if (response.statusCode == 200) {
-        print("Update success");
-        Toast.Toastmsg("Update success.");
-        return 1;
-      } else if (response.statusCode == 500) {
-        Toast.Toastmsg("Update fail.Try again.Server error.");
-        print("Update  fail.Try again.Server error.");
-        print("SERVER ERROR: ${response.body}");
-        return 2;
-      } else if (response.statusCode == 502) {
-        Toast.Toastmsg("Current user doesn't match.");
-        Logout(context: context);
-        return 3;
-      } else if (response.statusCode == 503) {
-        Toast.Toastmsg("No booking available of that book id.");
-        print("No  data available of that book id.");
-        return 4;
-      } else if (response.statusCode == 501) {
-        Toast.Toastmsg(
-          "Invalid data format.Please provide data in correct format.",
-        );
-        print("Invalid data format.Please provide data in correct format.");
-        return 5;
-      }
-      else if (response.statusCode == 507) {
-        Toast.Toastmsg(
-          "Rating value already updated.",
-        );
-        print("Rating value already updated.");
-        return 5;
-      }
-      else {
-        Toast.Toastmsg("Update fail.Try again.Server error.");
-        return 6;
-      }
-    } catch (Obj) {
-      print("Exception caught.");
-      print(Obj.toString());
-      Toast.Toastmsg("Update fail.Try again.Server error.");
-      return 7;
-    }
-  }
-
-  Future<int> UpdateUserApprovalStatus({
-    required String UserEmail,
-    required num BookId,
-  }) async {
-    try {
-      final Map<String, dynamic> userData = {
-        "UserEmail": UserEmail,
-        "BookId": BookId,
-      };
-      const String url =
-          Backend_Server_Url + "api/Booking/updateuserapprovalstatus";
-      final response = await http.put(
-        Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': 'Bearer ${widget.Current_User_JwtToken}',
-        },
-        body: json.encode(userData),
-      );
-      if (response.statusCode == 200) {
-        print("Update success");
-        Toast.Toastmsg("Update success.");
-        return 1;
-      } else if (response.statusCode == 500) {
-        Toast.Toastmsg("Update fail.Try again.Server error.");
-        print("Update  fail.Try again.Server error.");
-        print("SERVER ERROR: ${response.body}");
-        return 2;
-      } else if (response.statusCode == 502) {
-        Toast.Toastmsg("Current user doesn't match.");
-        print("Current user doesn't match.");
-        Logout(context: context);
-        return 3;
-      } else if (response.statusCode == 503) {
-        Toast.Toastmsg("No booking available of that book id.");
-        print("No  data available of that book id.");
-        return 4;
-      } else if (response.statusCode == 504) {
-        Toast.Toastmsg(
-            "You have already accept it.You cannot update approval status.");
-        print("You have already accept it.You cannot update approval status.");
-        return 8;
-      } else if (response.statusCode == 501) {
-        Toast.Toastmsg(
-          "Invalid  approval status data format.Please provide data in correct format.",
-        );
-        print(
-          "Invalid  approval status data format.Please provide data in correct format.",
-        );
-        return 5;
-      } else {
-        print("Other status code.Error.");
-        print("Status code = ${response.statusCode}");
-        Toast.Toastmsg("Update fail.Try again.Server error.");
-        return 6;
-      }
-    } catch (Obj) {
-      print("Exception caught while Updating  approval status .");
-      print(Obj.toString());
-      Toast.Toastmsg("Update  approval status  fail.Try again.Server error.");
-      return 7;
-    }
-  }
-
-  Future<int> UserRequestTaskComplete({
-    required String UserEmail,
-    required num BookId,
-  }) async {
-    try {
-      final Map<String, dynamic> userData = {
-        "UserEmail": UserEmail,
-        "BookId": BookId,
-      };
-      const String url =
-          Backend_Server_Url + "api/Booking/userupdatetaskcompletestatus";
-      final response = await http.put(
-        Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': 'Bearer ${widget.Current_User_JwtToken}',
-        },
-        body: json.encode(userData),
-      );
-
-      if (response.statusCode == 200) {
-        print("Update  task complete status info success");
-        Toast.Toastmsg("Update  task complete status success.");
-        return 1;
-      } else if (response.statusCode == 500) {
-        Toast.Toastmsg(
-          "Update  task complete status   fail.Try again.Server error.",
-        );
-        print("Update  task complete status   fail.Try again.Server error.");
-        print("SERVER ERROR: ${response.body}");
-        return 2;
-      } else if (response.statusCode == 502) {
-        Toast.Toastmsg("Current user doesn't match.");
-        Logout(context: context);
-        return 3;
-      } else if (response.statusCode == 503) {
-        Toast.Toastmsg("No booking data  available of that book id.");
-        print("No booking data   data available of taht book id.");
-        return 4;
-      } else if (response.statusCode == 504) {
-        Toast.Toastmsg(
-            "You have already change.You cannot update task complete status.");
-        print(
-            "You have already change.You cannot update task complete status.");
-        return 8;
-      } else if (response.statusCode == 501) {
-        Toast.Toastmsg(
-          "Invalid  task complete data format.Please provide data in correct format.",
-        );
-        print(
-          "Invalid  task complete data format.Please provide data in correct format.",
-        );
-        return 5;
-      } else {
-        print("Other status code.Error.");
-        print("Status code = ${response.statusCode}");
-        Toast.Toastmsg(
-          "Update  task complete status  fail.Try again.Server error.",
-        );
-        return 6;
-      }
-    } catch (Obj) {
-      print("Exception caught while Updating  task complete status .");
-      print(Obj.toString());
-      Toast.Toastmsg(
-        "Update  task complete status  fail.Try again.Server error.",
-      );
-      return 7;
-    }
-  }
-
+  // Actions: validate -> confirm -> controller call -> UI rebuilds from c.booking
   Future<void> _onSubmitRating() async {
     if (c.busyKey.value.isNotEmpty) return;
     try {
-      final b = _booking;
+      final b = c.booking.value;
       if (b == null ||
           b.bookId == null ||
           b.providerEmail == null ||
@@ -459,84 +118,41 @@ class _UserbookinginfodetailsscreenState
         confirmLabel: "Submit",
         icon: Icons.star_rounded,
       );
-      if (!ok) return;
+      if (!ok || !mounted) return;
 
-      c.busyKey.value = 'rate';
-      final RatingAddResult = await UpdateRating(
-          RatingGiver: widget.Current_User_Email,
-          BookId: b.bookId!,
-          RatingReceiver: b.providerEmail!,
-          RatingValue: RtaingValue,
-          ServiceName: b.serviceName!);
-
-      if (RatingAddResult == 1) {
-        c.ratingValue.value = RtaingValue; // live update
-        RatingValueCont.clear();
-      }
-    } catch (obj) {
-      print(obj.toString());
-      return;
-    } finally {
-      c.busyKey.value = '';
-    }
+      final bool saved = await c.submitRating(context, RtaingValue);
+      if (saved) RatingValueCont.clear();
+    } catch (_) {}
   }
 
   Future<void> _onApproval() async {
     if (c.busyKey.value.isNotEmpty) return;
     try {
-      final b = _booking;
+      final b = c.booking.value;
       if (b == null || b.bookId == null || b.providerNumber == null) {
         Toast.Toastmsg("No booking data available.");
         return;
       }
 
+      // Approval can be switched any number of times.
+      final bool cur = c.userApproval.value == true;
       final bool ok = await _confirm(
         title: "Change approval status?",
         message:
-        "Your approval status for booking #${b.bookId} will be changed and the provider will be notified.",
+        "Your approval for booking #${_n(b.bookId)} will change to \"${cur ? 'Not approved' : 'Approved'}\" and the provider will be notified.",
         confirmLabel: "Confirm",
         icon: Icons.check_circle_outline_rounded,
       );
-      if (!ok) return;
+      if (!ok || !mounted) return;
 
-      c.busyKey.value = 'approve';
-      final BookIdValue = b.bookId!;
-
-      final ApprovalResult = await UpdateUserApprovalStatus(
-        UserEmail: widget.Current_User_Email,
-        BookId: BookIdValue,
-      );
-
-      print(" approval update result = ${ApprovalResult}");
-
-      if (ApprovalResult == 1) c.userApproval.value = true; // live update
-
-      final AddNotificationsResult = await AddNotifications(
-        ReceiverNumber: b.providerNumber!,
-        Message:
-        "User have change approval status for the booking id = ${BookIdValue}.",
-        Current_User_JwtToken: widget.Current_User_JwtToken,
-        context: context,
-      );
-
-      final AddNewNotificationsResult = await AddNewNotifications(
-        ReceiverNumber: b.providerNumber!,
-        Status: true,
-        Current_User_JwtToken: widget.Current_User_JwtToken,
-        context: context,
-      );
-    } catch (obj) {
-      print(obj.toString());
-      return;
-    } finally {
-      c.busyKey.value = '';
-    }
+      await c.toggleApproval(context);
+    } catch (_) {}
   }
 
   Future<void> _onTaskComplete() async {
     if (c.busyKey.value.isNotEmpty) return;
     try {
-      final b = _booking;
+      final b = c.booking.value;
       if (b == null || b.bookId == null || b.providerNumber == null) {
         Toast.Toastmsg("No booking data available.");
         return;
@@ -545,42 +161,14 @@ class _UserbookinginfodetailsscreenState
       final bool ok = await _confirm(
         title: "Change task complete status?",
         message:
-        "Only confirm if the task for booking #${b.bookId} is finished. The provider will be notified.",
+        "Only confirm if the task for booking #${_n(b.bookId)} is finished. The provider will be notified.",
         confirmLabel: "Confirm",
         icon: Icons.done_all_rounded,
       );
-      if (!ok) return;
+      if (!ok || !mounted) return;
 
-      c.busyKey.value = 'task';
-      final BookIdValue = b.bookId!;
-
-      final UserTaskResult = await UserRequestTaskComplete(
-        UserEmail: widget.Current_User_Email,
-        BookId: BookIdValue,
-      );
-
-      if (UserTaskResult == 1) c.userTaskComplete.value = true; // live update
-
-      final AddNotificationsResult = await AddNotifications(
-        ReceiverNumber: b.providerNumber!,
-        Message:
-        "User have change task complete status make sure task is finish for the booking id = ${BookIdValue}.",
-        Current_User_JwtToken: widget.Current_User_JwtToken,
-        context: context,
-      );
-
-      final AddNewNotificationsResult = await AddNewNotifications(
-        ReceiverNumber: b.providerNumber!,
-        Status: true,
-        Current_User_JwtToken: widget.Current_User_JwtToken,
-        context: context,
-      );
-    } catch (obj) {
-      print(obj.toString());
-      return;
-    } finally {
-      c.busyKey.value = '';
-    }
+      await c.completeTask(context);
+    } catch (_) {}
   }
 
   Future<void> _onPickPhoto() async {
@@ -588,28 +176,21 @@ class _UserbookinginfodetailsscreenState
       int PhotoResult = await change_photo_cont_getx.pickImage();
       if (PhotoResult == 1) {
         Toast.Toastmsg("Pick photo success.");
-        return;
       } else if (PhotoResult == 2) {
         Toast.Toastmsg("Only $PhotoExtension format accepted.");
-        return;
       } else if (PhotoResult == 5) {
         Toast.Toastmsg(
             "Image is larger than $PhotoSize.Please compressed and upload..");
-        return;
       } else {
         Toast.Toastmsg("Pick photo fail.");
-        return;
       }
-    } catch (obj) {
-      print(obj.toString());
-      return;
-    }
+    } catch (_) {}
   }
 
   Future<void> _onUploadPhoto() async {
     if (c.busyKey.value.isNotEmpty) return;
     try {
-      final b = _booking;
+      final b = c.booking.value;
       if (b == null || b.bookId == null || b.providerNumber == null) {
         Toast.Toastmsg("No booking data available.");
         return;
@@ -623,44 +204,57 @@ class _UserbookinginfodetailsscreenState
       final bool ok = await _confirm(
         title: "Upload payment photo?",
         message:
-        "The selected photo will be uploaded as the advance payment proof for booking #${b.bookId} and the provider will be notified.",
+        "The selected photo will be uploaded as the advance payment proof for booking #${_n(b.bookId)} and the provider will be notified.",
         confirmLabel: "Upload",
         icon: Icons.cloud_upload_rounded,
       );
-      if (!ok) return;
+      if (!ok || !mounted) return;
 
-      c.busyKey.value = 'upload';
-      num BookId = b.bookId!;
-
-      final AddPhoto = await UploadAdvancePaymentPhoto(
-          BookId: BookId,
-          ImageBytes: change_photo_cont_getx.imageBytes.value!,
-          UserJwtToken: widget.Current_User_JwtToken,
-          PhotoExtension: change_photo_cont_getx.imageExtension.value!);
-
-      final AddNotificationsResult = await AddNotifications(
-        ReceiverNumber: b.providerNumber!,
-        Message:
-        "User have upload the advance amount payment photo for the booking id = ${BookId}.",
-        Current_User_JwtToken: widget.Current_User_JwtToken,
-        context: context,
+      final bool saved = await c.uploadPhoto(
+        context,
+        bytes: change_photo_cont_getx.imageBytes.value!,
+        extension: change_photo_cont_getx.imageExtension.value!,
       );
-
-      final AddNewNotificationsResult = await AddNewNotifications(
-        ReceiverNumber: b.providerNumber!,
-        Status: true,
-        Current_User_JwtToken: widget.Current_User_JwtToken,
-        context: context,
-      );
-      c.ChangeUpdateStatePhotoUpload();
-    } catch (obj) {
-      print(obj.toString());
-      return;
-    } finally {
-      c.busyKey.value = '';
-    }
+      if (saved) {
+        // Clear the picked (now uploaded) photo.
+        change_photo_cont_getx.imageBytes.value = null;
+        change_photo_cont_getx.imageExtension.value = "";
+        change_photo_cont_getx.imagePath.value = "";
+      }
+    } catch (_) {}
   }
 
+  void _openFile(BookingInfoModel b) {
+    try {
+      if (b.bookingFile.isEmptyOrNull) {
+        Toast.Toastmsg("No file available.");
+        return;
+      }
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => ViewBookFile(
+                Current_User_JwtToken: widget.Current_User_JwtToken,
+                FilePath: b.bookingFile!,
+              )));
+    } catch (_) {}
+  }
+
+  void _openVideo(BookingInfoModel b) {
+    try {
+      if (b.bookingVideo.isEmptyOrNull) {
+        Toast.Toastmsg("No video available.");
+        return;
+      }
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => ViewBookVideo(
+                Current_User_JwtToken: widget.Current_User_JwtToken,
+                VideoPath: b.bookingVideo!,
+              )));
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -700,9 +294,24 @@ class _UserbookinginfodetailsscreenState
           style: TextStyle(
               color: _C.text, fontSize: 18, fontWeight: FontWeight.w700),
         ),
+        actions: [
+          Tooltip(
+            message: "Refresh",
+            child: IconButton(
+              onPressed: () => c.refreshAll(context, silent: false),
+              icon: const Icon(Icons.refresh_rounded, color: _C.mint),
+            ),
+          ),
+          const SizedBox(width: 6),
+        ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(height: 1, color: _C.border),
+          preferredSize: const Size.fromHeight(2),
+          child: Obx(() => c.isRefreshing.value
+              ? const SizedBox(
+              height: 2,
+              child: LinearProgressIndicator(
+                  color: _C.mint, backgroundColor: _C.border))
+              : Container(height: 2, color: _C.border)),
         ),
       ),
       body: Stack(
@@ -716,12 +325,13 @@ class _UserbookinginfodetailsscreenState
                 final double hPad =
                 w >= 1100 ? (w - 1100) / 2 : (w >= 700 ? 24.0 : 14.0);
                 final bool wide = w >= 980;
-                final BookingInfoModel? b = _booking;
 
-                Widget body;
-                if (b == null) {
-                  body = const _EmptyState(text: "No booking data available.");
-                } else {
+                // Obx builders run synchronously, so every c.* read inside is tracked.
+                final Widget body = Obx(() {
+                  final BookingInfoModel? b = c.booking.value;
+                  if (b == null) {
+                    return const _EmptyState(text: "No booking data available.");
+                  }
                   final Widget details = _Entrance(
                     index: 0,
                     child: _SectionCard(
@@ -737,7 +347,7 @@ class _UserbookinginfodetailsscreenState
                       index: 1,
                       child: _SectionCard(
                         icon: Icons.star_rate_rounded,
-                        title: "Rate this service.Refresh booking screen to see latest update.",
+                        title: "Rate this service",
                         subtitle: "Share feedback from 1 to 10.",
                         child: _buildRatingSection(),
                       ),
@@ -746,8 +356,8 @@ class _UserbookinginfodetailsscreenState
                       index: 2,
                       child: _SectionCard(
                         icon: Icons.verified_rounded,
-                        title: "Booking Approval.Refresh booking screen to see latest update.",
-                        subtitle: "Update you approve this booking.",
+                        title: "Booking Approval",
+                        subtitle: "Approve or withdraw your approval any time.",
                         child: _buildApprovalSection(),
                       ),
                     ),
@@ -755,7 +365,7 @@ class _UserbookinginfodetailsscreenState
                       index: 3,
                       child: _SectionCard(
                         icon: Icons.task_alt_rounded,
-                        title: "Task Completion.Refresh booking screen to see latest update.",
+                        title: "Task Completion",
                         subtitle: "Let the provider know the task is done.",
                         child: _buildTaskCompleteSection(),
                       ),
@@ -770,7 +380,6 @@ class _UserbookinginfodetailsscreenState
                         child: _buildExamplesSection(),
                       ),
                     ),
-
                     _Entrance(
                       index: 6,
                       child: _SectionCard(
@@ -780,7 +389,6 @@ class _UserbookinginfodetailsscreenState
                         child: _buildQrPreview(b),
                       ),
                     ),
-
                     _Entrance(
                       index: 5,
                       child: _SectionCard(
@@ -790,29 +398,22 @@ class _UserbookinginfodetailsscreenState
                         child: _buildAdvancePaymentUploadSection(b),
                       ),
                     ),
-
-
-
                   ];
 
                   if (wide) {
-                    body = Row(
+                    return Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(flex: 5, child: details),
                         const SizedBox(width: 18),
                         Expanded(
                             flex: 5,
-                            child: Column(
-                                children: _spaced(others, 16))),
+                            child: Column(children: _spaced(others, 16))),
                       ],
                     );
-                  } else {
-                    body = Column(
-                      children: _spaced([details, ...others], 16),
-                    );
                   }
-                }
+                  return Column(children: _spaced([details, ...others], 16));
+                });
 
                 return SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(
@@ -822,7 +423,7 @@ class _UserbookinginfodetailsscreenState
                   padding: EdgeInsets.fromLTRB(hPad, 22, hPad, 40),
                   child: Column(
                     children: [
-                      _buildHeader(b),
+                      Obx(() => _buildHeader(c.booking.value)),
                       const SizedBox(height: 22),
                       body,
                     ],
@@ -845,10 +446,10 @@ class _UserbookinginfodetailsscreenState
     return out;
   }
 
-  // ---------------------------------------------------------------------------
-  // HEADER (reactive chips)
-  // ---------------------------------------------------------------------------
+  // Header (reactive chips)
   Widget _buildHeader(BookingInfoModel? b) {
+    final bool? appr = c.userApproval.value;
+    final bool? done = c.userTaskComplete.value;
     return Column(
       children: [
         TweenAnimationBuilder<double>(
@@ -874,8 +475,7 @@ class _UserbookinginfodetailsscreenState
                     spreadRadius: 1),
               ],
             ),
-            child:
-            const Icon(Icons.event_note_rounded, color: _C.bg, size: 30),
+            child: const Icon(Icons.event_note_rounded, color: _C.bg, size: 30),
           ),
         ),
         const SizedBox(height: 14),
@@ -891,51 +491,39 @@ class _UserbookinginfodetailsscreenState
         ),
         if (b != null) ...[
           const SizedBox(height: 12),
-          Obx(() {
-            final bool? appr = c.userApproval.value;
-            final bool? done = c.userTaskComplete.value;
-            return Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _Chip(
-                    icon: Icons.tag_rounded,
-                    text: "Booking #${_n(b.bookId) ?? '—'}"),
-                _Chip(
-                  icon: appr == true
-                      ? Icons.check_circle_rounded
-                      : Icons.hourglass_empty_rounded,
-                  text: appr == true ? "Approved" : "Approval pending",
-                  color: appr == true ? _C.mint : _C.warn,
-                ),
-                _Chip(
-                  icon: done == true
-                      ? Icons.task_alt_rounded
-                      : Icons.hourglass_empty_rounded,
-                  text: done == true ? "Task completed" : "Task pending",
-                  color: done == true ? _C.mint : _C.warn,
-                ),
-              ],
-            );
-          }),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _Chip(
+                  icon: Icons.tag_rounded,
+                  text: "Booking #${_n(b.bookId) ?? '—'}"),
+              _Chip(
+                icon: appr == true
+                    ? Icons.check_circle_rounded
+                    : Icons.hourglass_empty_rounded,
+                text: appr == true ? "Approved" : "Approval pending",
+                color: appr == true ? _C.mint : _C.warn,
+              ),
+              _Chip(
+                icon: done == true
+                    ? Icons.task_alt_rounded
+                    : Icons.hourglass_empty_rounded,
+                text: done == true ? "Task completed" : "Task pending",
+                color: done == true ? _C.mint : _C.warn,
+              ),
+            ],
+          ),
         ],
       ],
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // BOOKING DETAILS — every field; missing data shows "No data available"
-  // ---------------------------------------------------------------------------
-  Widget _buildBookingInfoSection(BookingInfoModel b)
-  {
+  // Booking details: every field; missing data shows "No data available"
+  Widget _buildBookingInfoSection(BookingInfoModel b) {
     String? coords(num? lat, num? lon) =>
         (lat == null || lon == null) ? null : "$lat, $lon";
-
-    String? price(num? p, num? d) {
-      if (p == null) return null;
-      return d == null ? _n(p) : "${_n(p)}  •  ${_n(d)}% off";
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -944,7 +532,6 @@ class _UserbookinginfodetailsscreenState
           _InfoTile(Icons.design_services_rounded, "Service name",
               _s(b.serviceName)),
           _InfoTile(Icons.tag_rounded, "Booking ID", _n(b.bookId)),
-
           _InfoTile(Icons.straighten_rounded, "Distance",
               b.distance == null ? null : "${_n(b.distance)} km"),
           _InfoTile(Icons.schedule_rounded, "Created at", _d(b.createdAt)),
@@ -953,38 +540,37 @@ class _UserbookinginfodetailsscreenState
             title: "Schedule & Payment",
             icon: Icons.payments_rounded,
             children: [
-              _InfoTile(Icons.play_arrow_rounded, "Start date", _d(b.startDate)),
+              _InfoTile(
+                  Icons.play_arrow_rounded, "Start date", _d(b.startDate)),
               _InfoTile(Icons.stop_rounded, "End date", _d(b.endDate)),
               _InfoTile(Icons.account_balance_wallet_rounded,
                   "Advance payment amount", _n(b.advancePaymentAmount)),
               _StatusTile("Advance payment required", b.requiredAdvancePayment),
-
             ]),
         _InfoGroup(title: "Rating", icon: Icons.star_rounded, children: [
-          Obx(() => _RatingTile(
-              label: "Your rating for this service",
-              value: c.ratingValue.value)),
+          _RatingTile(
+              label: "Your rating for this service", value: c.ratingValue.value),
         ]),
         _InfoGroup(title: "Status", icon: Icons.fact_check_rounded, children: [
           _StatusTile("Provider approval", b.providerApprovalStatus),
-          Obx(() => _StatusTile("Your approval", c.userApproval.value)),
-          _StatusTile(
-              "Provider task complete", b.providerTaskCompleteStatus),
-          Obx(() =>
-              _StatusTile("Your task complete", c.userTaskComplete.value)),
+          _StatusTile("Your approval", c.userApproval.value),
+          _StatusTile("Provider task complete", b.providerTaskCompleteStatus),
+          _StatusTile("Your task complete", c.userTaskComplete.value),
         ]),
-        _InfoGroup(title: "Your details", icon: Icons.person_rounded, children: [
-          _InfoTile(Icons.tag_rounded, "Contact number", _n(b.userNumber)),
-          _InfoTile(Icons.phone_rounded, "Phone number", _s(b.userPhoneNumber)),
-          // _InfoTile(Icons.chat_rounded, "WhatsApp number",
-          //     _s(b.userWhatsappPhoneNumber)),
-          _InfoTile(Icons.location_on_rounded, "Address", _s(b.userAddress)),
-          _InfoTile(Icons.my_location_rounded, "Latitude,Longitude",
-              coords(b.userLatitude, b.userLongitude)),
-          _InfoTile(Icons.notes_rounded, "Booking description",
-              _s(b.userBookingDescription)),
-        ]),
-
+        _InfoGroup(
+            title: "Your details",
+            icon: Icons.person_rounded,
+            children: [
+              _InfoTile(Icons.tag_rounded, "Contact number", _n(b.userNumber)),
+              _InfoTile(
+                  Icons.phone_rounded, "Phone number", _s(b.userPhoneNumber)),
+              _InfoTile(
+                  Icons.location_on_rounded, "Address", _s(b.userAddress)),
+              _InfoTile(Icons.my_location_rounded, "Latitude,Longitude",
+                  coords(b.userLatitude, b.userLongitude)),
+              _InfoTile(Icons.notes_rounded, "Booking description",
+                  _s(b.userBookingDescription)),
+            ]),
         _InfoGroup(
             title: "Provider details",
             icon: Icons.engineering_rounded,
@@ -993,8 +579,6 @@ class _UserbookinginfodetailsscreenState
                   Icons.tag_rounded, "Contact number", _n(b.providerNumber)),
               _InfoTile(Icons.phone_rounded, "Phone number",
                   _s(b.providerPhoneNumber)),
-              // _InfoTile(Icons.chat_rounded, "WhatsApp number",
-              //     _s(b.providerWhatsappPhoneNumber)),
               _InfoTile(
                   Icons.location_on_rounded, "Address", _s(b.providerAddress)),
               _InfoTile(Icons.my_location_rounded, "Latitude,Longitude",
@@ -1002,64 +586,44 @@ class _UserbookinginfodetailsscreenState
               _InfoTile(Icons.notes_rounded, "Booking description",
                   _s(b.providerBookingDescription)),
             ]),
-
-        SizedBox(height: 10,),
-          ElevatedButton(onPressed: (){
-            try{
-              if(b.bookingFile.isEmptyOrNull)
-                {
-                  Toast.Toastmsg("No file available.");
-                  return;
-                }
-
-              Navigator.push(context, MaterialPageRoute(builder: (context) {
-                return ViewBookFile(Current_User_JwtToken: widget.Current_User_JwtToken, FilePath: b.bookingFile!,);
-              },
-              )
-              );
-
-            }catch(obj){
-              return;
-            }
-
-          }, child: Text("View file.")),
-
-        SizedBox(height: 10,),
-        ElevatedButton(onPressed: (){
-          try{
-            if(b.bookingVideo.isEmptyOrNull){
-              Toast.Toastmsg("No video available.");
-              return;
-            }
-            Navigator.push(context, MaterialPageRoute(builder: (context) {
-            return ViewBookVideo(Current_User_JwtToken: widget.Current_User_JwtToken, VideoPath: b.bookingVideo!,);
-          },
-          )
+        LayoutBuilder(builder: (context, box) {
+          final fileBtn = _GradientButton(
+            outlined: true,
+            label: "View file",
+            icon: Icons.attach_file_rounded,
+            onTap: () => _openFile(b),
           );
-
-          }catch(obj){
-            return;
+          final videoBtn = _GradientButton(
+            outlined: true,
+            label: "View video",
+            icon: Icons.play_circle_outline_rounded,
+            onTap: () => _openVideo(b),
+          );
+          if (box.maxWidth >= 420) {
+            return Row(children: [
+              Expanded(child: fileBtn),
+              const SizedBox(width: 10),
+              Expanded(child: videoBtn),
+            ]);
           }
-        }, child: Text("View video.")),
-        SizedBox(height: 10,),
-
-
-
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [fileBtn, const SizedBox(height: 10), videoBtn],
+          );
+        }),
       ],
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // RATING
-  // ---------------------------------------------------------------------------
+  // Rating
   Widget _buildRatingSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Obx(() => _RatingTile(
-            label: "Current rating", value: c.ratingValue.value)),
+        Obx(() =>
+            _RatingTile(label: "Current rating", value: c.ratingValue.value)),
         const SizedBox(height: 14),
-        // quick-pick circles 1..10 (they only fill the text box)
+        // Quick-pick circles 1..10 only fill the text box.
         ValueListenableBuilder<TextEditingValue>(
           valueListenable: RatingValueCont,
           builder: (context, v, _) {
@@ -1085,12 +649,12 @@ class _UserbookinginfodetailsscreenState
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         gradient: cur == "$i"
-                            ? const LinearGradient(
-                            colors: [_C.accent, _C.mint])
+                            ? const LinearGradient(colors: [_C.accent, _C.mint])
                             : null,
                         color: cur == "$i" ? null : _C.bar,
                         border: Border.all(
-                            color: cur == "$i" ? Colors.transparent : _C.border),
+                            color:
+                            cur == "$i" ? Colors.transparent : _C.border),
                       ),
                       child: Text("$i",
                           style: TextStyle(
@@ -1135,8 +699,8 @@ class _UserbookinginfodetailsscreenState
                   fillColor: _C.bg.withOpacity(.6),
                   prefixIcon: const Icon(Icons.rate_review_rounded,
                       color: _C.mint, size: 20),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 16),
+                  contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: const BorderSide(color: _C.border),
@@ -1161,9 +725,7 @@ class _UserbookinginfodetailsscreenState
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // APPROVAL / TASK COMPLETE
-  // ---------------------------------------------------------------------------
+  // Approval / task complete
   Widget _buildApprovalSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1175,8 +737,13 @@ class _UserbookinginfodetailsscreenState
         )),
         const SizedBox(height: 14),
         Obx(() => _GradientButton(
-          label: "Change user approval status",
-          icon: Icons.check_circle_outline_rounded,
+          // No restriction: the button stays active after approving.
+          label: c.userApproval.value == true
+              ? "Withdraw approval"
+              : "Approve booking",
+          icon: c.userApproval.value == true
+              ? Icons.undo_rounded
+              : Icons.check_circle_outline_rounded,
           loading: c.busyKey.value == 'approve',
           onTap: c.busyKey.value.isNotEmpty ? null : _onApproval,
         )),
@@ -1204,9 +771,7 @@ class _UserbookinginfodetailsscreenState
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // PAYMENT PHOTO EXAMPLES (assets/images/payment/) — normal + full screen
-  // ---------------------------------------------------------------------------
+  // Payment photo examples (assets/images/payment/), normal + full screen
   Widget _buildExamplesSection() {
     const examples = [
       ["Nepal payment example", "assets/images/payment/nepal.jpg"],
@@ -1218,8 +783,9 @@ class _UserbookinginfodetailsscreenState
       final int cols = box.maxWidth >= 440 ? 2 : 1;
       final double tileW =
       math.max(0.0, (box.maxWidth - gap * (cols - 1)) / cols);
-      final double hLimit =
-      (MediaQuery.of(context).size.height * 0.4).clamp(200.0, 380.0).toDouble();
+      final double hLimit = (MediaQuery.of(context).size.height * 0.4)
+          .clamp(200.0, 380.0)
+          .toDouble();
       final double side = math.max(0.0, math.min(tileW, hLimit));
 
       return Column(
@@ -1248,16 +814,16 @@ class _UserbookinginfodetailsscreenState
                         width: side,
                         height: side,
                         child: _PhotoFrame(
-                          onTap: () => _openFullscreen(
-                              e[0], _AssetPhoto(path: e[1])),
+                          onTap: () =>
+                              _openFullscreen(e[0], _AssetPhoto(path: e[1])),
                           child: _AssetPhoto(path: e[1]),
                         ),
                       ),
                       const SizedBox(height: 8),
                       Center(
                         child: OutlinedButton.icon(
-                          onPressed: () => _openFullscreen(
-                              e[0], _AssetPhoto(path: e[1])),
+                          onPressed: () =>
+                              _openFullscreen(e[0], _AssetPhoto(path: e[1])),
                           icon: const Icon(Icons.fullscreen_rounded, size: 20),
                           label: const Text("Full screen"),
                           style: _outlinedStyle(),
@@ -1277,33 +843,18 @@ class _UserbookinginfodetailsscreenState
     });
   }
 
-  // ---------------------------------------------------------------------------
-  // ADVANCE PAYMENT: status + picked preview + pick/upload + uploaded photo
-  // ---------------------------------------------------------------------------
-  Future<int> _photoFutureFor(bool key, BookingInfoModel b) {
-    if (_photoFuture == null || _photoFutureKey != key) {
-      _photoFutureKey = key;
-      _photoFuture = GetAdvancePaymentPhoto(
-        BookId: b.bookId!.toString(),
-        UserEmail: widget.Current_User_Email,
-        context: context,
-        Current_User_JwtToken: widget.Current_User_JwtToken,
-        UpdateStatePhotoUpload: key,
-      );
-    }
-    return _photoFuture!;
-  }
-
+  // Advance payment: status + picked preview + pick/upload + uploaded photo
   Widget _buildAdvancePaymentUploadSection(BookingInfoModel b) {
     return LayoutBuilder(builder: (context, box) {
-      final double hLimit =
-      (MediaQuery.of(context).size.height * 0.4).clamp(200.0, 380.0).toDouble();
+      final double hLimit = (MediaQuery.of(context).size.height * 0.4)
+          .clamp(200.0, 380.0)
+          .toDouble();
       final double side = math.max(0.0, math.min(box.maxWidth, hLimit));
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ---- status chip ----
+          // Status chip
           Obx(() {
             final bool hasPhoto =
                 change_photo_cont_getx.imageBytes.value != null;
@@ -1315,7 +866,7 @@ class _UserbookinginfodetailsscreenState
             );
           }),
 
-          // ---- picked (not yet uploaded) preview ----
+          // Picked (not yet uploaded) preview
           Obx(() {
             final bytes = change_photo_cont_getx.imageBytes.value;
             return AnimatedSize(
@@ -1336,8 +887,11 @@ class _UserbookinginfodetailsscreenState
                         width: side,
                         height: side,
                         child: _PhotoFrame(
-                          onTap: () => _openFullscreen("Selected photo",
-                              _MemoryPhoto(bytes: Uint8List.fromList(bytes.toList()))),
+                          onTap: () => _openFullscreen(
+                              "Selected photo",
+                              _MemoryPhoto(
+                                  bytes:
+                                  Uint8List.fromList(bytes.toList()))),
                           child: _MemoryPhoto(
                               bytes: Uint8List.fromList(bytes.toList())),
                         ),
@@ -1349,8 +903,10 @@ class _UserbookinginfodetailsscreenState
                         onPressed: () => _openFullscreen(
                             "Selected photo",
                             _MemoryPhoto(
-                                bytes: Uint8List.fromList(bytes.toList()))),
-                        icon: const Icon(Icons.fullscreen_rounded, size: 20),
+                                bytes:
+                                Uint8List.fromList(bytes.toList()))),
+                        icon: const Icon(Icons.fullscreen_rounded,
+                            size: 20),
                         label: const Text("Full screen"),
                         style: _outlinedStyle(),
                       ),
@@ -1363,7 +919,7 @@ class _UserbookinginfodetailsscreenState
 
           const SizedBox(height: 16),
 
-          // ---- buttons ----
+          // Buttons
           LayoutBuilder(builder: (context, bb) {
             final pick = Obx(() => _GradientButton(
               outlined: true,
@@ -1384,25 +940,21 @@ class _UserbookinginfodetailsscreenState
                 Expanded(child: upload),
               ]);
             }
-            return Column(children: [
-              pick,
-              const SizedBox(height: 10),
-              upload,
-            ]);
+            return Column(children: [pick, const SizedBox(height: 10), upload]);
           }),
 
           const SizedBox(height: 18),
           Container(height: 1, color: _C.border),
           const SizedBox(height: 16),
 
-          // ---- uploaded photo (from server) ----
+          // Uploaded photo (from server)
           Row(
             children: [
               const Expanded(child: _MiniLabel("Uploaded photo")),
               Tooltip(
                 message: "Reload photo",
                 child: IconButton(
-                  onPressed: c.ChangeUpdateStatePhotoUpload,
+                  onPressed: () => c.reloadPhoto(context),
                   icon: const Icon(Icons.refresh_rounded,
                       color: _C.mint, size: 20),
                 ),
@@ -1411,72 +963,52 @@ class _UserbookinginfodetailsscreenState
           ),
           const SizedBox(height: 4),
           Obx(() {
-            final bool key = c.UpdateStatePhotoUpload.value;
             if (b.bookId == null) {
               return _MediaMessage(
                   side: side, text: "No data available. Booking ID is missing.");
             }
-            return FutureBuilder<int>(
-              future: _photoFutureFor(key, b),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return SizedBox(
-                      width: double.infinity,
-                      height: side,
-                      child: const Center(child: _SkeletonBox()));
-                }
-
-                if (snapshot.hasError) {
-                  print("Advance payment photo Future error: ${snapshot.error}");
-                  return _MediaMessage(
-                      side: side, text: "Unable to load advance payment photo.");
-                }
-
-                if (AdvancePaymentPhotoList.isEmpty) {
-                  return _MediaMessage(
-                      side: side,
-                      text:
-                      "No data available. No advance payment photo uploaded yet.");
-                }
-
-                final advancePayment = AdvancePaymentPhotoList[0];
-                final String photoPath = advancePayment.paymentPhoto ?? "";
-                final String photoUrl = GetPhotoUrl(photoPath);
-
-                if (photoUrl.isEmpty) {
-                  return _MediaMessage(
-                      side: side,
-                      text:
-                      "No data available. No advance payment photo uploaded yet.");
-                }
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Center(
-                      child: SizedBox(
-                        width: side,
-                        height: side,
-                        child: _PhotoFrame(
-                          onTap: () => _openFullscreen("Advance payment photo",
-                              _NetPhoto(url: photoUrl)),
-                          child: _NetPhoto(url: photoUrl),
-                        ),
-                      ),
+            if (c.photoLoading.value) {
+              return SizedBox(
+                  width: double.infinity,
+                  height: side,
+                  child: const Center(child: _SkeletonBox()));
+            }
+            if (c.photoError.value) {
+              return _MediaMessage(
+                  side: side, text: "Unable to load advance payment photo.");
+            }
+            final String? url = c.photoUrl.value;
+            if (url == null) {
+              return _MediaMessage(
+                  side: side,
+                  text:
+                  "No data available. No advance payment photo uploaded yet.");
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: SizedBox(
+                    width: side,
+                    height: side,
+                    child: _PhotoFrame(
+                      onTap: () => _openFullscreen(
+                          "Advance payment photo", _NetPhoto(url: url)),
+                      child: _NetPhoto(url: url),
                     ),
-                    const SizedBox(height: 8),
-                    Center(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _openFullscreen(
-                            "Advance payment photo", _NetPhoto(url: photoUrl)),
-                        icon: const Icon(Icons.fullscreen_rounded, size: 20),
-                        label: const Text("Full screen"),
-                        style: _outlinedStyle(),
-                      ),
-                    ),
-                  ],
-                );
-              },
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _openFullscreen(
+                        "Advance payment photo", _NetPhoto(url: url)),
+                    icon: const Icon(Icons.fullscreen_rounded, size: 20),
+                    label: const Text("Full screen"),
+                    style: _outlinedStyle(),
+                  ),
+                ),
+              ],
             );
           }),
         ],
@@ -1484,13 +1016,12 @@ class _UserbookinginfodetailsscreenState
     });
   }
 
-  // ---------------------------------------------------------------------------
-  // QR PREVIEW
-  // ---------------------------------------------------------------------------
+  // QR preview
   Widget _buildQrPreview(BookingInfoModel b) {
     return LayoutBuilder(builder: (context, box) {
-      final double hLimit =
-      (MediaQuery.of(context).size.height * 0.4).clamp(200.0, 380.0).toDouble();
+      final double hLimit = (MediaQuery.of(context).size.height * 0.4)
+          .clamp(200.0, 380.0)
+          .toDouble();
       final double side = math.max(0.0, math.min(box.maxWidth, hLimit));
 
       if (b.providerNumber == null) {
@@ -1498,78 +1029,55 @@ class _UserbookinginfodetailsscreenState
             side: side, text: "No data available. Provider number is missing.");
       }
 
-      _qrFuture ??= GetAdvancePaymentQRPhoto(
-        UserNumber: b.providerNumber!,
-        context: context,
-        Current_User_JwtToken: widget.Current_User_JwtToken,
-      );
-
-      return FutureBuilder<int>(
-        future: _qrFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return SizedBox(
-                width: double.infinity,
+      return Obx(() {
+        if (c.qrLoading.value) {
+          return SizedBox(
+              width: double.infinity,
+              height: side,
+              child: const Center(child: _SkeletonBox()));
+        }
+        if (c.qrError.value) {
+          return _MediaMessage(
+              side: side, text: "Unable to load advance payment QR.");
+        }
+        final String? url = c.qrUrl.value;
+        if (url == null) {
+          return _MediaMessage(
+              side: side, text: "No data available. No payment QR uploaded.");
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: SizedBox(
+                width: side,
                 height: side,
-                child: const Center(child: _SkeletonBox()));
-          }
-
-          if (snapshot.hasError) {
-            print("Advance payment QR Future error: ${snapshot.error}");
-            return _MediaMessage(
-                side: side, text: "Unable to load advance payment QR.");
-          }
-
-          if (AdvancePaymentQrPhotoList.isEmpty) {
-            return _MediaMessage(
-                side: side, text: "No data available. No payment QR uploaded.");
-          }
-
-          final advancePaymentQr = AdvancePaymentQrPhotoList[0];
-          final String qrPhotoPath = advancePaymentQr.qrPhoto ?? "";
-          final String qrPhotoUrl = GetPhotoUrl(qrPhotoPath);
-
-          if (qrPhotoUrl.isEmpty) {
-            return _MediaMessage(
-                side: side, text: "No data available. No payment QR uploaded.");
-          }
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Center(
-                child: SizedBox(
-                  width: side,
-                  height: side,
-                  child: _PhotoFrame(
-                    white: true,
-                    onTap: () => _openFullscreen("Payment QR",
-                        _PhotoFrame(white: true, child: _NetPhoto(url: qrPhotoUrl))),
-                    child: _NetPhoto(url: qrPhotoUrl),
-                  ),
+                child: _PhotoFrame(
+                  white: true,
+                  onTap: () => _openFullscreen("Payment QR",
+                      _PhotoFrame(white: true, child: _NetPhoto(url: url))),
+                  child: _NetPhoto(url: url),
                 ),
               ),
-              const SizedBox(height: 8),
-              Center(
-                child: OutlinedButton.icon(
-                  onPressed: () => _openFullscreen("Payment QR",
-                      _PhotoFrame(white: true, child: _NetPhoto(url: qrPhotoUrl))),
-                  icon: const Icon(Icons.fullscreen_rounded, size: 20),
-                  label: const Text("Full screen"),
-                  style: _outlinedStyle(),
-                ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: OutlinedButton.icon(
+                onPressed: () => _openFullscreen("Payment QR",
+                    _PhotoFrame(white: true, child: _NetPhoto(url: url))),
+                icon: const Icon(Icons.fullscreen_rounded, size: 20),
+                label: const Text("Full screen"),
+                style: _outlinedStyle(),
               ),
-            ],
-          );
-        },
-      );
+            ),
+          ],
+        );
+      });
     });
   }
 }
 
-// =============================================================================
-// DATA HELPERS — null / empty -> null (UI then prints "No data available")
-// =============================================================================
+// Data helpers: null / empty -> null (UI then prints "No data available")
 String? _s(Object? v) {
   if (v == null) return null;
   final String t = v.toString().trim();
@@ -1582,6 +1090,7 @@ String? _n(num? n) {
   return n % 1 == 0 ? n.toInt().toString() : n.toStringAsFixed(2);
 }
 
+// 12-hour format: 05 Mar 2026, 03:09 PM
 String? _d(dynamic v) {
   try {
     final String? raw = _s(v);
@@ -1594,15 +1103,15 @@ String? _d(dynamic v) {
       'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     String two(int x) => x.toString().padLeft(2, '0');
-    return '${two(l.day)} ${m[l.month - 1]} ${l.year}, ${two(l.hour)}:${two(l.minute)}';
+    final int h12 = l.hour % 12 == 0 ? 12 : l.hour % 12;
+    final String ap = l.hour >= 12 ? 'PM' : 'AM';
+    return '${two(l.day)} ${m[l.month - 1]} ${l.year}, ${two(h12)}:${two(l.minute)} $ap';
   } catch (_) {
     return null;
   }
 }
 
-// =============================================================================
-// CONFIRM DIALOG / FULLSCREEN
-// =============================================================================
+// Confirm dialog / fullscreen
 Future<bool> _confirm({
   required String title,
   required String message,
@@ -1631,8 +1140,8 @@ Future<bool> _confirm({
             ),
           ],
         ),
-        content: Text(message,
-            style: const TextStyle(color: _C.muted, height: 1.5)),
+        content:
+        Text(message, style: const TextStyle(color: _C.muted, height: 1.5)),
         actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
         actions: [
           TextButton(
@@ -1655,8 +1164,7 @@ Future<bool> _confirm({
       barrierDismissible: false,
     );
     return r == true;
-  } catch (obj) {
-    print(obj.toString());
+  } catch (_) {
     return false;
   }
 }
@@ -1668,9 +1176,7 @@ void _openFullscreen(String label, Widget child) {
       barrierColor: Colors.black87,
       useSafeArea: false,
     );
-  } catch (obj) {
-    print(obj.toString());
-  }
+  } catch (_) {}
 }
 
 ButtonStyle _outlinedStyle() => OutlinedButton.styleFrom(
@@ -1681,9 +1187,7 @@ ButtonStyle _outlinedStyle() => OutlinedButton.styleFrom(
   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
 );
 
-// =============================================================================
-// SHARED UI PIECES
-// =============================================================================
+// Shared UI pieces
 class _Entrance extends StatelessWidget {
   final int index;
   final Widget child;
@@ -1866,8 +1370,8 @@ class _StateBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: _C.bar,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: done ? _C.mint : _C.border, width: done ? 1.4 : 1),
+        border:
+        Border.all(color: done ? _C.mint : _C.border, width: done ? 1.4 : 1),
         boxShadow: done
             ? [
           BoxShadow(
@@ -1980,7 +1484,7 @@ class _GradientButton extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------- info pieces
+// Info pieces
 class _InfoGroup extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -2018,7 +1522,9 @@ class _InfoGroup extends StatelessWidget {
             return Wrap(
               spacing: 10,
               runSpacing: 10,
-              children: [for (final ch in children) SizedBox(width: w, child: ch)],
+              children: [
+                for (final ch in children) SizedBox(width: w, child: ch)
+              ],
             );
           }),
         ],
@@ -2064,8 +1570,7 @@ class _InfoTile extends StatelessWidget {
                         fontSize: 13.5,
                         height: 1.35,
                         fontStyle: empty ? FontStyle.italic : FontStyle.normal,
-                        fontWeight:
-                        empty ? FontWeight.w400 : FontWeight.w600)),
+                        fontWeight: empty ? FontWeight.w400 : FontWeight.w600)),
               ],
             ),
           ),
@@ -2143,8 +1648,7 @@ class _RatingTile extends StatelessWidget {
                   style: TextStyle(
                       color: none || unrated ? _C.muted : _C.text,
                       fontSize: none || unrated ? 13.5 : 17,
-                      fontStyle:
-                      none ? FontStyle.italic : FontStyle.normal,
+                      fontStyle: none ? FontStyle.italic : FontStyle.normal,
                       fontWeight: FontWeight.w800),
                 ),
                 if (!none && !unrated) ...[
@@ -2159,8 +1663,7 @@ class _RatingTile extends StatelessWidget {
                         value: t,
                         minHeight: 7,
                         backgroundColor: _C.border,
-                        valueColor:
-                        const AlwaysStoppedAnimation<Color>(_C.warn),
+                        valueColor: const AlwaysStoppedAnimation<Color>(_C.warn),
                       ),
                     ),
                   ),
@@ -2174,7 +1677,7 @@ class _RatingTile extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------- photo pieces
+// Photo pieces
 class _PhotoFrame extends StatelessWidget {
   final Widget child;
   final VoidCallback? onTap;
@@ -2255,13 +1758,11 @@ class _NetPhoto extends StatelessWidget {
         child: SizedBox(
           width: 28,
           height: 28,
-          child: CircularProgressIndicator(strokeWidth: 2.5, color: _C.accent),
+          child: CircularProgressIndicator(
+              strokeWidth: 2.5, color: _C.accent),
         ),
       ),
-      errorBuilder: (context, e, st) {
-        print("Photo loading failed: $e");
-        return const _BrokenIcon();
-      },
+      errorBuilder: (context, e, st) => const _BrokenIcon(),
     );
   }
 }
@@ -2275,25 +1776,22 @@ class _AssetPhoto extends StatelessWidget {
     return Image.asset(
       path,
       fit: BoxFit.contain,
-      errorBuilder: (context, e, st) {
-        print("Asset loading failed ($path): $e");
-        return const Center(
-          child: Padding(
-            padding: EdgeInsets.all(8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.image_not_supported_rounded,
-                    color: _C.muted, size: 34),
-                SizedBox(height: 8),
-                Text("Example not available",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: _C.muted, fontSize: 12.5)),
-              ],
-            ),
+      errorBuilder: (context, e, st) => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.image_not_supported_rounded,
+                  color: _C.muted, size: 34),
+              SizedBox(height: 8),
+              Text("Example not available",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: _C.muted, fontSize: 12.5)),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -2416,9 +1914,7 @@ class _SkeletonBoxState extends State<_SkeletonBox>
   }
 }
 
-// =============================================================================
-// FULLSCREEN VIEWER
-// =============================================================================
+// Fullscreen viewer
 class _FullscreenViewer extends StatelessWidget {
   final String label;
   final Widget child;
@@ -2458,8 +1954,7 @@ class _FullscreenViewer extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: _C.text, width: 1.2),
                           ),
-                          child:
-                          const Icon(Icons.close_rounded, color: _C.text),
+                          child: const Icon(Icons.close_rounded, color: _C.text),
                         ),
                       ),
                     ),
@@ -2484,10 +1979,7 @@ class _FullscreenViewer extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// AMBIENT BACKGROUND — heavily blurred emerald/mint blobs + glass bubbles.
-// Wrapped in IgnorePointer by the caller, so it can never block taps.
-// =============================================================================
+// Ambient background: blurred emerald/mint blobs + glass bubbles (never blocks taps)
 class _AmbientBackground extends StatelessWidget {
   const _AmbientBackground();
 

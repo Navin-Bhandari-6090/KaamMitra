@@ -23,6 +23,8 @@
 
         public string Address { get; set; } = string.Empty;
 
+        public bool Status { get; set; }
+
 
 
 

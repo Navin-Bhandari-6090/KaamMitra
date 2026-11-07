@@ -367,165 +367,92 @@ namespace application.Controllers
         [Authorize(Policy = "RequireProviderUserRole")]
         [Route("sendfilterbookinginfo")]
         [HttpPost]
-        public async Task<IActionResult> GetBookingInfoUser(
-            [FromBody] BookIngIdDTO obj)
+        public async Task<IActionResult> GetBookingInfoUser([FromBody] BookIngIdDTO obj)
         {
             try
             {
-
-                var userNumberClaim =
-  User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
-                {
-                    return Forbid();
-                }
-
-
-                var user = await Database.UserInfos
-                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
-
-                if (user == null)
-                {
-
-                    return StatusCode(502, "User not found");
-                }
-
-
-                if (user.LoginAccess == false)
-                {
-                    return StatusCode(506, "You have been blocked by System.Contact to KaamMitra community.");
-                }
-
-                // 1. Validate model
                 if (!ModelState.IsValid)
+                    return StatusCode(501, "The provided data is not in correct format.");
+
+                var claim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!int.TryParse(claim, out int currentUserNumber))
+                    return Forbid();
+
+                var caller = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+                if (caller == null) return StatusCode(502, "User not found");
+                if (caller.LoginAccess == false)
+                    return StatusCode(506, "You have been blocked by System. Contact the KaamMitra community.");
+
+                var Booking = await Database.BookingInfos
+                    .FirstOrDefaultAsync(x => x.BookId == obj.BookId);
+                if (Booking == null)
+                    return StatusCode(507, "No booking data available");
+
+                // Only the customer or the provider of this booking may read it.
+                if (Booking.UserNumber != currentUserNumber &&
+                    Booking.ProviderNumber != currentUserNumber)
+                    return Forbid();
+
+                var customer = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == Booking.UserNumber);
+                var provider = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == Booking.ProviderNumber);
+                if (customer == null || provider == null)
+                    return StatusCode(507, "Booking user or provider not found");
+
+                var ServiceData = await Database.ServiceInfos
+                    .FirstOrDefaultAsync(x => x.ServiceName == Booking.ServiceName);
+                if (ServiceData == null)
+                    return StatusCode(508, "No service registered is booked");
+
+                var dto = new SendBookingInfoUserDTO
                 {
-                    return StatusCode(
-                        501,
-                        "The provided data is not in correct format."
-                    );
-                }
+                    // customer (from the booking, not from the caller)
+                    UserAddress = customer.Address,
+                    UserPhoneNumber = customer.PhoneNumber,
+                    UserWhatsappPhoneNumber = customer.WhatsappPhoneNumber,
+                    UserNumber = customer.UserNumber,
+                    UserLatitude = customer.Latitude,
+                    UserLongitude = customer.Longitude,
+                    UserEmail = customer.Email,
 
-                //var ExistingUser = await Database.UserInfos
-                //    .FirstOrDefaultAsync(x => x.Email == obj.Email);
+                    // provider
+                    ProviderAddress = provider.Address,
+                    ProviderPhoneNumber = provider.PhoneNumber,
+                    ProviderWhatsappPhoneNumber = provider.WhatsappPhoneNumber,
+                    ProviderNumber = provider.UserNumber,
+                    ProviderLatitude = provider.Latitude,
+                    ProviderLongitude = provider.Longitude,
+                    ProviderEmail = provider.Email,
 
+                    // booking
+                    BookId = Booking.BookId,
+                    StartDate = Booking.StartDate,
+                    EndDate = Booking.EndDate,
+                    ProviderBookingDescription = Booking.ProviderBookingDescription,
+                    UserBookingDescription = Booking.UserBookingDescription,
+                    ServiceName = ServiceData.ServiceName,
+                    ServiceId = ServiceData.ServiceId,
+                    ProviderServiceId = Booking.ServiceId,
+                    Distance = Booking.Distance,
+                    ProviderApprovalStatus = Booking.ProviderApprovalStatus,
+                    UserApprovalStatus = Booking.UserApprovalStatus,
+                    ProviderTaskCompleteStatus = Booking.ProviderTaskCompleteStatus,
+                    UserTaskCompleteStatus = Booking.UserTaskCompleteStatus,
+                    AdvancePaymentAmount = Booking.AdvancePaymentAmount,
+                    CreatedAt = Booking.CreatedAt,
+                    RequiredAdvancePayment = Booking.RequiredAdvancePayment,
+                    RatingValueUser = Booking.RatingValueUser,
+                    DomesticPrice = ServiceData.DomesticPrice,
+                    InternationalPrice = ServiceData.InternationalPrice,
+                    DomesticPriceDiscount = ServiceData.DomesticPriceDiscount,
+                    InternationalPriceDiscount = ServiceData.InternationalPriceDiscount,
+                    BookingFile = Booking.BookingFile,
+                    BookingVideo = Booking.BookingVideo
+                };
 
-
-                // 3. Get all bookings of current user
-                var BookingData = await Database.BookingInfos
-                    .Where(x => x.BookId == obj.BookId)
-                    .OrderByDescending(x => x.CreatedAt)
-                    .ToListAsync();
-
-                if (BookingData.Count <= 0)
-                {
-                    return StatusCode(507, "No booking data available for current user");
-                }
-
-
-
-                // 4. Create final DTO list
-                var Result = new List<SendBookingInfoUserDTO>();
-
-                // 5. Process every booking
-                foreach (var Booking in BookingData)
-                {
-                    // 6. Find provider using ProviderEmail
-                    var Provider = await Database.UserInfos
-                        .FirstOrDefaultAsync(
-                            x => x.UserNumber == Booking.ProviderNumber
-                        );
-
-                    // If provider doesn't exist, skip this booking
-                    if (Provider == null)
-                    {
-                        continue;
-                    }
-
-                    var ServiceData = await Database.ServiceInfos.FirstOrDefaultAsync(x => x.ServiceName == Booking.ServiceName);
-
-                    if (ServiceData == null)
-                    {
-                        return StatusCode(508, "No service registered is booked");
-                    }
-
-                    // 7. Attach user + provider + booking information
-                    var BookingDTO = new SendBookingInfoUserDTO
-                    {
-                        //  user information
-                        UserAddress = user.Address,
-                        UserPhoneNumber = user.PhoneNumber,
-                        UserWhatsappPhoneNumber = user.WhatsappPhoneNumber,
-                        UserNumber = user.UserNumber,
-                        UserLatitude = user.Latitude,
-                        UserLongitude = user.Longitude,
-
-                        // Provider information
-                        ProviderAddress = Provider.Address,
-                        ProviderPhoneNumber = Provider.PhoneNumber,
-                        ProviderWhatsappPhoneNumber = Provider.WhatsappPhoneNumber,
-                        ProviderNumber = Provider.UserNumber,
-                        ProviderLatitude = Provider.Latitude,
-                        ProviderLongitude = Provider.Longitude,
-
-                        // Booking information
-                        BookId = Booking.BookId,
-                        StartDate = Booking.StartDate,
-                        EndDate = Booking.EndDate,
-
-                        ProviderBookingDescription =
-                            Booking.ProviderBookingDescription,
-
-                        UserBookingDescription =
-                            Booking.UserBookingDescription,
-
-                        ServiceName = ServiceData.ServiceName,
-
-                        ServiceId = ServiceData.ServiceId,
-
-                        ProviderServiceId = Booking.ServiceId,
-
-                        Distance = Booking.Distance,
-
-                        UserEmail = user.Email,
-                        ProviderEmail = Provider.Email,
-
-                        ProviderApprovalStatus =
-                            Booking.ProviderApprovalStatus,
-
-                        UserApprovalStatus =
-                            Booking.UserApprovalStatus,
-
-                        ProviderTaskCompleteStatus =
-                            Booking.ProviderTaskCompleteStatus,
-
-                        UserTaskCompleteStatus =
-                            Booking.UserTaskCompleteStatus,
-
-                        AdvancePaymentAmount =
-                            Booking.AdvancePaymentAmount,
-
-                        CreatedAt = Booking.CreatedAt,
-
-                        RequiredAdvancePayment = Booking.RequiredAdvancePayment,
-
-                        RatingValueUser = Booking.RatingValueUser,
-
-                        DomesticPrice = ServiceData.DomesticPrice,
-                        InternationalPrice = ServiceData.InternationalPrice,
-                        DomesticPriceDiscount = ServiceData.DomesticPriceDiscount,
-                        InternationalPriceDiscount = ServiceData.InternationalPriceDiscount,
-                        BookingFile = Booking.BookingFile,
-                        BookingVideo = Booking.BookingVideo
-
-                    };
-
-                    // 8. Add this booking to final result
-                    Result.Add(BookingDTO);
-                }
-
-                // 9. Return all booking + user + provider information
-                return Ok(Result);
+                return Ok(new List<SendBookingInfoUserDTO> { dto }); // Flutter expects a list
             }
             catch (Exception ex)
             {
@@ -536,7 +463,7 @@ namespace application.Controllers
 
 
 
-        [Authorize(Policy = "RequireProviderUserRole")]
+        [Authorize(Policy = "RequireforAllRole")]
         [Route("sendnotification")]
         [HttpPost]
         public async Task<IActionResult> GetNotification([FromBody] UserEmailInfoModel obj)
@@ -585,13 +512,7 @@ namespace application.Controllers
                     );
                 }
 
-                var ExistingUser = await Database.UserInfos
-                    .FirstOrDefaultAsync(x => x.Email == obj.Email);
-
-                if (ExistingUser == null)
-                {
-                    return StatusCode(502, "User not found.");
-                }
+       
 
                 var Data = await Database.NotificationInfos
                     .Where(x => x.ReceiverNumber == currentUserNumber)
@@ -607,7 +528,7 @@ namespace application.Controllers
         }
 
 
-        [Authorize(Policy = "RequireProviderUserRole")]
+        [Authorize(Policy = "RequireforAllRole")]
         [Route("sendnewnotification")]
         [HttpPost]
         public async Task<IActionResult> GetNewNotification([FromBody] UserEmailInfoModel obj)
@@ -656,17 +577,9 @@ namespace application.Controllers
                     );
                 }
 
-                var ExistingUser = await Database.UserInfos
-                    .FirstOrDefaultAsync(x => x.Email == obj.Email);
-
-                if (ExistingUser == null)
-                {
-                    return StatusCode(502, "User not found.");
-                }
 
                 var Data = await Database.NewNotificationInfos
-                    .Where(x => x.ReceiverNumber == currentUserNumber)
-                    .ToListAsync();
+                    .FirstOrDefaultAsync(x => x.ReceiverNumber == currentUserNumber);
                 return Ok(Data);
 
             }
@@ -685,7 +598,6 @@ namespace application.Controllers
         {
             try
             {
-
 
                 var userNumberClaim =
  User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -728,34 +640,33 @@ namespace application.Controllers
                     );
                 }
 
-                //var ExistingUser = await Database.UserInfos
-                //    .FirstOrDefaultAsync(x => x.Email == obj.Email);
-
-                //if (ExistingUser == null)
-                //{
-                //    return StatusCode(502, "User not found.");
-                //}
-
                 var Data = await Database.NewNotificationInfos
                     .FirstOrDefaultAsync(x => x.ReceiverNumber == currentUserNumber);
                 if (Data != null)
                 {
-                    if (Data.Status==true) {
+                   
                         Data.Status = false;
                         await Database.SaveChangesAsync();
                         return Ok();
-
-                    }
-                    else 
-                    {
-                        Data.Status = true;
-                        await Database.SaveChangesAsync();
-                        return Ok();
-                    }
           
                 }
-                else {
-                    return StatusCode(503, "No notification data present of current user wmail.");
+                else 
+                {
+
+
+
+                    NewNotificationInfoModel data = new NewNotificationInfoModel
+                    {
+                        ReceiverNumber = currentUserNumber,
+                        Status = false
+                    };
+
+                    await Database.NewNotificationInfos.AddAsync(data);
+                    await Database.SaveChangesAsync();
+
+
+                    return Ok();
+
                 }
 
             }
@@ -2246,6 +2157,7 @@ public async Task<IActionResult> GetProviderTaskCompletePayments()
             }
         }
 
+
         [HttpPost("adminaddnot")]
         [Authorize(Policy = "RequireProviderRole")]
         public async Task<IActionResult> AdminAddNotification(
@@ -2415,6 +2327,92 @@ public async Task<IActionResult> GetProviderTaskCompletePayments()
                 });
             }
         }
+
+
+        [Authorize(Policy = "RequireProviderRole")]
+        [Route("adminaddnewnotification")]
+        [HttpPut]
+        public async Task<IActionResult> AdminAddNewNotification()
+        {
+            try
+            {
+
+                var userNumberClaim =
+User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                {
+                    return Forbid();
+                }
+
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+
+                if (user == null)
+                {
+
+                    return StatusCode(502, "User not found");
+                }
+
+
+                if (user.LoginAccess == false)
+                {
+                    return StatusCode(506, "You have been blocked by System.Contact to KaamMitra community.");
+                }
+
+                var Admin_Data = await Database.UserInfos.Where(x=>x.Role=="admin" && x.LoginAccess==true).ToListAsync();
+
+                if (Admin_Data.Count<=0) 
+                {
+                    return StatusCode(510, "No active admins found.");
+                }
+
+            
+
+                foreach (var admin in Admin_Data) 
+                {
+
+                    var Data = new NewNotificationInfoModel
+                    {
+                        ReceiverNumber = admin.UserNumber,
+                        Status = true
+                    };
+
+
+                    var InsertData = await Database.NewNotificationInfos.FirstOrDefaultAsync(x => x.ReceiverNumber == admin.UserNumber);
+
+
+                    if (InsertData != null)
+                    {
+                        InsertData.Status = true;
+                        await Database.SaveChangesAsync();
+                        return Ok("New notification updated.");
+                    }
+                    else
+                    {
+
+                        await Database.NewNotificationInfos.AddAsync(Data);
+                        await Database.SaveChangesAsync();
+                        return Ok("Insert data success in new notification info table");
+                    }
+
+
+                }
+
+                return StatusCode(500, "Admin New notification add fail.");
+
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+
+
+
+
 
 
 

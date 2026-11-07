@@ -7,6 +7,7 @@ import 'package:get/get_instance/src/extension_instance.dart';
 import 'package:http/http.dart' as http;
 import '../../../constant/Server_Database.dart';
 import '../../../constant/Style.dart';
+import '../../../constant/variable.dart';
 import '../../../models/UserInfo.dart';
 import '../../../state management/getx/profile/provider_user/change_pro_photo_Getx.dart';
 import '../../authentication/Error_page.dart';
@@ -58,7 +59,8 @@ class UserProfile extends StatefulWidget {
 class _UserProfileState extends State<UserProfile>
     with SingleTickerProviderStateMixin {
   final Toast = Toastget();
-  final change_photo_cont_getx = Get.put(pick_single_photo_getx_int());
+
+
 
   // Entrance animation controller (UI-only addition, no business logic).
   late final AnimationController _entranceController;
@@ -310,16 +312,20 @@ class _UserProfileState extends State<UserProfile>
   // just extracted so it can be triggered from the new edit-avatar button.
   // ---------------------------------------------------------------------
   Future<void> _onChangePhotoPressed() async {
-    try {
-      int PhotoResult = await change_photo_cont_getx.pickImage();
-      if (PhotoResult == 1) {
+    try
+    {
+
+     await PickPhoto();
+
         bool Result = await UpdatePhoto(
           Email: widget.User_Email,
           jwttoken: widget.User_JwtToken,
           photoExtension: change_photo_cont_getx.imageExtension.value,
           photoBytes: change_photo_cont_getx.imageBytes.value!,
         );
-        if (Result == true) {
+
+        if (Result == true)
+        {
           print("Image update success");
           Toast.Toastmsg("Image update success");
           providerGetx.ChangePhotoClickChange();
@@ -329,18 +335,8 @@ class _UserProfileState extends State<UserProfile>
           Toast.Toastmsg("Fail to change photo.Try again.");
           return;
         }
-      } else if (PhotoResult == 2) {
-        Toast.Toastmsg("Invalid photo extension(format only jpg,jpeg,png)");
-        return;
-      } else if (PhotoResult == 5) {
-        Toast.Toastmsg("Photo is larger than 100 MB.");
-        return;
-      } else {
-        Toast.Toastmsg(
-          "Pick image fail.Use jpg,jpeg,png format only for photos.",
-        );
-        return;
-      }
+
+
     } catch (exception) {
       Toast.Toastmsg("Fail to change photo.Try again.");
       return;
@@ -374,6 +370,20 @@ class _UserProfileState extends State<UserProfile>
     final List<_ActionItem> actions = [
 
       _ActionItem(
+        icon: Icons.location_city_rounded,
+        label: "Shared media.",
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SelectSharedMedia(
+              Current_User_Jwt_Token: widget.User_JwtToken,
+            ),
+          ),
+        ),
+      ),
+
+
+      _ActionItem(
         icon: Icons.lock_reset_rounded,
         label: "Update password",
         onTap: () => Navigator.push(
@@ -383,6 +393,8 @@ class _UserProfileState extends State<UserProfile>
               User_Email: widget.User_Email,
               User_JwtToken: widget.User_JwtToken,
               User_Role: widget.User_Role,
+              PhoneNumber: UserInfoModelList[0].phoneNumber!,
+              WhatsappNumber:  UserInfoModelList[0].whatsappPhoneNumber!,
             ),
           ),
         ),
@@ -452,18 +464,7 @@ class _UserProfileState extends State<UserProfile>
         ),
       ),
 
-      _ActionItem(
-        icon: Icons.location_city_rounded,
-        label: "Shared media.",
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SelectSharedMedia(
-              Current_User_Jwt_Token: widget.User_JwtToken,
-            ),
-          ),
-        ),
-      ),
+
 
 
     ];
@@ -762,6 +763,48 @@ class _UserProfileState extends State<UserProfile>
                                               SizedBox(height: shortestval * 0.008),
 
 
+                                              Text(
+                                                "Status : ${user.status==true?"Reserve":"Free"}",
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  fontFamily: bold,
+                                                  fontSize: shortestval * 0.052,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: _ProfileTheme.textPrimary,
+                                                  letterSpacing: 0.2,
+                                                ),
+                                              ),
+                                              SizedBox(height: shortestval * 0.008),
+
+
+                                              Text(
+                                                "Phone Number : ${user.phoneNumber}",
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  fontFamily: bold,
+                                                  fontSize: shortestval * 0.052,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: _ProfileTheme.textPrimary,
+                                                  letterSpacing: 0.2,
+                                                ),
+                                              ),
+                                              SizedBox(height: shortestval * 0.008),
+
+
+                                              Text(
+                                                "Whatsapp Number : ${user.whatsappPhoneNumber}",
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  fontFamily: bold,
+                                                  fontSize: shortestval * 0.052,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: _ProfileTheme.textPrimary,
+                                                  letterSpacing: 0.2,
+                                                ),
+                                              ),
+                                              SizedBox(height: shortestval * 0.008),
+
+
                                               Container(
                                                 padding: const EdgeInsets.symmetric(
                                                   horizontal: 14,
@@ -815,6 +858,24 @@ class _UserProfileState extends State<UserProfile>
                                                   ),
                                                 ),
                                               ),
+
+                                              SizedBox(height: shortestval * 0.008),
+
+
+                                              Text(
+                                                "Screenshot your ID,Phone Number,Email as they need to recover your password from Login Screen.You cannot reset your password without it. ",
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  fontFamily: bold,
+                                                  fontSize: shortestval * 0.052,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: _ProfileTheme.textPrimary,
+                                                  letterSpacing: 0.2,
+                                                ),
+                                              ),
+
+                                              SizedBox(height: shortestval * 0.008),
+
                                             ],
                                           ),
                                         );
@@ -892,7 +953,7 @@ class _UserProfileState extends State<UserProfile>
                         ),
                       ),
 
-                      Footer()
+                      Footer(User_JwtToken: widget.User_JwtToken,)
                     ],
                   ),
                 ),

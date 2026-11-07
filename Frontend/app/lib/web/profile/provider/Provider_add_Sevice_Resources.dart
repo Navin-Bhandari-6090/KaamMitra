@@ -19,9 +19,8 @@ import '../../common widget/GreenTextfield.dart';
 import '../../common widget/getx_cont_pick_single_photo_int.dart';
 import '../../common widget/single_video_pick_getx.dart';
 
-/// ---------------------------------------------------------------------------
 /// THEME TOKENS (dark green, modern) — matches Header.dart / ProviderProfile.dart
-/// ---------------------------------------------------------------------------
+
 class _Theme {
   static const Color bgTop = Color(0xFF0F1F17);
   static const Color bgMid = Color(0xFF12261C);
@@ -873,6 +872,16 @@ class _ProviderAddSeviceResourcesState extends State<ProviderAddSeviceResources>
             controller: ResourceTitleTextCont,
             label: "Enter the title for resources.",
             icon: Icons.title,
+          ),
+          const SizedBox(height: 14),
+          Text(
+            "Use CamScanner app to convert photos into file(.pdf).",
+            style: TextStyle(
+              color: Colors.amber,
+              fontSize: 12.5,
+              height: 1.45,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 14),
           _pickTile(

@@ -4,9 +4,11 @@ import 'dart:ui' show ImageFilter;
 import 'package:app/web/bookings/pro_task_complete_status.dart';
 import 'package:app/web/bookings/view_book_file.dart';
 import 'package:app/web/bookings/view_book_video.dart';
+import 'package:app/web/common%20method/Commmon_Method.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../constant/variable.dart';
 import '../../models/BookingInfoModel.dart';
 import '../../state management/getx/booking/ProviderBookingDetalsGetX.dart';
 import '../common widget/getx_cont_pick_single_photo_int.dart';
@@ -96,9 +98,8 @@ class _ProviderbookinginfodetailsscreenState
   final AdvanceAmountController = TextEditingController();
   final ProviderDescriptionCont = TextEditingController();
 
-  final Toast = Toastget();
 
-  final PickPhotoCont = Get.put(pick_single_photo_getx_int());
+
   final c = Get.put(Providerbookingdetalsgetx());
 
   @override
@@ -122,9 +123,7 @@ class _ProviderbookinginfodetailsscreenState
   @override
   void dispose() {
     try {
-      PickPhotoCont.imageBytes.value = null;
-      PickPhotoCont.imageExtension.value = "";
-      PickPhotoCont.imagePath.value = "";
+      ClearFilesValues();
     } catch (e) {
       print(e);
     }
@@ -273,7 +272,7 @@ class _ProviderbookinginfodetailsscreenState
       }
       final end = parseDateTimeWithAmPm(
         EndDateController.text.trim(),
-        EndDateAmOrPmController.text,
+        EndDateAmOrPmController.text.trim(),
       );
       if (end == null) {
         Toast.Toastmsg(

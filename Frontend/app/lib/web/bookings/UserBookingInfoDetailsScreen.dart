@@ -73,9 +73,7 @@ class _UserbookinginfodetailsscreenState
   @override
   void dispose() {
     try {
-      change_photo_cont_getx.imageBytes.value = null;
-      change_photo_cont_getx.imageExtension.value = "";
-      change_photo_cont_getx.imagePath.value = "";
+    ClearFilesValues();
     } catch (_) {}
     try {
       RatingValueCont.dispose();

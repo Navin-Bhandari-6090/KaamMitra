@@ -310,6 +310,54 @@ namespace application.Controllers
             }
         }
 
+        [HttpPut]
+        [Authorize]
+        [EnableRateLimiting("auth")]
+        [Route("updatepassword")]
+        public async Task<IActionResult> UpdatePassword([FromBody] LogFgtPswdDTO obj)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                    return StatusCode(501, "The provided data is not in correct format.");
+
+              
+                var email = obj.Email.Trim().ToLower();
+
+                var user = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.Email.ToLower() == email);
+
+                if (user == null)
+                    return StatusCode(501, "User account not found.");
+
+                if (user.LoginAccess == false)
+                    return StatusCode(502, "You have been blocked by the system.");
+
+                if (user.PhoneNumber != obj.PhoneNumber ||
+                    user.WhatsappPhoneNumber != obj.WhatsappPhoneNumber)
+                {
+                    return StatusCode(501, "Phone number or WhatsApp number does not match.");
+                }
+
+                if (!VerifyPassword(user,obj.OldPassword))
+                    return StatusCode(501, "Your old password is incorrect.");
+
+                user.Password = HashPassword(obj.NewPassword);
+
+                await Database.SaveChangesAsync();
+
+                return Ok("Password updated successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Password update failed");
+
+                return StatusCode(500, "Something went wrong. Please try again.");
+            }
+        }
+
+
+
 
 
 

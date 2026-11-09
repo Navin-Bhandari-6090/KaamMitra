@@ -9,7 +9,7 @@ import '../../../constant/Server_Database.dart';
 import '../../../constant/variable.dart';
 
 /// Shown whenever a database value is null, empty, or whitespace only.
-const String kDataNotAvailable = "Data not available";
+const String kDataNotAvailable = "No data available";
 
 /// Returns the trimmed value, or [kDataNotAvailable] if it is null/empty.
 String valueOrNA(String? value) {
@@ -41,7 +41,11 @@ class SelectServiceProviderInfoScreenGetx extends GetxController {
     required String jwtToken,
     required BuildContext context,
   }) {
-    Provider_User_Jwt_Verify(Jwt_Token: jwtToken, context: context);
+    try {
+      Provider_User_Jwt_Verify(Jwt_Token: jwtToken, context: context);
+    } catch (e) {
+      // debugPrint("verifySession failed: $e");
+    }
   }
 
   // ============================================================
@@ -114,6 +118,8 @@ class SelectServiceProviderInfoScreenGetx extends GetxController {
         Current_User_JwtToken: jwtToken,
         context: context,
       );
+    } catch (e) {
+      // debugPrint("bookService failed: $e");
     } finally {
       isBooking.value = false;
     }
@@ -185,6 +191,7 @@ class SelectServiceProviderInfoScreenGetx extends GetxController {
 
       return _handleBookingStatus(response.statusCode);
     } catch (e) {
+      // debugPrint("_postBooking failed: $e");
       Toast.Toastmsg(
         "Unable to create booking. Please check your connection and try again.",
       );
@@ -236,10 +243,14 @@ class SelectServiceProviderInfoScreenGetx extends GetxController {
 
   /// Clears the stored session and sends the user back to the login flow.
   Future<void> _endSession() async {
-    await Clear_User_Data();
-    await Random_token_Clear();
-    Get.offAll(() => ErrorPage());
-    Toastget().Toastmsg("Session ended. Please log in again.");
+    try {
+      await Clear_User_Data();
+      await Random_token_Clear();
+      Get.offAll(() => ErrorPage());
+      Toastget().Toastmsg("Session ended. Please log in again.");
+    } catch (e) {
+      // debugPrint("_endSession failed: $e");
+    }
   }
 
   String _cleanExtension(String? raw) {

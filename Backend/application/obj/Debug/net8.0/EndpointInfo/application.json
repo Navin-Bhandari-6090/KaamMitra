@@ -957,6 +957,37 @@
         }
       }
     },
+    "/api/Authentication/updatepassword": {
+      "put": {
+        "tags": [
+          "Authentication"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogFgtPswdDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogFgtPswdDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogFgtPswdDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Booking/sendbookinginfouser": {
       "post": {
         "tags": [
@@ -3308,6 +3339,45 @@
             "format": "email"
           },
           "socialMediaInfo": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LogFgtPswdDTO": {
+        "required": [
+          "email",
+          "newPassword",
+          "oldPassword",
+          "phoneNumber",
+          "whatsappPhoneNumber"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string",
+            "format": "email"
+          },
+          "phoneNumber": {
+            "maxLength": 50,
+            "minLength": 0,
+            "pattern": "^\\+\\d+$",
+            "type": "string"
+          },
+          "whatsappPhoneNumber": {
+            "maxLength": 50,
+            "minLength": 0,
+            "pattern": "^\\+\\d+$",
+            "type": "string"
+          },
+          "oldPassword": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "newPassword": {
             "minLength": 1,
             "type": "string"
           }

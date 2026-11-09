@@ -556,6 +556,22 @@
   },
   {
     "ContainingType": "application.Controllers.AuthenticationController",
+    "Method": "UpdatePassword",
+    "RelativePath": "api/Authentication/updatepassword",
+    "HttpMethod": "PUT",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.LogFgtPswdDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AuthenticationController",
     "Method": "UserOrProviderVerifyToken",
     "RelativePath": "api/Authentication/userorproviderjwtverify",
     "HttpMethod": "GET",

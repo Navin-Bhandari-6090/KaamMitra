@@ -444,7 +444,8 @@ class _Header extends StatelessWidget {
   }
 }
 
-class _SearchField extends StatelessWidget {
+class _SearchField extends StatelessWidget
+{
   final ViewMediaGetx c;
   const _SearchField({required this.c});
 
@@ -456,8 +457,13 @@ class _SearchField extends StatelessWidget {
       style: _fieldText,
       cursorColor: _C.accent,
       decoration: InputDecoration(
-        hintText: "Search by media ID or description words",
-        hintStyle: const TextStyle(color: _C.muted, fontSize: 13.5),
+        hintText: "Search by media ID, sender ID, receiver ID or description",
+        hintMaxLines: 1,
+        hintStyle: const TextStyle(
+          color: _C.muted,
+          fontSize: 13.5,
+          overflow: TextOverflow.ellipsis,
+        ),
         prefixIcon: const Icon(Icons.search_rounded, color: _C.mint),
         suffixIcon: Obx(() => c.query.value.isEmpty
             ? const SizedBox.shrink()
@@ -472,7 +478,8 @@ class _SearchField extends StatelessWidget {
         filled: true,
         fillColor: _C.bar,
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+        contentPadding:
+        const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: _C.border),

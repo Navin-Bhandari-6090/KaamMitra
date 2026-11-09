@@ -256,7 +256,8 @@ class ViewMediaGetx extends GetxController {
   }
 
   // ==================================================================
-  // SEARCH: media ID, or every typed word found in the full description
+  // SEARCH: media ID, sender ID, receiver ID, or every typed word found
+  // in the full description
   // ==================================================================
   List<SharedMediaModel> get filteredList {
     try {
@@ -270,7 +271,16 @@ class ViewMediaGetx extends GetxController {
           .toList();
 
       return all.where((m) {
+        // 1. media ID
         if (idOf(m).toLowerCase().contains(q)) return true;
+
+        // 2. sender ID
+        if (numText(m.senderNumber).toLowerCase().contains(q)) return true;
+
+        // 3. receiver ID
+        if (numText(m.receiverNumber).toLowerCase().contains(q)) return true;
+
+        // 4. description words (every typed word must appear)
         final String desc = descOf(m).toLowerCase();
         return words.isNotEmpty && words.every((w) => desc.contains(w));
       }).toList();
@@ -278,6 +288,9 @@ class ViewMediaGetx extends GetxController {
       return const <SharedMediaModel>[];
     }
   }
+
+
+
 }
 
 // =============================================================================

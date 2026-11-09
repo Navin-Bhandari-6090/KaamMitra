@@ -1,26 +1,25 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
 
-import '../../constant/Server_Database.dart';
 import '../../models/BookingInfoModel.dart';
-import '../../models/NewNotificationsModel.dart';
-import '../../models/NotificationsInfoModel.dart';
-
 import '../../state management/getx/booking/UserBookingScreenGetX.dart';
-import '../authentication/Error_page.dart';
 import '../common method/Commmon_Method.dart';
-import '../common method/notification.dart';
+import '../common widget/design/bolbs_background.dart';
 import '../common widget/toast.dart';
 import '../footer/Footer.dart';
 import '../header/Header.dart';
 // TODO: point this import at the real location of the user booking-details screen.
 import 'userbookinginfodetailsscreen.dart';
 
-// Adjust the user_booking_screen_getx.dart import path above to match
-// wherever you place that file relative to this one.
+/// Shown whenever a database value is null, empty, or "null".
+const String _noData = "No data available";
+
+String _valueOrNA(Object? value) {
+  if (value == null) return _noData;
+  final String v = value.toString().trim();
+  if (v.isEmpty || v.toLowerCase() == "null") return _noData;
+  return v;
+}
 
 class _Theme {
   static const Color bgTop = Color(0xFF0F1F17);
@@ -39,9 +38,7 @@ class _Theme {
 
   static const Color border = Color(0xFF234232);
 
-  // Reserved strictly for the "new notification" alert state — kept far
-  // from the green palette so it reads unmistakably as "something needs
-  // your attention", never confusable with a normal/accent element.
+  // Reserved strictly for the "new notification" alert state.
   static const Color alert = Color(0xFFEF4444);
 }
 
@@ -50,7 +47,13 @@ class UserBookingScreenUser extends StatefulWidget {
   final String Current_User_JwtToken;
   final String Current_User_Role;
   final bool UserLogin;
-  const UserBookingScreenUser({super.key, required this.Current_User_Email, required this.Current_User_JwtToken, required this.Current_User_Role, required this.UserLogin});
+  const UserBookingScreenUser({
+    super.key,
+    required this.Current_User_Email,
+    required this.Current_User_JwtToken,
+    required this.Current_User_Role,
+    required this.UserLogin,
+  });
 
   @override
   State<UserBookingScreenUser> createState() => _UserBookingScreenUserState();
@@ -58,12 +61,9 @@ class UserBookingScreenUser extends StatefulWidget {
 
 class _UserBookingScreenUserState extends State<UserBookingScreenUser>
     with TickerProviderStateMixin {
-
   final Toast = Toastget();
 
-  // ============================================================
-  // GetX controller — all interactive UI state lives here, no setState.
-  // ============================================================
+  // GetX controller — owns all state and all API calls.
   final Userbookingscreengetx bookingCont = Get.put(Userbookingscreengetx());
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -71,72 +71,67 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
   final TextEditingController SearchCont = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
 
-  // ============================================================
-  // ANIMATIONS (UI-only)
-  // ============================================================
-
+  // Animations (UI-only)
   late final AnimationController _entranceController;
   late final Animation<double> _heroAnim;
   late final Animation<double> _searchAnim;
   late final Animation<double> _listAnim;
   late final Animation<double> _footerAnim;
 
-  // Continuous subtle rotation driver for the bell — only visually applied
-  // (via Transform.rotate) while hasNewNotification is true, so the bell
-  // sits perfectly still in the normal state and gently "rings" when there
-  // is something new to see.
+  // Drives the gentle ring of the bell while there is a new notification.
   late final AnimationController _bellShakeController;
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
 
+    _entranceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _heroAnim = CurvedAnimation(
+      parent: _entranceController,
+      curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
+    );
+    _searchAnim = CurvedAnimation(
+      parent: _entranceController,
+      curve: const Interval(0.15, 0.70, curve: Curves.easeOutCubic),
+    );
+    _listAnim = CurvedAnimation(
+      parent: _entranceController,
+      curve: const Interval(0.30, 0.85, curve: Curves.easeOutCubic),
+    );
+    _footerAnim = CurvedAnimation(
+      parent: _entranceController,
+      curve: const Interval(0.55, 1.0, curve: Curves.easeOutCubic),
+    );
+    _bellShakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+
     try {
-      User_Jwt_Verify(Jwt_Token: widget.Current_User_JwtToken, context: context);
+      User_Jwt_Verify(
+        Jwt_Token: widget.Current_User_JwtToken,
+        context: context,
+      );
 
-      _entranceController = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 900),
-      );
-      _heroAnim = CurvedAnimation(
-        parent: _entranceController,
-        curve: const Interval(0.0, 0.55, curve: Curves.easeOutCubic),
-      );
-      _searchAnim = CurvedAnimation(
-        parent: _entranceController,
-        curve: const Interval(0.15, 0.70, curve: Curves.easeOutCubic),
-      );
-      _listAnim = CurvedAnimation(
-        parent: _entranceController,
-        curve: const Interval(0.30, 0.85, curve: Curves.easeOutCubic),
-      );
-      _footerAnim = CurvedAnimation(
-        parent: _entranceController,
-        curve: const Interval(0.55, 1.0, curve: Curves.easeOutCubic),
-      );
       _entranceController.forward();
-
-      _bellShakeController = AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 700),
-      )..repeat(reverse: true);
+      _bellShakeController.repeat(reverse: true);
 
       _searchFocusNode.addListener(() {
         try {
           bookingCont.setSearchFocused(_searchFocusNode.hasFocus);
         } catch (e) {
-          // Defensive fallback only — a focus-listener failure should
-          // never take the whole screen down.
+          // print("Focus listener failed: $e");
         }
       });
 
       _loadEverything();
     } catch (e) {
-      // Defensive fallback only — if anything in setup throws, at least
-      // stop the loading spinner and show the empty/error state instead
-      // of leaving the screen stuck or crashing.
+      // print("initState failed: $e");
       try {
+        _entranceController.forward();
         bookingCont.setLoading(false);
         bookingCont.setLoadError(true);
       } catch (_) {}
@@ -151,27 +146,342 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
       SearchCont.dispose();
       _searchFocusNode.dispose();
     } catch (e) {
-      // Defensive fallback only.
+      // print("dispose failed: $e");
     }
     super.dispose();
   }
 
-
-
-
   // ============================================================
-// REFRESH — reloads bookings, notifications and the bell state
-// ============================================================
+  // ACTIONS (the screen only forwards to the controller)
+  // ============================================================
+
+  Future<void> _loadEverything() {
+    return bookingCont.loadEverything(
+      email: widget.Current_User_Email,
+      jwtToken: widget.Current_User_JwtToken,
+      context: context,
+    );
+  }
+
   Future<void> _onRefreshTap() async {
     try {
-      if (bookingCont.isLoading.value) return; // ignore taps while loading
+      if (bookingCont.isLoading.value) return;
       await _loadEverything();
       if (!bookingCont.hasLoadError.value) {
         Toast.Toastmsg("Bookings refreshed.");
       }
     } catch (e) {
-      print("Unexpected error in _onRefreshTap: $e");
+      // print("Unexpected error in _onRefreshTap: $e");
     }
+  }
+
+  Future<void> _handleBellTap() async {
+    try {
+      _scaffoldKey.currentState?.openEndDrawer();
+      await bookingCont.markNotificationsSeen(
+        email: widget.Current_User_Email,
+        jwtToken: widget.Current_User_JwtToken,
+        context: context,
+      );
+    } catch (e) {
+      // print("Unexpected error in _handleBellTap: $e");
+    }
+  }
+
+  Future<void> _onBookingCardTap({required num BookingId}) async {
+    try {
+      final filteredBookingList = bookingCont.bookingInfoList
+          .where((element) => element.bookId == BookingId)
+          .toList();
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => Userbookinginfodetailsscreen(
+            Current_User_Email: widget.Current_User_Email,
+            Current_User_JwtToken: widget.Current_User_JwtToken,
+            Current_User_Role: widget.Current_User_Role,
+            BookingInfoListInfo: filteredBookingList,
+          ),
+        ),
+      );
+
+      // Reload when coming back so any change shows up immediately.
+      if (mounted) _loadEverything();
+    } catch (e) {
+      // print("Unexpected error in _onBookingCardTap: $e");
+      Toastget().Toastmsg("Couldn't open booking details. Please try again.");
+    }
+  }
+
+  // Small date formatter — no intl dependency required.
+  String _formatDate(String? iso) {
+    if (iso == null || iso.trim().isEmpty || iso.toLowerCase() == "null") {
+      return _noData;
+    }
+    try {
+      final dt = DateTime.parse(iso).toLocal();
+      const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      final month = months[dt.month - 1];
+      final hour12 = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
+      final period = dt.hour >= 12 ? 'PM' : 'AM';
+      final minute = dt.minute.toString().padLeft(2, '0');
+      return "${dt.day} $month, $hour12:$minute $period";
+    } catch (e) {
+      return _noData;
+    }
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
+
+  @override
+  Widget build(BuildContext context) {
+    final double widthval = MediaQuery.of(context).size.width;
+
+    final bool isMobile = widthval < 700;
+    final bool isTablet = widthval >= 700 && widthval < 1100;
+
+    final double horizontalPadding =
+    widthval < 420 ? 14 : (isMobile ? 18 : (isTablet ? 32 : 48));
+
+    return Scaffold(
+      key: _scaffoldKey,
+      backgroundColor: _Theme.bgTop,
+      appBar: _buildAppBar(context),
+      endDrawer: _buildNotificationsDrawer(context),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [_Theme.bgTop, _Theme.bgMid, _Theme.bgBottom],
+                stops: [0.0, 0.5, 1.0],
+              ),
+            ),
+          ),
+
+          // Ambient blobs + glass bubbles, full width and height, behind content.
+          const IgnorePointer(child: AmbientBackground()),
+
+          SafeArea(
+            child: LayoutBuilder(
+              builder: (context, outer) {
+                return SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: outer.maxHeight),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Header(
+                              UserLogin: widget.UserLogin,
+                              User_JwtToken: widget.Current_User_JwtToken,
+                            ),
+                            Center(
+                              child: ConstrainedBox(
+                                constraints:
+                                const BoxConstraints(maxWidth: 1180),
+                                child: Padding(
+                                  padding: EdgeInsets.fromLTRB(
+                                    horizontalPadding,
+                                    isMobile ? 20 : 32,
+                                    horizontalPadding,
+                                    24,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                    children: [
+                                      _animatedSection(
+                                        animation: _heroAnim,
+                                        child: _buildHero(isMobile),
+                                      ),
+                                      SizedBox(height: isMobile ? 18 : 24),
+                                      _animatedSection(
+                                        animation: _searchAnim,
+                                        child: _buildSearchCard(isMobile),
+                                      ),
+                                      SizedBox(height: isMobile ? 18 : 24),
+                                      _animatedSection(
+                                        animation: _listAnim,
+                                        child: _buildResultsSection(),
+                                      ),
+                                      SizedBox(height: isMobile ? 28 : 40),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        _animatedSection(
+                          animation: _footerAnim,
+                          child: Footer(
+                            User_JwtToken: widget.Current_User_JwtToken,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _animatedSection({
+    required Animation<double> animation,
+    required Widget child,
+  }) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, builtChild) {
+        return Opacity(
+          opacity: animation.value.clamp(0.0, 1.0),
+          child: Transform.translate(
+            offset: Offset(0, (1 - animation.value) * 22),
+            child: builtChild,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+
+  BoxDecoration _cardDecoration({double radius = 22}) {
+    return BoxDecoration(
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF193A29), Color(0xFF12261C), Color(0xFF101F18)],
+      ),
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: _Theme.border),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.25),
+          blurRadius: 28,
+          offset: const Offset(0, 12),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // APP BAR — bordered back arrow, title, refresh + notification bell
+  // ============================================================
+
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      backgroundColor: _Theme.surfaceBar,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      centerTitle: false,
+      titleSpacing: 14,
+      leadingWidth: 64,
+      leading: Builder(
+        builder: (context) {
+          if (!Navigator.of(context).canPop()) return const SizedBox.shrink();
+          return Padding(
+            padding: const EdgeInsets.only(left: 10),
+            child: Center(
+              child: Material(
+                color: _Theme.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: _Theme.emerald.withOpacity(0.55),
+                    width: 1.4,
+                  ),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {
+                    try {
+                      Navigator.of(context).pop();
+                    } catch (e) {
+                      // print("Back failed: $e");
+                    }
+                  },
+                  child: const SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: Icon(Icons.arrow_back_rounded,
+                        color: _Theme.primaryText, size: 20),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+      title: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              gradient:
+              const LinearGradient(colors: [_Theme.emerald, _Theme.mint]),
+              borderRadius: BorderRadius.circular(11),
+              boxShadow: [
+                BoxShadow(
+                  color: _Theme.emerald.withOpacity(0.35),
+                  blurRadius: 16,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.event_note_rounded,
+                color: _Theme.bgTop, size: 19),
+          ),
+          const SizedBox(width: 12),
+          const Flexible(
+            child: Text(
+              'Bookings',
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+              style: TextStyle(
+                color: _Theme.primaryText,
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
+                letterSpacing: 0.1,
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildRefreshButton(),
+                const SizedBox(width: 10),
+                _buildNotificationBell(),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildRefreshButton() {
@@ -222,447 +532,7 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
     });
   }
 
-
-
-  List<BookingInfoModel> BookingInfoList = [];
-
-  Future<int> GetBookingInfo({required String Email}) async {
-    try {
-      final Map<String, dynamic> userData = {"Email": Email};
-      const String url = Backend_Server_Url + "api/Booking/sendbookinginfouser";
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': 'Bearer ${widget.Current_User_JwtToken}',
-        },
-        body: json.encode(userData),
-      );
-      if (response.statusCode == 200) {
-        List<dynamic> responseData = await jsonDecode(response.body);
-        BookingInfoList.clear();
-        BookingInfoList.addAll(
-          responseData
-              .map((data) => BookingInfoModel.fromJson(data))
-              .toList(),
-        );
-        print("Booking info get success.");
-        return 1;
-      } else if (response.statusCode == 502) {
-        BookingInfoList.clear();
-        print("Invalid email.");
-        await Clear_User_Data();
-        await Random_token_Clear();
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => ErrorPage()),
-              (route) => false,
-        );
-        Toastget().Toastmsg("Your register email don't match..");
-        return 3;
-      } else if (response.statusCode == 500) {
-        BookingInfoList.clear();
-        print("Exception caught in backend.");
-        return 4;
-      }
-      else if (response.statusCode == 501) {
-        BookingInfoList.clear();
-        print("Invalid data format.");
-        return 4;
-      }
-      else {
-        BookingInfoList.clear();
-        print("Booking info get fail.");
-        print("Status code = ${response.statusCode}");
-        return 2;
-      }
-    } catch (Obj) {
-      BookingInfoList.clear();
-      print("Exception caugh while getting booking info.");
-      print(Obj.toString());
-      return 0;
-    }
-  }
-
-
-
-
-
-  // ============================================================
-  // NEW — orchestrates the three (unchanged) GET calls above, then hands
-  // the raw lists to the GetX controller for the UI to react to.
-  // Wrapped defensively so any unexpected failure still leaves the
-  // screen in a safe, visible error state instead of crashing.
-  // ============================================================
-
-  Future<void> _loadEverything() async {
-    try {
-      bookingCont.setLoading(true);
-      bookingCont.setLoadError(false);
-
-      final results = await Future.wait([
-        GetBookingInfo(Email: widget.Current_User_Email),
-        GetNotificationsInfo(Email: widget.Current_User_Email, Current_User_JwtToken: widget.Current_User_JwtToken, context: context),
-        GetNewNotificationInfo(Email: widget.Current_User_Email, Current_User_JwtToken: widget.Current_User_JwtToken, context: context),
-      ]);
-
-      final bool anyFailed = results.any((r) => r != 1);
-
-      bookingCont.setBookingInfoList(BookingInfoList);
-      bookingCont.setNotificationsInfoList(NotificationsInfoList);
-
-      bool hasNew = false;
-      for (final n in NewNotificationsList) {
-        if ((n.status ?? false) == true) {
-          hasNew = true;
-          break;
-        }
-      }
-      bookingCont.setHasNewNotification(hasNew);
-
-      bookingCont.setLoadError(anyFailed && BookingInfoList.isEmpty);
-      bookingCont.setLoading(false);
-    } catch (e) {
-      // Defensive fallback only — GetBookingInfo/GetNotificationsInfo/
-      // GetNewNotificationInfo already catch their own exceptions and
-      // return status codes, so this only guards against something truly
-      // unexpected (e.g. Future.wait itself failing).
-      print("Unexpected error in _loadEverything: $e");
-      try {
-        bookingCont.setLoadError(true);
-        bookingCont.setLoading(false);
-      } catch (_) {}
-      Toastget().Toastmsg("Couldn't load your bookings. Please try again.");
-    }
-  }
-
-  // ============================================================
-  // NEW — bell tap: opens the notifications drawer immediately, and if
-  // there was an unread notification, optimistically flips the bell back
-  // to its normal state right away while the (unchanged) update call
-  // confirms it on the backend.
-  // ============================================================
-
-  Future<void> _handleBellTap() async {
-    try {
-      _scaffoldKey.currentState?.openEndDrawer();
-
-      if (bookingCont.hasNewNotification.value) {
-        bookingCont.setHasNewNotification(false);
-        try {
-          await UpdateNewNotificationInfo(Email: widget.Current_User_Email, Current_User_JwtToken: widget.Current_User_JwtToken, context: context);
-        } catch (e) {
-          // Non-critical for the icon state — the toast/nav-reset logic
-          // inside UpdateNewNotificationInfo already handles hard failures.
-          print("Unexpected error updating new-notification status: $e");
-        }
-      }
-    } catch (e) {
-      // Defensive fallback only — never let opening the drawer crash
-      // the screen.
-      print("Unexpected error in _handleBellTap: $e");
-    }
-  }
-
-  // ============================================================
-  // NEW — card tap: this screen is already user-specific, so every
-  // booking card routes straight to the user booking-details screen,
-  // carrying the full booking list across via the mutable public field
-  // on that screen.
-  // ============================================================
-
-  void _onBookingCardTap(BookingInfoModel booking,{required num BookingId}) {
-    try {
-
-      Navigator.push
-        (
-        context,
-        MaterialPageRoute(
-          builder: (context) {
-
-            final filteredBookingList =
-            bookingCont.bookingInfoList
-                .where((element) => element.bookId == BookingId)
-                .toList();
-            return
-              Userbookinginfodetailsscreen(
-                Current_User_Email: widget.Current_User_Email,
-                Current_User_JwtToken: widget.Current_User_JwtToken,
-                Current_User_Role: widget.Current_User_Role,
-                BookingInfoListInfo: filteredBookingList,
-              );
-          },
-        ),
-
-      );
-
-      if (mounted) _loadEverything();
-
-
-
-
-    } catch (e) {
-      // Defensive fallback only — never let a bad navigation attempt
-      // crash the screen.
-      print("Unexpected error in _onBookingCardTap: $e");
-      Toastget().Toastmsg("Couldn't open booking details. Please try again.");
-    }
-  }
-
-  // ---------------------------------------------------------------------
-  // Small date formatter — no intl dependency required.
-  // ---------------------------------------------------------------------
-  String _formatDate(String? iso) {
-    if (iso == null || iso.isEmpty) return "—";
-    try {
-      final dt = DateTime.parse(iso).toLocal();
-      const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ];
-      final month = months[dt.month - 1];
-      final hour12 = dt.hour % 12 == 0 ? 12 : dt.hour % 12;
-      final period = dt.hour >= 12 ? 'PM' : 'AM';
-      final minute = dt.minute.toString().padLeft(2, '0');
-      return "${dt.day} $month, $hour12:$minute $period";
-    } catch (e) {
-      return iso;
-    }
-  }
-
-  // ============================================================
-  // BUILD
-  // ============================================================
-
-  @override
-  Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final double widthval = media.size.width;
-
-    final bool isMobile = widthval < 700;
-    final bool isTablet = widthval >= 700 && widthval < 1100;
-
-    final double horizontalPadding = isMobile ? 18 : (isTablet ? 32 : 48);
-    final double contentMaxWidth = widthval > 1300 ? 1180 : double.infinity;
-    final int columns = widthval < 700 ? 1 : (widthval < 1100 ? 2 : 3);
-
-    return Scaffold(
-      key: _scaffoldKey,
-      backgroundColor: _Theme.bgTop,
-      appBar: _buildAppBar(context),
-      endDrawer: _buildNotificationsDrawer(context),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [_Theme.bgTop, _Theme.bgMid, _Theme.bgBottom],
-            stops: [0.0, 0.5, 1.0],
-          ),
-        ),
-        child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, outerConstraints) {
-              return SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: ConstrainedBox(
-                  constraints:
-                  BoxConstraints(minHeight: outerConstraints.maxHeight),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        children: [
-                          Header(
-                            UserLogin: widget.UserLogin,
-                            User_JwtToken: widget.Current_User_JwtToken,
-                          ),
-                          Center(
-                            child: ConstrainedBox(
-                              constraints:
-                              BoxConstraints(maxWidth: contentMaxWidth),
-                              child: Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: horizontalPadding,
-                                  vertical: isMobile ? 20 : 32,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment:
-                                  CrossAxisAlignment.start,
-                                  children: [
-                                    _animatedSection(
-                                      animation: _heroAnim,
-                                      child: _buildHero(isMobile),
-                                    ),
-
-                                    SizedBox(height: isMobile ? 20 : 26),
-
-                                    _animatedSection(
-                                      animation: _searchAnim,
-                                      child: _buildSearchCard(isMobile),
-                                    ),
-
-                                    SizedBox(height: isMobile ? 18 : 24),
-
-                                    _animatedSection(
-                                      animation: _listAnim,
-                                      child: _buildResultsSection(
-                                        isMobile: isMobile,
-                                        columns: columns,
-                                      ),
-                                    ),
-
-                                    SizedBox(height: isMobile ? 28 : 40),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      _animatedSection(
-                        animation: _footerAnim,
-                        child: Footer(User_JwtToken: widget.Current_User_JwtToken,),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // ANIMATED SECTION WRAPPER
-  // ============================================================
-
-  Widget _animatedSection({
-    required Animation<double> animation,
-    required Widget child,
-  }) {
-    return AnimatedBuilder(
-      animation: animation,
-      builder: (context, builtChild) {
-        return Opacity(
-          opacity: animation.value.clamp(0.0, 1.0),
-          child: Transform.translate(
-            offset: Offset(0, (1 - animation.value) * 22),
-            child: builtChild,
-          ),
-        );
-      },
-      child: child,
-    );
-  }
-
-  // ============================================================
-  // APP BAR — bordered back arrow (primary-text-colored, clearly
-  // visible), title, and the notification bell action.
-  // ============================================================
-
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(
-      backgroundColor: _Theme.surfaceBar,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      centerTitle: false,
-      titleSpacing: 14,
-      leadingWidth: 64,
-      leading: Builder(
-        builder: (context) {
-          if (!Navigator.of(context).canPop()) return const SizedBox.shrink();
-          return Padding(
-            padding: const EdgeInsets.only(left: 10),
-            child: Center(
-              child: Material(
-                color: _Theme.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: _Theme.emerald.withOpacity(0.55), width: 1.4),
-                ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () {
-                    try {
-                      Navigator.of(context).pop();
-                    } catch (e) {
-                      // Defensive fallback only.
-                    }
-                  },
-                  child: const SizedBox(
-                    width: 40,
-                    height: 40,
-                    child: Icon(Icons.arrow_back_rounded, color: _Theme.primaryText, size: 20),
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-      title: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [_Theme.emerald, _Theme.mint]),
-              borderRadius: BorderRadius.circular(11),
-              boxShadow: [
-                BoxShadow(color: _Theme.emerald.withOpacity(0.35), blurRadius: 16, offset: const Offset(0, 5)),
-              ],
-            ),
-            child: const Icon(Icons.event_note_rounded, color: _Theme.bgTop, size: 19),
-          ),
-          const SizedBox(width: 12),
-          const Flexible(
-            child: Text(
-              'Bookings',
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-              style: TextStyle(
-                color: _Theme.primaryText,
-                fontWeight: FontWeight.w800,
-                fontSize: 18,
-                letterSpacing: 0.1,
-              ),
-            ),
-          ),
-        ],
-      ),
-
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 12),
-          child: Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildRefreshButton(),
-                const SizedBox(width: 10),
-                _buildNotificationBell(),
-              ],
-            ),
-          ),
-        ),
-      ],
-
-
-    );
-  }
-
-  // ============================================================
-  // NOTIFICATION BELL — clearly distinct "new" vs "normal" states.
-  // Normal: muted bordered box, plain bell.
-  // New: red-bordered box, red bell, small red dot badge, gentle ring
-  // shake animation — impossible to miss.
-  // ============================================================
-
+  // Normal: muted bordered box. New: red border, red bell, dot, gentle ring.
   Widget _buildNotificationBell() {
     return Obx(() {
       final bool hasNew = bookingCont.hasNewNotification.value;
@@ -725,7 +595,8 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: _Theme.alert,
-                        border: Border.all(color: _Theme.surfaceBar, width: 1.6),
+                        border:
+                        Border.all(color: _Theme.surfaceBar, width: 1.6),
                         boxShadow: [
                           BoxShadow(
                             color: _Theme.alert.withOpacity(0.6),
@@ -765,15 +636,18 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [_Theme.emerald, _Theme.mint]),
+                      gradient: const LinearGradient(
+                          colors: [_Theme.emerald, _Theme.mint]),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.notifications_rounded, color: _Theme.bgTop, size: 17),
+                    child: const Icon(Icons.notifications_rounded,
+                        color: _Theme.bgTop, size: 17),
                   ),
                   const SizedBox(width: 10),
                   const Expanded(
                     child: Text(
                       "Notifications",
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: _Theme.primaryText,
                         fontSize: 17,
@@ -782,12 +656,13 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, color: _Theme.mutedTextAlt, size: 20),
+                    icon: const Icon(Icons.close_rounded,
+                        color: _Theme.mutedTextAlt, size: 20),
                     onPressed: () {
                       try {
                         Navigator.of(context).pop();
                       } catch (e) {
-                        // Defensive fallback only.
+                        // print("Close drawer failed: $e");
                       }
                     },
                   ),
@@ -806,17 +681,24 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.inbox_rounded, color: _Theme.mutedTextAlt.withOpacity(0.7), size: 30),
+                          Icon(Icons.inbox_rounded,
+                              color: _Theme.mutedTextAlt.withOpacity(0.7),
+                              size: 30),
                           const SizedBox(height: 10),
                           const Text(
                             "No notifications yet",
-                            style: TextStyle(color: _Theme.primaryText, fontSize: 13.5, fontWeight: FontWeight.w700),
+                            style: TextStyle(
+                              color: _Theme.primaryText,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
+                          const Text(
                             "You'll see booking updates here.",
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: _Theme.mutedText, fontSize: 12),
+                            style: TextStyle(
+                                color: _Theme.mutedText, fontSize: 12),
                           ),
                         ],
                       ),
@@ -830,6 +712,8 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (context, index) {
                     final n = notes[index];
+                    final String message = _valueOrNA(n.message);
+                    final bool missing = message == _noData;
                     return Container(
                       padding: const EdgeInsets.all(13),
                       decoration: BoxDecoration(
@@ -847,7 +731,8 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
                               color: _Theme.emerald.withOpacity(0.14),
                               borderRadius: BorderRadius.circular(9),
                             ),
-                            child: const Icon(Icons.campaign_rounded, color: _Theme.mint, size: 15),
+                            child: const Icon(Icons.campaign_rounded,
+                                color: _Theme.mint, size: 15),
                           ),
                           const SizedBox(width: 11),
                           Expanded(
@@ -855,12 +740,17 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  n.message ?? "",
-                                  style: const TextStyle(
-                                    color: _Theme.primaryText,
+                                  message,
+                                  style: TextStyle(
+                                    color: missing
+                                        ? _Theme.mutedText
+                                        : _Theme.primaryText,
                                     fontSize: 12.8,
                                     height: 1.4,
                                     fontWeight: FontWeight.w600,
+                                    fontStyle: missing
+                                        ? FontStyle.italic
+                                        : FontStyle.normal,
                                   ),
                                 ),
                                 const SizedBox(height: 6),
@@ -888,32 +778,46 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
   }
 
   // ============================================================
-  // HERO
+  // HERO — title, live stats, friendly support message
   // ============================================================
 
   Widget _buildHero(bool isMobile) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(isMobile ? 20 : 28),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(26),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF193A29), Color(0xFF12261C), Color(0xFF101F18)],
-        ),
-        border: Border.all(color: _Theme.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.25),
-            blurRadius: 30,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
+      padding: EdgeInsets.all(isMobile ? 18 : 28),
+      decoration: _cardDecoration(radius: 26),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: _Theme.emerald.withOpacity(0.10),
+              borderRadius: BorderRadius.circular(50),
+              border: Border.all(color: _Theme.emerald.withOpacity(0.25)),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.event_available_rounded,
+                    color: _Theme.mint, size: 14),
+                SizedBox(width: 7),
+                Flexible(
+                  child: Text(
+                    "My bookings",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: _Theme.mint,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
           Text(
             "Your bookings",
             style: TextStyle(
@@ -927,27 +831,244 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
           const SizedBox(height: 10),
           Text(
             "Every service you've booked, newest activity first. "
-                "Search by booking ID or tap a card for full details.",
+                "Search by booking ID or provider ID, or tap a card for full details.",
             style: TextStyle(
               color: _Theme.mutedText,
               fontSize: isMobile ? 13 : 14.5,
               height: 1.55,
             ),
           ),
+          const SizedBox(height: 18),
+          Obx(() {
+            int total = 0;
+            int providers = 0;
+            try {
+              total = bookingCont.bookingInfoList.length;
+              providers = bookingCont.bookingInfoList
+                  .map((b) => b.providerNumber)
+                  .where((n) => n != null)
+                  .toSet()
+                  .length;
+            } catch (e) {
+              // print("Hero stats failed: $e");
+            }
+            return Row(
+              children: [
+                Expanded(
+                  child: _heroStat(
+                    icon: Icons.receipt_long_rounded,
+                    value: "$total",
+                    label: "Bookings",
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _heroStat(
+                    icon: Icons.storefront_rounded,
+                    value: "$providers",
+                    label: "Providers",
+                  ),
+                ),
+              ],
+            );
+          }),
+          const SizedBox(height: 18),
+          _supportCard(),
+        ],
+      ),
+    );
+  }
 
-          const SizedBox(height: 16),
-
-          Text(
-            "A Small Request, A Big Support for KaamMitra.KaamMitra is free for user to use.Once your provider has completed the task or you have received the service, kindly visit your (Booking details Screen) and update your task complete status to Yes(Completed).Your small action means a lot to us. It helps us grow and bring more useful services to you in the future.Thank you for being a part of KaamMitra Together, we grow.",
-            style: TextStyle(
-              color: Colors.amber,
-              fontSize: 12.5,
-              height: 1.45,
-              fontWeight: FontWeight.w600,
+  Widget _heroStat({
+    required IconData icon,
+    required String value,
+    required String label,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      decoration: BoxDecoration(
+        color: _Theme.surfaceBar,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _Theme.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: _Theme.emerald.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: _Theme.mint, size: 16),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      color: _Theme.primaryText,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: _Theme.mutedTextAlt,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+        ],
+      ),
+    );
+  }
 
+  // Friendly support message (replaces the old long yellow paragraph).
+  Widget _supportCard() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: _Theme.emerald.withOpacity(0.28)),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              _Theme.emerald.withOpacity(0.12),
+              _Theme.surfaceBar,
+            ],
+          ),
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: 4,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [_Theme.emerald, _Theme.mint],
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: _Theme.emerald.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(11),
+                            ),
+                            child: const Icon(Icons.favorite_rounded,
+                                color: _Theme.mint, size: 16),
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              "A small request, a big support",
+                              style: TextStyle(
+                                color: _Theme.primaryText,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.1,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        "KaamMitra is free for users. Once your provider has "
+                            "completed the task or you have received the service, "
+                            "please open the booking details and update your task "
+                            "complete status to Yes (Completed).",
+                        style: TextStyle(
+                          color: _Theme.primaryText.withOpacity(0.74),
+                          fontSize: 12.5,
+                          height: 1.6,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          _flowChip(Icons.touch_app_rounded, "Open a booking"),
+                          const Icon(Icons.arrow_forward_rounded,
+                              color: _Theme.mutedTextAlt, size: 15),
+                          _flowChip(
+                              Icons.check_circle_rounded, "Completed: Yes"),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        "Your small action helps us grow and bring you more "
+                            "useful services. Thank you for being a part of "
+                            "KaamMitra. Together, we grow.",
+                        style: TextStyle(
+                          color: _Theme.primaryText.withOpacity(0.58),
+                          fontSize: 12,
+                          height: 1.6,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
+  Widget _flowChip(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: _Theme.emerald.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(50),
+        border: Border.all(color: _Theme.emerald.withOpacity(0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: _Theme.mint, size: 14),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: _Theme.mint,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -960,135 +1081,179 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
   Widget _buildSearchCard(bool isMobile) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(isMobile ? 14 : 18),
-      decoration: BoxDecoration(
-        color: _Theme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _Theme.border),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+      padding: EdgeInsets.all(isMobile ? 14 : 20),
+      decoration: _cardDecoration(radius: 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.manage_search_rounded,
+                  color: _Theme.mutedTextAlt, size: 17),
+              SizedBox(width: 7),
+              Text(
+                "Find a booking by booking ID or provider ID",
+                style: TextStyle(
+                  color: _Theme.mutedTextAlt,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Obx(
-            () => AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            color: _Theme.surfaceBar,
-            border: Border.all(
-              color: bookingCont.isSearchFocused.value
-                  ? _Theme.emerald.withOpacity(0.55)
-                  : _Theme.border,
-              width: 1.4,
-            ),
-            boxShadow: bookingCont.isSearchFocused.value
-                ? [
-              BoxShadow(
-                color: _Theme.emerald.withOpacity(0.15),
-                blurRadius: 16,
-                spreadRadius: 1,
-              ),
-            ]
-                : [],
-          ),
-          child: TextField(
-            controller: SearchCont,
-            focusNode: _searchFocusNode,
-            keyboardType: TextInputType.number,
-            style: const TextStyle(
-              color: _Theme.primaryText,
-              fontSize: 14,
-            ),
-            onChanged: (value) {
-              try {
-                bookingCont.changeSearchText(value);
-              } catch (e) {
-                // Defensive fallback only.
-              }
-            },
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
-              hintText: "Search by booking ID",
-              hintStyle: const TextStyle(
-                color: _Theme.mutedTextAlt,
-                fontSize: 13,
-              ),
-              prefixIcon: const Icon(
-                Icons.search_rounded,
-                color: _Theme.mint,
-                size: 20,
-              ),
-              suffixIcon: Obx(
-                    () => bookingCont.searchText.value.isEmpty
-                    ? const SizedBox.shrink()
-                    : IconButton(
-                  icon: const Icon(
-                    Icons.close_rounded,
-                    color: _Theme.mutedTextAlt,
-                    size: 18,
+          const SizedBox(height: 10),
+          Obx(
+                () => AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: _Theme.surfaceBar,
+                border: Border.all(
+                  color: bookingCont.isSearchFocused.value
+                      ? _Theme.emerald.withOpacity(0.55)
+                      : _Theme.border,
+                  width: 1.4,
+                ),
+                boxShadow: bookingCont.isSearchFocused.value
+                    ? [
+                  BoxShadow(
+                    color: _Theme.emerald.withOpacity(0.15),
+                    blurRadius: 16,
+                    spreadRadius: 1,
                   ),
-                  onPressed: () {
-                    try {
-                      SearchCont.clear();
-                      bookingCont.changeSearchText("");
-                    } catch (e) {
-                      // Defensive fallback only.
-                    }
-                  },
+                ]
+                    : const [],
+              ),
+              child: TextField(
+                controller: SearchCont,
+                focusNode: _searchFocusNode,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(
+                  color: _Theme.primaryText,
+                  fontSize: 14,
+                ),
+                onChanged: (value) {
+                  try {
+                    bookingCont.changeSearchText(value);
+                  } catch (e) {
+                    // print("Search failed: $e");
+                  }
+                },
+                decoration: InputDecoration(
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  hintText: "Search by booking ID or provider ID",
+                  hintMaxLines: 1,
+                  hintStyle: const TextStyle(
+                    color: _Theme.mutedTextAlt,
+                    fontSize: 13,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: _Theme.mint,
+                    size: 20,
+                  ),
+                  suffixIcon: Obx(
+                        () => bookingCont.searchText.value.isEmpty
+                        ? const SizedBox.shrink()
+                        : IconButton(
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: _Theme.mutedTextAlt,
+                        size: 18,
+                      ),
+                      onPressed: () {
+                        try {
+                          SearchCont.clear();
+                          bookingCont.changeSearchText("");
+                        } catch (e) {
+                          // print("Clear search failed: $e");
+                        }
+                      },
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
   // ============================================================
-  // RESULTS SECTION
+  // RESULTS — loading, error, empty, data (all reactive)
   // ============================================================
 
-  Widget _buildResultsSection({required bool isMobile, required int columns}) {
+  Widget _buildResultsSection() {
     return Obx(() {
       if (bookingCont.isLoading.value) {
-        return _resultsShell(
-          child: const Center(
-            child: CircularProgressIndicator(
-              color: _Theme.emerald,
-              strokeWidth: 2.4,
-            ),
+        return _stateShell(
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 34,
+                height: 34,
+                child: CircularProgressIndicator(
+                  color: _Theme.emerald,
+                  strokeWidth: 2.6,
+                ),
+              ),
+              SizedBox(height: 14),
+              Text(
+                "Loading bookings...",
+                style: TextStyle(
+                  color: _Theme.mutedText,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         );
       }
 
       if (bookingCont.hasLoadError.value) {
-        return _resultsShell(
-          child: _emptyState(
+        return _stateShell(
+          child: _stateContent(
             icon: Icons.error_outline_rounded,
             title: "Couldn't load bookings",
-            message: "Pull down or come back and try again.",
+            message: "Check your connection and try again.",
+            action: ElevatedButton.icon(
+              onPressed: () => _onRefreshTap(),
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text("Try again"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _Theme.emerald,
+                foregroundColor: _Theme.bgTop,
+                elevation: 0,
+                padding:
+                const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                textStyle: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
           ),
         );
       }
 
-      final bookings = bookingCont.displayedBookings;
+      final List<BookingInfoModel> bookings = bookingCont.displayedBookings;
 
       if (bookings.isEmpty) {
         final bool searching = bookingCont.searchText.value.trim().isNotEmpty;
-        return _resultsShell(
-          child: _emptyState(
-            icon: searching ? Icons.search_off_rounded : Icons.event_busy_rounded,
+        return _stateShell(
+          child: _stateContent(
+            icon:
+            searching ? Icons.search_off_rounded : Icons.event_busy_rounded,
             title: searching ? "No matching booking" : "No bookings yet",
             message: searching
-                ? "Check the booking ID and try again."
+                ? "Check the booking ID or provider ID and try again."
                 : "Bookings you make will show up here.",
           ),
         );
@@ -1098,7 +1263,7 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 12),
+            padding: const EdgeInsets.only(left: 4, bottom: 14),
             child: Text(
               "${bookings.length} booking${bookings.length == 1 ? '' : 's'}",
               style: const TextStyle(
@@ -1108,18 +1273,25 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
               ),
             ),
           ),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: bookings.length,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columns,
-              crossAxisSpacing: 14,
-              mainAxisSpacing: 14,
-              childAspectRatio: columns == 1 ? 2.35 : 1.28,
-            ),
-            itemBuilder: (context, index) {
-              return _bookingCard(bookings[index], index);
+          LayoutBuilder(
+            builder: (context, box) {
+              final double maxW = box.maxWidth;
+              final int columns = maxW >= 1000 ? 3 : (maxW >= 640 ? 2 : 1);
+              const double gap = 16;
+              final double cardW =
+              ((maxW - gap * (columns - 1)) / columns).clamp(0.0, maxW);
+
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  for (int i = 0; i < bookings.length; i++)
+                    SizedBox(
+                      width: cardW,
+                      child: _bookingCard(bookings[i], i),
+                    ),
+                ],
+              );
             },
           ),
         ],
@@ -1127,64 +1299,77 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
     });
   }
 
-  Widget _resultsShell({required Widget child}) {
+  Widget _stateShell({required Widget child}) {
     return Container(
       width: double.infinity,
-      height: 180,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
       decoration: BoxDecoration(
-        color: _Theme.surfaceBar,
-        borderRadius: BorderRadius.circular(18),
+        color: _Theme.surface,
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: _Theme.border),
       ),
-      child: child,
+      child: Center(child: child),
     );
   }
 
-  Widget _emptyState({
+  Widget _stateContent({
     required IconData icon,
     required String title,
     required String message,
+    Widget? action,
   }) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: _Theme.mutedTextAlt, size: 30),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: const TextStyle(
-              color: _Theme.primaryText,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: _Theme.surfaceBar,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _Theme.border),
           ),
-          const SizedBox(height: 4),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: _Theme.mutedText,
-              fontSize: 12,
-            ),
+          child: Icon(icon, color: _Theme.mint, size: 28),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: _Theme.primaryText,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
           ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: _Theme.mutedText,
+            fontSize: 12.5,
+            height: 1.4,
+          ),
+        ),
+        if (action != null) ...[
+          const SizedBox(height: 18),
+          action,
         ],
-      ),
+      ],
     );
   }
 
-  // ------------------------------------------------------------
+  // ============================================================
   // BOOKING CARD — bookId, providerNumber, userNumber, date, service name
-  // ------------------------------------------------------------
+  // ============================================================
 
   Widget _bookingCard(BookingInfoModel booking, int index) {
-    final String serviceName = booking.serviceName ?? "Service";
-    final String bookIdLabel = booking.bookId != null ? "#${booking.bookId}" : "#--";
-    final String providerNumLabel =
-    booking.providerNumber != null ? "${booking.providerNumber}" : "--";
-    final String userNumLabel =
-    booking.userNumber != null ? "${booking.userNumber}" : "--";
+    final String serviceName = _valueOrNA(booking.serviceName);
+    final String bookId = _valueOrNA(booking.bookId);
+    final String providerNum = _valueOrNA(booking.providerNumber);
+    final String userNum = _valueOrNA(booking.userNumber);
     final String dateLabel = _formatDate(booking.createdAt);
+
+    final bool canOpen = booking.bookId != null;
 
     return Obx(() {
       final bool hovered = bookingCont.hoveredCardIndex.value == index;
@@ -1193,55 +1378,60 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
       return MouseRegion(
         onEnter: (_) => bookingCont.setHoveredCard(index),
         onExit: (_) => bookingCont.clearHoveredCard(),
-        cursor: SystemMouseCursors.click,
+        cursor: canOpen ? SystemMouseCursors.click : SystemMouseCursors.basic,
         child: GestureDetector(
-          onTapDown: (_) => bookingCont.setPressedCard(index),
+          onTapDown: canOpen ? (_) => bookingCont.setPressedCard(index) : null,
           onTapCancel: () => bookingCont.clearPressedCard(),
           onTapUp: (_) => bookingCont.clearPressedCard(),
-          onTap: () => _onBookingCardTap(booking, BookingId: booking.bookId!,),
+          onTap: !canOpen
+              ? null
+              : () => _onBookingCardTap(BookingId: booking.bookId!),
           child: AnimatedScale(
             scale: pressed ? 0.97 : 1.0,
             duration: const Duration(milliseconds: 120),
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
+              duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: hovered ? _Theme.surface.withOpacity(0.92) : _Theme.surface,
+                color: _Theme.surface,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: hovered ? _Theme.emerald.withOpacity(0.45) : _Theme.border,
+                  color: hovered
+                      ? _Theme.emerald.withOpacity(0.55)
+                      : _Theme.border,
                   width: hovered ? 1.3 : 1,
                 ),
-                boxShadow: hovered
-                    ? [
+                boxShadow: [
                   BoxShadow(
-                    color: _Theme.emerald.withOpacity(0.14),
-                    blurRadius: 22,
-                    offset: const Offset(0, 10),
-                  ),
-                ]
-                    : [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.12),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
+                    color: hovered
+                        ? _Theme.emerald.withOpacity(0.16)
+                        : Colors.black.withOpacity(0.12),
+                    blurRadius: hovered ? 24 : 12,
+                    offset: Offset(0, hovered ? 10 : 6),
                   ),
                 ],
               ),
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ---------- header ----------
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(10),
+                        padding: const EdgeInsets.all(11),
                         decoration: BoxDecoration(
-                          color: _Theme.emerald.withOpacity(0.12),
+                          gradient: const LinearGradient(
+                            colors: [_Theme.emerald, _Theme.mint],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: const Icon(
                           Icons.event_available_rounded,
-                          color: _Theme.mint,
+                          color: _Theme.bgTop,
                           size: 20,
                         ),
                       ),
@@ -1252,53 +1442,98 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
                           children: [
                             Text(
                               serviceName,
-                              maxLines: 1,
+                              maxLines: 2,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: _Theme.primaryText,
-                                fontSize: 15,
+                              style: TextStyle(
+                                color: serviceName == _noData
+                                    ? _Theme.mutedText
+                                    : _Theme.primaryText,
+                                fontSize: 15.5,
+                                height: 1.2,
                                 fontWeight: FontWeight.w800,
+                                fontStyle: serviceName == _noData
+                                    ? FontStyle.italic
+                                    : FontStyle.normal,
                               ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              "Booking $bookIdLabel",
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: _Theme.mutedTextAlt,
-                                fontSize: 11.5,
-                              ),
-                            ),
+                            const SizedBox(height: 6),
+                            _idChip(bookId),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _statPill(icon: Icons.storefront_rounded, label: "Provider #$providerNumLabel"),
-                      _statPill(icon: Icons.person_rounded, label: "User #$userNumLabel"),
-                      _statPill(icon: Icons.schedule_rounded, label: dateLabel),
-                    ],
+
+                  const SizedBox(height: 14),
+
+                  // ---------- metrics ----------
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _Theme.surfaceBar,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: _Theme.border),
+                    ),
+                    child: Column(
+                      children: [
+                        _infoRow(
+                          icon: Icons.storefront_rounded,
+                          label: "Provider",
+                          value: providerNum == _noData
+                              ? providerNum
+                              : "#$providerNum",
+                        ),
+                        const SizedBox(height: 9),
+                        _infoRow(
+                          icon: Icons.person_rounded,
+                          label: "User",
+                          value: userNum == _noData ? userNum : "#$userNum",
+                        ),
+                        const SizedBox(height: 9),
+                        _infoRow(
+                          icon: Icons.schedule_rounded,
+                          label: "Booked on",
+                          value: dateLabel,
+                        ),
+                      ],
+                    ),
                   ),
-                  const Spacer(),
+
+                  const SizedBox(height: 12),
+
+                  // ---------- call to action ----------
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Icon(Icons.chevron_right_rounded, color: _Theme.mint, size: 18),
-                      const SizedBox(width: 2),
-                      Text(
-                        "Details",
-                        style: TextStyle(
-                          color: _Theme.mint,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
+                      Expanded(
+                        child: canOpen
+                            ? const SizedBox.shrink()
+                            : const Text(
+                          "Details unavailable",
+                          style: TextStyle(
+                            color: _Theme.mutedText,
+                            fontSize: 11.5,
+                            fontStyle: FontStyle.italic,
+                          ),
                         ),
                       ),
+                      if (canOpen)
+                        const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              "View details",
+                              style: TextStyle(
+                                color: _Theme.mint,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            SizedBox(width: 4),
+                            Icon(Icons.arrow_forward_rounded,
+                                color: _Theme.mint, size: 14),
+                          ],
+                        ),
                     ],
                   ),
                 ],
@@ -1310,32 +1545,73 @@ class _UserBookingScreenUserState extends State<UserBookingScreenUser>
     });
   }
 
-  Widget _statPill({required IconData icon, required String label}) {
+  Widget _idChip(String bookId) {
+    final bool missing = bookId == _noData;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: _Theme.surfaceBar,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _Theme.border),
+        color: _Theme.emerald.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(50),
+        border: Border.all(color: _Theme.emerald.withOpacity(0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: _Theme.mint),
+          const Icon(Icons.confirmation_number_rounded,
+              color: _Theme.mint, size: 12),
           const SizedBox(width: 5),
           Flexible(
             child: Text(
-              label,
+              missing ? bookId : "Booking #$bookId",
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _Theme.primaryText,
+              style: TextStyle(
+                color: missing ? _Theme.mutedText : _Theme.mint,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
+                fontStyle: missing ? FontStyle.italic : FontStyle.normal,
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _infoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    final bool missing = value == _noData;
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: _Theme.mint),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(
+            color: _Theme.mutedTextAlt,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: missing ? _Theme.mutedText : _Theme.primaryText,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              fontStyle: missing ? FontStyle.italic : FontStyle.normal,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

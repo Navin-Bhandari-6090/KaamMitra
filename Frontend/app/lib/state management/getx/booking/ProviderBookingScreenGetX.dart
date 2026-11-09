@@ -1,13 +1,19 @@
-import 'package:get/get.dart';
+import 'dart:convert';
 
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
+
+import '../../../constant/Server_Database.dart';
 import '../../../models/BookingInfoModel.dart';
 import '../../../models/NotificationsInfoModel.dart';
+import '../../../web/authentication/Error_page.dart';
+import '../../../web/common method/Commmon_Method.dart';
+import '../../../web/common method/notification.dart';
+import '../../../web/common widget/toast.dart';
 
-// Adjust the two model import paths above to match wherever you place this
-// file relative to your models folder.
-
-/// UI-only reactive state for ProviderBookingsScreen — replaces setState.
-/// Put once with Get.put in initState, deleted in dispose.
+/// UI + data state for ProviderBookingsScreen — replaces setState and now also
+/// owns every API call of the booking screen.
 class ProviderBookingsGetx extends GetxController {
   // ============================================================
   // LOADING / ERROR STATE
@@ -21,9 +27,7 @@ class ProviderBookingsGetx extends GetxController {
 
   // ============================================================
   // NOTIFICATION BELL STATE
-  // hasNewNotification mirrors NewNotificationsModel.status for the
-  // current user — true = unread notification exists (red ring bell),
-  // false = nothing new (normal bell).
+  // hasNewNotification = true -> unread notification exists (red bell)
   // ============================================================
 
   RxBool hasNewNotification = false.obs;
@@ -32,10 +36,10 @@ class ProviderBookingsGetx extends GetxController {
 
   // ============================================================
   // DATA LISTS
-  // bookingInfoList  = every booking exactly as received from the API.
-  // displayedBookings = bookingInfoList after the booking-ID search filter.
-  // notificationsInfoList = untouched notification history for the drawer.
   // ============================================================
+
+  /// Raw booking list filled by [getBookingInfo].
+  final List<BookingInfoModel> _rawBookingInfoList = [];
 
   final RxList<BookingInfoModel> bookingInfoList = <BookingInfoModel>[].obs;
   final RxList<BookingInfoModel> displayedBookings = <BookingInfoModel>[].obs;
@@ -47,7 +51,7 @@ class ProviderBookingsGetx extends GetxController {
       bookingInfoList.assignAll(list);
       _applyBookingIdFilter();
     } catch (e) {
-      // Defensive fallback only — never let a bad list crash the screen.
+      // print("setBookingInfoList failed: $e");
       bookingInfoList.clear();
       displayedBookings.clear();
     }
@@ -57,6 +61,7 @@ class ProviderBookingsGetx extends GetxController {
     try {
       notificationsInfoList.assignAll(list);
     } catch (e) {
+      // print("setNotificationsInfoList failed: $e");
       notificationsInfoList.clear();
     }
   }
@@ -68,12 +73,151 @@ class ProviderBookingsGetx extends GetxController {
       notificationsInfoList.clear();
       searchText.value = "";
     } catch (e) {
-      // no-op — clearing is already the fallback state
+      // print("clearAll failed: $e");
     }
   }
 
   // ============================================================
-  // SEARCH — filter bookings by booking ID as the person types.
+  // LOAD ORCHESTRATION — the screen calls only this
+  // ============================================================
+
+  Future<void> loadEverything({
+    required String email,
+    required String jwtToken,
+    required BuildContext context,
+  }) async {
+    try {
+      setLoading(true);
+      setLoadError(false);
+
+      final results = await Future.wait([
+        getBookingInfo(email: email, jwtToken: jwtToken, context: context),
+        GetNotificationsInfo(
+          Email: email,
+          Current_User_JwtToken: jwtToken,
+          context: context,
+        ),
+        GetNewNotificationInfo(
+          Email: email,
+          Current_User_JwtToken: jwtToken,
+          context: context,
+        ),
+      ]);
+
+      final bool anyFailed = results.any((r) => r != 1);
+
+      setBookingInfoList(_rawBookingInfoList);
+      setNotificationsInfoList(NotificationsInfoList);
+
+      bool hasNew = false;
+      for (final n in NewNotificationsList) {
+        if ((n.status ?? false) == true) {
+          hasNew = true;
+          break;
+        }
+      }
+      setHasNewNotification(hasNew);
+
+      setLoadError(anyFailed && _rawBookingInfoList.isEmpty);
+    } catch (e) {
+      // print("Unexpected error in loadEverything: $e");
+      setLoadError(true);
+      Toastget().Toastmsg("Couldn't load your bookings. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ============================================================
+  // BOOKING API (logic unchanged; moved from the screen)
+  // Returns: 1 success, 2 other status, 3 session end, 4 backend error,
+  // 0 exception.
+  // ============================================================
+
+  Future<int> getBookingInfo({
+    required String email,
+    required String jwtToken,
+    required BuildContext context,
+  }) async {
+    try {
+      final Map<String, dynamic> userData = {"Email": email};
+      const String url = Backend_Server_Url + "api/Booking/sendbookinginfopro";
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          "Content-Type": "application/json",
+          'Authorization': 'Bearer $jwtToken',
+        },
+        body: json.encode(userData),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> responseData = jsonDecode(response.body);
+        _rawBookingInfoList
+          ..clear()
+          ..addAll(
+            responseData.map((data) => BookingInfoModel.fromJson(data)),
+          );
+        // print("Booking info get success.");
+        return 1;
+      } else if (response.statusCode == 502) {
+        _rawBookingInfoList.clear();
+        // print("Invalid email.");
+        await Clear_User_Data();
+        await Random_token_Clear();
+        if (context.mounted) {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => ErrorPage()),
+                (route) => false,
+          );
+        }
+        Toastget().Toastmsg("Your register email don't match..");
+        return 3;
+      } else if (response.statusCode == 500) {
+        _rawBookingInfoList.clear();
+        // print("Exception caught in backend.");
+        return 4;
+      } else if (response.statusCode == 501) {
+        _rawBookingInfoList.clear();
+        // print("Invalid data format.");
+        return 4;
+      } else {
+        _rawBookingInfoList.clear();
+        // print("Booking info get fail. Status code = ${response.statusCode}");
+        return 2;
+      }
+    } catch (e) {
+      _rawBookingInfoList.clear();
+      // print("Exception caught while getting booking info: $e");
+      return 0;
+    }
+  }
+
+  // ============================================================
+  // BELL — mark notifications as seen (optimistic UI, then API)
+  // ============================================================
+
+  Future<void> markNotificationsSeen({
+    required String email,
+    required String jwtToken,
+    required BuildContext context,
+  }) async {
+    try {
+      if (!hasNewNotification.value) return;
+      setHasNewNotification(false);
+      await UpdateNewNotificationInfo(
+        Email: email,
+        Current_User_JwtToken: jwtToken,
+        context: context,
+      );
+    } catch (e) {
+      // print("Unexpected error updating new-notification status: $e");
+    }
+  }
+
+  // ============================================================
+  // SEARCH — filter bookings by booking ID OR user ID as the person types.
   // ============================================================
 
   RxString searchText = "".obs;
@@ -86,8 +230,7 @@ class ProviderBookingsGetx extends GetxController {
       searchText.value = value;
       _applyBookingIdFilter();
     } catch (e) {
-      // Defensive fallback — keep whatever was already displayed rather
-      // than crash on an unexpected filter failure.
+      // print("changeSearchText failed: $e");
     }
   }
 
@@ -101,19 +244,22 @@ class ProviderBookingsGetx extends GetxController {
       }
 
       final List<BookingInfoModel> filtered = bookingInfoList.where((b) {
-        final String idStr =
+        final String bookIdStr =
         b.bookId != null ? b.bookId.toString().toLowerCase() : "";
-        return idStr.contains(query);
+        final String userIdStr =
+        b.userNumber != null ? b.userNumber.toString().toLowerCase() : "";
+        return bookIdStr.contains(query) || userIdStr.contains(query);
       }).toList();
 
       displayedBookings.assignAll(filtered);
     } catch (e) {
+      // print("_applyBookingIdFilter failed: $e");
       displayedBookings.assignAll(bookingInfoList);
     }
   }
 
   // ============================================================
-  // CARD HOVER / PRESS STATE (web + touch feedback, no setState)
+  // CARD HOVER / PRESS STATE
   // ============================================================
 
   RxInt hoveredCardIndex = (-1).obs;

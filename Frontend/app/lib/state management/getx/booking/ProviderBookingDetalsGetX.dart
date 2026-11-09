@@ -411,11 +411,14 @@ class Providerbookingdetalsgetx extends GetxController {
         _startDate.value = start.toIso8601String(); // instant UI update
         _endDate.value = end.toIso8601String();
         await refreshBooking(context);
-        await _notifyCustomer(
+
+        await _notifyCustomer
+          (
           context,
           b.userNumber! as int,
-          "Provider updated the schedule(Date) from $formatDateTime($start) to $formatDateTime($end) for booking ID = ${b.bookId}.",
+          "Provider updated the schedule (date) from ${formatDateTime(start.toIso8601String())} to ${formatDateTime(end.toIso8601String())} for booking ID = ${b.bookId}.",
         );
+
       }
       return r == 1;
     } catch (e) {

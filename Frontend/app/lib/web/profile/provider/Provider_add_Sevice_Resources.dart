@@ -19,6 +19,8 @@ import '../../common widget/GreenTextfield.dart';
 import '../../common widget/getx_cont_pick_single_photo_int.dart';
 import '../../common widget/single_video_pick_getx.dart';
 
+
+
 /// THEME TOKENS (dark green, modern) — matches Header.dart / ProviderProfile.dart
 
 class _Theme {
@@ -318,7 +320,7 @@ class _ProviderAddSeviceResourcesState extends State<ProviderAddSeviceResources>
           FileBytes: change_file_cont_getx.fileBytes.value!,
           FileExtension: change_file_cont_getx.fileExtension.value!,
         );
-        await ClearFilesValues();
+         ClearFilesValues();
         ResourceTitleTextCont.clear();
 
         if (Result == 1) {

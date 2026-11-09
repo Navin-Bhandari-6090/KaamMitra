@@ -1,42 +1,46 @@
-import 'dart:convert';
+import 'dart:math' as math;
+
 import 'package:app/web/footer/Footer.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
-import 'package:get/get_instance/src/extension_instance.dart';
-import 'package:http/http.dart' as http;
-import '../../../constant/Server_Database.dart';
+
 import '../../../constant/Style.dart';
 import '../../../constant/variable.dart';
 import '../../../models/UserInfo.dart';
-import '../../../state management/getx/profile/provider_user/change_pro_photo_Getx.dart';
-import '../../authentication/Error_page.dart';
+
+import '../../../state management/getx/profile/user/user_profile_getx.dart';
 import '../../common method/Commmon_Method.dart';
+import '../../common widget/design/bolbs_background.dart';
 import '../../common widget/getx_cont_pick_single_photo_int.dart';
 import '../../common widget/toast.dart';
 import '../../header/Header.dart';
 import '../provider_user/Update_Location.dart';
-
 import '../provider_user/Update_Password.dart';
 import '../provider_user/select_shared_media.dart';
 import '../provider_user/upd_contact_info.dart';
 import '../provider_user/update_address.dart';
 import '../provider_user/update_user_name.dart';
 
-/// ---------------------------------------------------------------------------
-/// THEME TOKENS (dark green, modern) — identical to ProviderProfile
-/// ---------------------------------------------------------------------------
-class _ProfileTheme {
-  static const Color bgTop = Color(0xFF04140E);
-  static const Color bgMid = Color(0xFF0A2A1C);
-  static const Color bgBottom = Color(0xFF0F3D2A);
-  static const Color card = Color(0xFF123A28);
-  static const Color cardBorder = Color(0xFF1F5D42);
-  static const Color accent = Color(0xFF34E89E);
-  static const Color accentDeep = Color(0xFF0F9B6C);
-  static const Color danger = Color(0xFFE5544D);
-  static const Color textPrimary = Color(0xFFF3FBF7);
-  static const Color textMuted = Color(0xFFAFC9BC);
+// ---------------------------------------------------------------------------
+// THEME TOKENS (dark green) — matches Header.dart / ProviderProfile.dart
+// ---------------------------------------------------------------------------
+class _Theme {
+  static const Color bgTop = Color(0xFF0F1F17);
+  static const Color bgMid = Color(0xFF12261C);
+  static const Color bgBottom = Color(0xFF0A160F);
+
+  static const Color surface = Color(0xFF162E22);
+  static const Color surfaceBar = Color(0xFF12261C);
+
+  static const Color primaryText = Color(0xFFE6F4EA);
+  static const Color mutedText = Color(0xFF9AA0A6);
+  static const Color mutedTextAlt = Color(0xFF8A9A90);
+
+  static const Color emerald = Color(0xFF22C55E);
+  static const Color mint = Color(0xFF34D399);
+  static const Color danger = Color(0xFFF87171);
+
+  static const Color border = Color(0xFF234232);
 }
 
 class UserProfile extends StatefulWidget {
@@ -58,910 +62,1324 @@ class UserProfile extends StatefulWidget {
 
 class _UserProfileState extends State<UserProfile>
     with SingleTickerProviderStateMixin {
-  final Toast = Toastget();
+  // GetX controller — owns all state and all API calls (user only).
+  final UserProfileGetx profileCont = Get.put(UserProfileGetx());
 
-
-
-  // Entrance animation controller (UI-only addition, no business logic).
+  // Entrance animation (UI only)
   late final AnimationController _entranceController;
-  late final Animation<double> _fadeIn;
-
-  final ProviderGetx providerGetx = Get.put(ProviderGetx());
-
-
+  late final Animation<double> _heroAnim;
+  late final Animation<double> _infoAnim;
+  late final Animation<double> _noticeAnim;
+  late final Animation<double> _actionsAnim;
+  late final Animation<double> _footerAnim;
 
   @override
   void initState() {
     super.initState();
-    User_Jwt_Verify(Jwt_Token: widget.User_JwtToken);
 
     _entranceController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 1000),
     );
-    _fadeIn = CurvedAnimation(
+    _heroAnim = CurvedAnimation(
       parent: _entranceController,
-      curve: Curves.easeOutCubic,
+      curve: const Interval(0.0, 0.50, curve: Curves.easeOutCubic),
+    );
+    _infoAnim = CurvedAnimation(
+      parent: _entranceController,
+      curve: const Interval(0.15, 0.65, curve: Curves.easeOutCubic),
+    );
+    _noticeAnim = CurvedAnimation(
+      parent: _entranceController,
+      curve: const Interval(0.30, 0.78, curve: Curves.easeOutCubic),
+    );
+    _actionsAnim = CurvedAnimation(
+      parent: _entranceController,
+      curve: const Interval(0.40, 0.90, curve: Curves.easeOutCubic),
+    );
+    _footerAnim = CurvedAnimation(
+      parent: _entranceController,
+      curve: const Interval(0.55, 1.0, curve: Curves.easeOutCubic),
     );
     _entranceController.forward();
+
+    try {
+      profileCont.verifySession(
+        jwtToken: widget.User_JwtToken,
+        context: context,
+      );
+      _loadProfile();
+    } catch (e) {
+      // print("initState failed: $e");
+    }
   }
 
   @override
   void dispose() {
-    _entranceController.dispose();
+    try {
+      _entranceController.dispose();
+    } catch (e) {
+      // print("dispose failed: $e");
+    }
     super.dispose();
   }
 
-  Future<void> User_Jwt_Verify({required String Jwt_Token}) async {
-    int Result = await UserJwtVerify(Jwt_Token: Jwt_Token);
-    if (Result == 1) {
-      return;
-    } else {
-      await Clear_User_Data();
-      await Random_token_Clear();
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => ErrorPage()),
-            (route) => false,
-      );
-      Toastget().Toastmsg("Session End.Relogin please.");
-      return;
-    }
+  // ============================================================
+  // ACTIONS (the screen only forwards to the controller)
+  // ============================================================
+
+  Future<void> _loadProfile() {
+    return profileCont.loadUserInfo(
+      email: widget.User_Email,
+      jwtToken: widget.User_JwtToken,
+    );
   }
 
-  List<UserInfo> UserInfoModelList = [];
-
-  Future<void> GetUserInfo({
-    required String Email,
-    required String jwttoken,
-    required bool ChangePhoto
-  }) async {
-    try {
-
-
-      const String url = Backend_Server_Url + "api/Profile/getuserinfo";
-      Map<String, dynamic> UserDetails = {"Email": Email};
-      final response = await http.post(
-        Uri.parse(url),
-        headers: {
-          "Content-Type": "application/json",
-          'Authorization': 'Bearer $jwttoken',
-        },
-        body: json.encode(UserDetails),
-      );
-      if (response.statusCode == 200) {
-        print("profile user info");
-        Map<dynamic, dynamic> responseData = await jsonDecode(response.body);
-        UserInfoModelList.clear();
-        UserInfoModelList.add(UserInfo.fromJson(responseData));
-        return;
-      } else {
-        UserInfoModelList.clear();
-        print("Data insert in userinfo list failed.");
-        return;
-      }
-
-    } catch (obj) {
-      UserInfoModelList.clear();
-      print("Exception caught while fetching user data for profile screen");
-      print(obj.toString());
-      return;
-    }
+  Future<void> _refreshProfile() {
+    return profileCont.loadUserInfo(
+      email: widget.User_Email,
+      jwtToken: widget.User_JwtToken,
+      showLoader: false,
+    );
   }
 
-  Future<bool> UpdatePhoto({
-    required String Email,
-    required String jwttoken,
-    required String photoExtension,
-    required List<int> photoBytes,
-  }) async {
-    try {
-      print("========== UPDATE PHOTO ==========");
-      print("Email: $Email");
-      print("Photo Extension: $photoExtension");
-      print("Photo Size: ${photoBytes.length} bytes");
-
-      // --------------------------------------------------
-      // 1. Validate photo
-      // --------------------------------------------------
-
-      if (photoBytes.length == 0) {
-        print("ERROR: Photo bytes are empty.");
-        return false;
-      }
-
-      // --------------------------------------------------
-      // 2. Validate extension
-      // --------------------------------------------------
-
-      String extension = photoExtension.toLowerCase().trim();
-
-      if (extension.startsWith(".")) {
-        extension = extension.substring(1);
-      }
-
-      if (extension != "jpg" && extension != "jpeg" && extension != "png") {
-        print("ERROR: Invalid photo extension.");
-        return false;
-      }
-
-      // --------------------------------------------------
-      // 3. API URL
-      // --------------------------------------------------
-
-      const String url = Backend_Server_Url + "api/Profile/updateprofilephoto";
-
-      print("API URL: $url");
-
-      // --------------------------------------------------
-      // 4. Create multipart request
-      // --------------------------------------------------
-
-      final request = http.MultipartRequest("PUT", Uri.parse(url));
-
-      // --------------------------------------------------
-      // 5. JWT
-      // --------------------------------------------------
-
-      request.headers["Authorization"] = "Bearer $jwttoken";
-
-      // --------------------------------------------------
-      // 6. Email
-      // --------------------------------------------------
-
-      request.fields["Email"] = Email;
-
-      // --------------------------------------------------
-      // 7. Extension
-      // --------------------------------------------------
-
-      request.fields["PhotoExtension"] = extension;
-
-      // --------------------------------------------------
-      // 8. Add image bytes
-      // --------------------------------------------------
-
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          "Photo",
-          photoBytes,
-          filename: "profile.$extension",
-        ),
-      );
-
-      print("Multipart request created.");
-      print("Uploading photo...");
-
-      // --------------------------------------------------
-      // 9. Send request
-      // --------------------------------------------------
-
-      final streamedResponse = await request.send();
-
-      // --------------------------------------------------
-      // 10. Read response
-      // --------------------------------------------------
-
-      final response = await http.Response.fromStream(streamedResponse);
-
-      // --------------------------------------------------
-      // 11. Print response
-      // --------------------------------------------------
-
-      print("Response status: ${response.statusCode}");
-
-      print("Response body: ${response.body}");
-
-      // --------------------------------------------------
-      // 12. Status handling
-      // --------------------------------------------------
-
-      if (response.statusCode == 200) {
-        print("Profile photo updated successfully.");
-
-        return true;
-      }
-
-      if (response.statusCode == 400) {
-        print("Bad request: ${response.body}");
-
-        return false;
-      }
-
-      if (response.statusCode == 404) {
-        print("User not found: ${response.body}");
-
-        return false;
-      }
-
-      if (response.statusCode == 500) {
-        print("Server error: ${response.body}");
-
-        return false;
-      }
-
-      print("Unexpected status code: ${response.statusCode}");
-
-      return false;
-    } catch (obj) {
-      print("Exception caught while updating profile photo.");
-
-      print("Exception: ${obj.toString()}");
-
-      return false;
-    }
-  }
-
-  String GetPhotoUrl(String photoPath)
-  {
-    if (photoPath.isEmpty) {
-      return "";
-    }
-
-    final baseUrl = Backend_Server_Url.endsWith("/")
-        ? Backend_Server_Url.substring(0, Backend_Server_Url.length - 1)
-        : Backend_Server_Url;
-
-    final path = photoPath.startsWith("/") ? photoPath : "/$photoPath";
-
-    return "$baseUrl$path";
-  }
-
-  // ---------------------------------------------------------------------
-  // Shared onPressed logic for changing the photo — UNCHANGED behavior,
-  // just extracted so it can be triggered from the new edit-avatar button.
-  // ---------------------------------------------------------------------
+  // Pick -> confirm -> upload (controller) -> profile reloads reactively.
   Future<void> _onChangePhotoPressed() async {
-    try
-    {
+    try {
+      if (profileCont.isUploadingPhoto.value) return;
 
-     await PickPhoto();
+      await PickPhoto();
 
-        bool Result = await UpdatePhoto(
-          Email: widget.User_Email,
-          jwttoken: widget.User_JwtToken,
-          photoExtension: change_photo_cont_getx.imageExtension.value,
-          photoBytes: change_photo_cont_getx.imageBytes.value!,
-        );
+      final List<int> bytes =
+          change_photo_cont_getx.imageBytes.value ?? <int>[];
 
-        if (Result == true)
-        {
-          print("Image update success");
-          Toast.Toastmsg("Image update success");
-          providerGetx.ChangePhotoClickChange();
-          return;
-        } else {
-          print("Image update fail.");
-          Toast.Toastmsg("Fail to change photo.Try again.");
-          return;
-        }
+      if (bytes.isEmpty) {
+        Toast.Toastmsg("Fail to change photo.Try again.");
+        return;
+      }
+      if (!mounted) return;
 
+      final bool confirmed = await _confirm(
+        title: "Update profile photo?",
+        message: "Your new photo will replace the current profile photo.",
+        confirmLabel: "Update",
+        icon: Icons.photo_camera_rounded,
+      );
+      if (!confirmed || !mounted) return;
 
-    } catch (exception) {
+      await profileCont.changePhoto(
+        email: widget.User_Email,
+        jwtToken: widget.User_JwtToken,
+        photoExtension: change_photo_cont_getx.imageExtension.value,
+        photoBytes: bytes,
+      );
+    } catch (e) {
+      // print("_onChangePhotoPressed failed: $e");
       Toast.Toastmsg("Fail to change photo.Try again.");
-      return;
     }
   }
 
   Future<void> _onLogoutPressed() async {
-    await Clear_User_Data();
-    await Random_token_Clear();
-    Toast.Toastmsg("Logout Success");
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => ErrorPage()),
-    );
-    Toastget().Toastmsg("Session End.Relogin please.");
-    return;
+    try {
+      final bool confirmed = await _confirm(
+        title: "Log out?",
+        message: "You will be signed out and need to log in again.",
+        confirmLabel: "Logout",
+        icon: Icons.logout_rounded,
+        danger: true,
+      );
+      if (!confirmed || !mounted) return;
+      await profileCont.logout(context: context);
+    } catch (e) {
+      // print("_onLogoutPressed failed: $e");
+    }
   }
+
+  void _open(Widget Function(BuildContext) builder) {
+    try {
+      Navigator.push(context, MaterialPageRoute(builder: builder));
+    } catch (e) {
+      // print("Navigation failed: $e");
+      Toast.Toastmsg("Couldn't open this page. Please try again.");
+    }
+  }
+
+  Future<bool> _confirm({
+    required String title,
+    required String message,
+    required String confirmLabel,
+    required IconData icon,
+    bool danger = false,
+  }) async {
+    try {
+      final Color accent = danger ? _Theme.danger : _Theme.emerald;
+      final bool? result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return AlertDialog(
+            backgroundColor: _Theme.surface,
+            scrollable: true,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: const BorderSide(color: _Theme.border),
+            ),
+            title: Row(
+              children: [
+                Icon(icon, color: danger ? _Theme.danger : _Theme.mint),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      color: _Theme.primaryText,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: Text(
+              message,
+              style: const TextStyle(
+                color: _Theme.mutedText,
+                height: 1.5,
+                fontSize: 13.5,
+              ),
+            ),
+            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text(
+                  "Cancel",
+                  style: TextStyle(color: _Theme.mutedTextAlt),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: accent,
+                  foregroundColor: danger ? Colors.white : Colors.black,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(confirmLabel),
+              ),
+            ],
+          );
+        },
+      );
+      return result == true;
+    } catch (e) {
+      // print("_confirm failed: $e");
+      return false;
+    }
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
-    var shortestval = MediaQuery.of(context).size.shortestSide;
-    var widthval = MediaQuery.of(context).size.width;
-    var heightval = MediaQuery.of(context).size.height;
-    final orientation = MediaQuery.of(context).orientation;
-    final isLandscape = orientation == Orientation.landscape;
-
-    // Action items — same destinations/params as the provider screen,
-    // minus the 5 provider-only actions (add service, add service
-    // resources, my gallery, update service file, update service
-    // resources). Only account-level actions remain.
-    final List<_ActionItem> actions = [
-
-      _ActionItem(
-        icon: Icons.location_city_rounded,
-        label: "Shared media.",
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => SelectSharedMedia(
-              Current_User_Jwt_Token: widget.User_JwtToken,
-            ),
-          ),
-        ),
-      ),
-
-
-      _ActionItem(
-        icon: Icons.lock_reset_rounded,
-        label: "Update password",
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => UpdatePasswordScreen(
-              User_Email: widget.User_Email,
-              User_JwtToken: widget.User_JwtToken,
-              User_Role: widget.User_Role,
-              PhoneNumber: UserInfoModelList[0].phoneNumber!,
-              WhatsappNumber:  UserInfoModelList[0].whatsappPhoneNumber!,
-            ),
-          ),
-        ),
-      ),
-
-
-      _ActionItem(
-        icon: Icons.location_city_rounded,
-        label: "Update latitude and longitude",
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => UpdateLocation(
-              User_Email: widget.User_Email,
-              User_JwtToken: widget.User_JwtToken,
-              User_Role: widget.User_Role,
-            ),
-          ),
-        ),
-      ),
-
-      _ActionItem(
-          icon: Icons.location_city_rounded,
-          label: "Update address.",
-          onTap: () {
-            final user = UserInfoModelList[0];
-            Navigator.push
-              (
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    UpdateAddress(
-                      User_Email: widget.User_Email,
-                      User_JwtToken: widget.User_JwtToken,
-                      User_Role: widget.User_Role,
-                    ),
-              ),
-            );
-          }
-      ),
-
-      _ActionItem(
-        icon: Icons.location_city_rounded,
-        label: "Update User name",
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => UpdateUserName(
-              User_Email: widget.User_Email,
-              User_JwtToken: widget.User_JwtToken,
-              User_Role: widget.User_Role,
-            ),
-          ),
-        ),
-      ),
-
-      _ActionItem(
-        icon: Icons.location_city_rounded,
-        label: "Update Contact Info.",
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => UpdContactInfo(
-              Current_User_Jwt_Token: widget.User_JwtToken,
-            ),
-          ),
-        ),
-      ),
-
-
-
-
-    ];
+    final double width = MediaQuery.of(context).size.width;
+    final bool isMobile = width < 700;
+    final double hPad =
+    width < 420 ? 14 : (isMobile ? 20 : (width < 1100 ? 32 : 48));
 
     return Scaffold(
-      backgroundColor: _ProfileTheme.bgTop,
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          "My Profile",
-          style: TextStyle(
-            color: _ProfileTheme.textPrimary,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.3,
+      backgroundColor: _Theme.bgTop,
+      appBar: _buildAppBar(context),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [_Theme.bgTop, _Theme.bgMid, _Theme.bgBottom],
+                stops: [0.0, 0.5, 1.0],
+              ),
+            ),
           ),
-        ),
-        actions: [
-          IconButton(
-            tooltip: "Logout",
-            icon: const Icon(Icons.logout_rounded, color: _ProfileTheme.danger),
-            onPressed: _onLogoutPressed,
+
+          // Ambient blobs + glass bubbles, full width and height, behind content.
+          const IgnorePointer(child: AmbientBackground()),
+
+          SafeArea(
+            child: RefreshIndicator(
+              color: _Theme.emerald,
+              backgroundColor: _Theme.surface,
+              onRefresh: _refreshProfile,
+              child: LayoutBuilder(
+                builder: (context, outer) {
+                  return SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: outer.maxHeight),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Header(
+                                UserLogin: widget.UserLogin,
+                                User_JwtToken: widget.User_JwtToken,
+                              ),
+                              Center(
+                                child: ConstrainedBox(
+                                  constraints:
+                                  const BoxConstraints(maxWidth: 1100),
+                                  child: Padding(
+                                    padding: EdgeInsets.fromLTRB(
+                                      hPad,
+                                      isMobile ? 20 : 32,
+                                      hPad,
+                                      28,
+                                    ),
+                                    child: Obx(() => _buildBody(isMobile)),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          _animatedSection(
+                            animation: _footerAnim,
+                            child: Footer(User_JwtToken: widget.User_JwtToken),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
-          const SizedBox(width: 6),
         ],
       ),
+    );
+  }
 
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              _ProfileTheme.bgTop,
-              _ProfileTheme.bgMid,
-              _ProfileTheme.bgBottom,
+  // Reactive body: loading / error / no data / profile.
+  Widget _buildBody(bool isMobile) {
+    try {
+      if (profileCont.isLoading.value) {
+        return _stateShell(
+          child: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 34,
+                height: 34,
+                child: CircularProgressIndicator(
+                  color: _Theme.emerald,
+                  strokeWidth: 2.6,
+                ),
+              ),
+              SizedBox(height: 14),
+              Text(
+                "Loading profile...",
+                style: TextStyle(
+                  color: _Theme.mutedText,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
-            stops: [0.0, 0.45, 1.0],
+          ),
+        );
+      }
+
+      final UserInfo? user = profileCont.userInfo.value;
+
+      if (profileCont.hasLoadError.value || user == null) {
+        return _stateShell(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: _Theme.surfaceBar,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _Theme.border),
+                ),
+                child: const Icon(Icons.person_off_rounded,
+                    color: _Theme.mint, size: 28),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                "No user data available",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _Theme.primaryText,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                "Check your connection and try again.",
+                textAlign: TextAlign.center,
+                style: TextStyle(color: _Theme.mutedText, fontSize: 12.5),
+              ),
+              const SizedBox(height: 18),
+              ElevatedButton.icon(
+                onPressed: _loadProfile,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: const Text("Try again"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _Theme.emerald,
+                  foregroundColor: _Theme.bgTop,
+                  elevation: 0,
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _animatedSection(
+            animation: _heroAnim,
+            child: _buildHero(user, isMobile),
+          ),
+          SizedBox(height: isMobile ? 18 : 24),
+          _animatedSection(
+            animation: _infoAnim,
+            child: _buildInfoCard(user, isMobile),
+          ),
+          SizedBox(height: isMobile ? 18 : 24),
+          _animatedSection(
+            animation: _noticeAnim,
+            child: _buildRecoveryNotice(),
+          ),
+          SizedBox(height: isMobile ? 18 : 24),
+          _animatedSection(
+            animation: _actionsAnim,
+            child: _buildActions(user, isMobile),
+          ),
+        ],
+      );
+    } catch (e) {
+      // print("_buildBody failed: $e");
+      return _stateShell(
+        child: const Text(
+          "No user data available",
+          style: TextStyle(color: _Theme.mutedText),
+        ),
+      );
+    }
+  }
+
+  Widget _animatedSection({
+    required Animation<double> animation,
+    required Widget child,
+  }) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, builtChild) {
+        return Opacity(
+          opacity: animation.value.clamp(0.0, 1.0),
+          child: Transform.translate(
+            offset: Offset(0, (1 - animation.value) * 22),
+            child: builtChild,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+
+  BoxDecoration _cardDecoration({double radius = 24}) {
+    return BoxDecoration(
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF193A29), Color(0xFF12261C), Color(0xFF101F18)],
+      ),
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: _Theme.border),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.25),
+          blurRadius: 28,
+          offset: const Offset(0, 12),
+        ),
+      ],
+    );
+  }
+
+  // ============================================================
+  // APP BAR — bordered back arrow (when possible), title, logout
+  // ============================================================
+
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+    return AppBar(
+      backgroundColor: _Theme.surfaceBar,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      surfaceTintColor: Colors.transparent,
+      centerTitle: true,
+      automaticallyImplyLeading: false,
+      leadingWidth: 64,
+      leading: Navigator.of(context).canPop()
+          ? Padding(
+        padding: const EdgeInsets.only(left: 10),
+        child: Center(
+          child: Tooltip(
+            message: "Back",
+            child: Material(
+              color: _Theme.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                  color: _Theme.emerald.withOpacity(0.55),
+                  width: 1.4,
+                ),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () {
+                  try {
+                    Navigator.of(context).maybePop();
+                  } catch (e) {
+                    // print("Back failed: $e");
+                  }
+                },
+                child: const SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Icon(Icons.arrow_back_rounded,
+                      color: _Theme.primaryText, size: 20),
+                ),
+              ),
+            ),
           ),
         ),
-        child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, outerConstraints) {
-              return SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                scrollDirection: Axis.vertical,
-                child: ConstrainedBox(
-                  // Ensures the page still fills the screen (so the
-                  // gradient background looks right) when content is
-                  // short, WITHOUT forcing Header to fit into a fixed
-                  // height — if the viewport is ever shorter than
-                  // Header needs, the page scrolls instead of
-                  // overflowing.
-                  constraints: BoxConstraints(
-                    minHeight: outerConstraints.maxHeight,
+      )
+          : null,
+      title: const Text(
+        "My Profile",
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: _Theme.primaryText,
+          fontWeight: FontWeight.w800,
+          fontSize: 18,
+          letterSpacing: 0.3,
+        ),
+      ),
+      actions: [
+        Padding(
+          padding: const EdgeInsets.only(right: 12),
+          child: Center(
+            child: Tooltip(
+              message: "Logout",
+              child: Material(
+                color: _Theme.danger.withOpacity(0.10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: _Theme.danger.withOpacity(0.55),
+                    width: 1.3,
                   ),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: _onLogoutPressed,
+                  child: const SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: Icon(Icons.logout_rounded,
+                        color: _Theme.danger, size: 20),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(1),
+        child: Container(height: 1, color: _Theme.border),
+      ),
+    );
+  }
+
+  // ============================================================
+  // HERO — avatar with edit badge, name, ID and status
+  // ============================================================
+
+  Widget _buildHero(UserInfo user, bool isMobile) {
+    final double shortest = MediaQuery.of(context).size.shortestSide;
+    final double avatar = (shortest * 0.30).clamp(96.0, 150.0).toDouble();
+
+    final String fullName = [
+      _cleanOrEmpty(user.firstName),
+      _cleanOrEmpty(user.lastName),
+    ].where((e) => e.isNotEmpty).join(' ');
+    final String name = fullName.isEmpty ? kNoDataAvailable : fullName;
+    final bool nameMissing = fullName.isEmpty;
+    final String idText = valueOrNoData(user.userNumber);
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 18 : 28,
+        vertical: isMobile ? 24 : 32,
+      ),
+      decoration: _cardDecoration(radius: 28),
+      child: Column(
+        children: [
+          _buildAvatar(user, avatar),
+          const SizedBox(height: 18),
+          Text(
+            name,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: bold,
+              color: nameMissing ? _Theme.mutedText : _Theme.primaryText,
+              fontSize: isMobile ? 24 : 30,
+              height: 1.15,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.5,
+              fontStyle: nameMissing ? FontStyle.italic : FontStyle.normal,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _pill(
+                icon: Icons.badge_rounded,
+                text: idText == kNoDataAvailable ? idText : "ID  #$idText",
+                color: _Theme.mint,
+              ),
+              _statusPill(user.status),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvatar(UserInfo user, double size) {
+    final String photoUrl = profileCont.getPhotoUrl(user.photo);
+
+    Widget fallback() => Image.asset(
+      'assets/images/profile/u_p_p_1.jpg',
+      fit: BoxFit.cover,
+      errorBuilder: (c, e, s) => const Center(
+        child: Icon(Icons.person_rounded, color: _Theme.mint, size: 44),
+      ),
+    );
+
+    return SizedBox(
+      width: size + 14,
+      height: size + 14,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          // soft glow ring
+          Container(
+            width: size + 14,
+            height: size + 14,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  _Theme.emerald.withOpacity(0.22),
+                  _Theme.emerald.withOpacity(0.02),
+                  Colors.transparent,
+                ],
+              ),
+            ),
+          ),
+          Container(
+            width: size,
+            height: size,
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [_Theme.emerald, _Theme.mint],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _Theme.emerald.withOpacity(0.35),
+                  blurRadius: 24,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: ClipOval(
+              child: Container(
+                color: _Theme.surface,
+                child: photoUrl.isEmpty
+                    ? fallback()
+                    : Image.network(
+                  photoUrl,
+                  key: ValueKey(photoUrl),
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: _Theme.emerald,
+                        strokeWidth: 2.4,
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    // print("Profile image loading failed: $error");
+                    return fallback();
+                  },
+                ),
+              ),
+            ),
+          ),
+          // uploading overlay
+          Obx(() {
+            if (!profileCont.isUploadingPhoto.value) {
+              return const SizedBox.shrink();
+            }
+            return Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black.withOpacity(0.55),
+              ),
+              child: const Center(
+                child: SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    color: _Theme.mint,
+                    strokeWidth: 2.6,
+                  ),
+                ),
+              ),
+            );
+          }),
+          // edit badge
+          Positioned(
+            bottom: 2,
+            right: 2,
+            child: Tooltip(
+              message: "Change photo",
+              child: Material(
+                color: _Theme.emerald,
+                shape: const CircleBorder(
+                  side: BorderSide(color: _Theme.bgTop, width: 3),
+                ),
+                elevation: 4,
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: _onChangePhotoPressed,
+                  child: const Padding(
+                    padding: EdgeInsets.all(10),
+                    child: Icon(Icons.camera_alt_rounded,
+                        size: 18, color: _Theme.bgTop),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _cleanOrEmpty(Object? v) {
+    final String s = valueOrNoData(v);
+    return s == kNoDataAvailable ? '' : s;
+  }
+
+  Widget _statusPill(bool? status) {
+    if (status == null) {
+      return _pill(
+        icon: Icons.info_outline_rounded,
+        text: kNoDataAvailable,
+        color: _Theme.mutedText,
+      );
+    }
+    return status
+        ? _pill(
+      icon: Icons.lock_clock_rounded,
+      text: "Reserved",
+      color: _Theme.danger,
+    )
+        : _pill(
+      icon: Icons.check_circle_rounded,
+      text: "Free",
+      color: _Theme.emerald,
+    );
+  }
+
+  Widget _pill({
+    required IconData icon,
+    required String text,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(50),
+        border: Border.all(color: color.withOpacity(0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 14),
+          const SizedBox(width: 7),
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // INFO CARD — contact + location tiles
+  // ============================================================
+
+  Widget _buildInfoCard(UserInfo user, bool isMobile) {
+    final String coords = (user.latitude == null || user.longitude == null)
+        ? kNoDataAvailable
+        : "${user.latitude}, ${user.longitude}";
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isMobile ? 16 : 24),
+      decoration: _cardDecoration(radius: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader(
+            icon: Icons.contact_page_rounded,
+            title: "Account details",
+            subtitle: "Your information as saved in KaamMitra.",
+          ),
+          const SizedBox(height: 16),
+          _tileGrid([
+            _InfoTile(Icons.alternate_email_rounded, "Email", user.email),
+            _InfoTile(Icons.phone_rounded, "Phone number", user.phoneNumber),
+            _InfoTile(Icons.chat_rounded, "WhatsApp number",
+                user.whatsappPhoneNumber),
+            _InfoTile(Icons.home_rounded, "Address", user.address),
+            _InfoTile(Icons.north_rounded, "Latitude", user.latitude),
+            _InfoTile(Icons.east_rounded, "Longitude", user.longitude),
+          ]),
+          if (coords == kNoDataAvailable) ...[
+            const SizedBox(height: 12),
+            _hint("Location is not set yet. Use Update latitude and longitude below."),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionHeader({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: _Theme.mint.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _Theme.mint.withOpacity(0.35)),
+          ),
+          child: Icon(icon, color: _Theme.mint, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _Theme.primaryText,
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(color: _Theme.mutedTextAlt, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _tileGrid(List<_InfoTile> tiles) {
+    return LayoutBuilder(
+      builder: (context, box) {
+        final int cols = box.maxWidth >= 560 ? 2 : 1;
+        const double gap = 12;
+        final double w =
+        math.max(0.0, (box.maxWidth - gap * (cols - 1)) / cols);
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: [
+            for (final t in tiles) SizedBox(width: w, child: _infoTile(t)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _infoTile(_InfoTile t) {
+    final String value = valueOrNoData(t.value);
+    final bool missing = value == kNoDataAvailable;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: _Theme.surfaceBar,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _Theme.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: _Theme.emerald.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(t.icon, color: _Theme.mint, size: 16),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t.label,
+                  style: const TextStyle(
+                    color: _Theme.mutedTextAlt,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  softWrap: true,
+                  style: TextStyle(
+                    color: missing ? _Theme.mutedText : _Theme.primaryText,
+                    fontSize: 14,
+                    height: 1.35,
+                    fontWeight: FontWeight.w700,
+                    fontStyle: missing ? FontStyle.italic : FontStyle.normal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _hint(String text) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _Theme.surfaceBar,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _Theme.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.info_outline_rounded, color: _Theme.mint, size: 16),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: _Theme.mutedText,
+                fontSize: 12.5,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // RECOVERY NOTICE (replaces the old big bold text block)
+  // ============================================================
+
+  Widget _buildRecoveryNotice() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _Theme.emerald.withOpacity(0.30)),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [_Theme.emerald.withOpacity(0.13), _Theme.surfaceBar],
+          ),
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: 4,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [_Theme.emerald, _Theme.mint],
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
                   child: Column(
-                    children:
-                    [
-                      // ======================================================
-                      // HEADER — full width, OUTSIDE the horizontal padding
-                      // (mirrors Home_Screen.dart layout so it spans edge-to-edge)
-                      // ======================================================
-                      Header(
-                        UserLogin: widget.UserLogin,
-                        User_JwtToken: widget.User_JwtToken,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: _Theme.emerald.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(11),
+                            ),
+                            child: const Icon(Icons.screenshot_rounded,
+                                color: _Theme.mint, size: 17),
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              "Save your recovery details",
+                              style: TextStyle(
+                                color: _Theme.primaryText,
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.1,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-
-                      // ======================================================
-                      // PADDED CONTENT BELOW THE HEADER
-                      // ======================================================
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: widthval * (isLandscape ? 0.06 : 0.05),
-                          vertical: heightval * 0.02,
-                        ),
-                        child: Column(
-                          children: [
-
-                            Obx(
-                                  ()=>
-                                  FutureBuilder(
-                                    future: GetUserInfo(
-                                      Email: widget.User_Email,
-                                      jwttoken: widget.User_JwtToken,
-                                      ChangePhoto: providerGetx.ChangePhotoClick.value,
-                                    ),
-                                    builder: (context, snapshot) {
-                                      if (snapshot.connectionState ==
-                                          ConnectionState.waiting) {
-                                        return Padding(
-                                          padding: EdgeInsets.symmetric(
-                                            vertical: heightval * 0.08,
-                                          ),
-                                          child: const Center(
-                                            child: CircularProgressIndicator(
-                                              color: _ProfileTheme.accent,
-                                            ),
-                                          ),
-                                        );
-                                      }
-
-                                      if (snapshot.hasError) {
-                                        return const Padding(
-                                          padding: EdgeInsets.all(24),
-                                          child: Center(
-                                            child: Text(
-                                              "Error: No data available",
-                                              style: TextStyle(
-                                                color: _ProfileTheme.textMuted,
-                                              ),
-                                            ),
-                                          ),
-                                        );
-                                      }
-
-                                      if (UserInfoModelList.isNotEmpty) {
-                                        final user = UserInfoModelList[0];
-                                        final String photoPath = user.photo ?? "";
-                                        final String photoUrl = photoPath.isNotEmpty
-                                            ? GetPhotoUrl(photoPath)
-                                            : "";
-
-                                        return FadeTransition
-                                          (
-                                          opacity: _fadeIn,
-                                          child:
-                                          Column(
-                                            children: [
-                                              // =========================================
-                                              // PROFILE PHOTO + EDIT BADGE
-                                              // =========================================
-                                              Stack(
-                                                clipBehavior: Clip.none,
-                                                alignment: Alignment.center,
-                                                children: [
-                                                  Container(
-                                                    width: shortestval * 0.38,
-                                                    height: shortestval * 0.38,
-                                                    padding: const EdgeInsets.all(4),
-                                                    decoration: BoxDecoration(
-                                                      shape: BoxShape.circle,
-                                                      gradient: const LinearGradient(
-                                                        begin: Alignment.topLeft,
-                                                        end: Alignment.bottomRight,
-                                                        colors: [
-                                                          _ProfileTheme.accent,
-                                                          _ProfileTheme.accentDeep,
-                                                        ],
-                                                      ),
-                                                      boxShadow: [
-                                                        BoxShadow(
-                                                          color: _ProfileTheme.accent
-                                                              .withOpacity(0.35),
-                                                          blurRadius: 24,
-                                                          spreadRadius: 2,
-                                                        ),
-                                                      ],
-                                                    ),
-
-                                                    child: ClipOval(
-                                                      child: Container(
-                                                        color: _ProfileTheme.card,
-                                                        child: photoUrl.isEmpty
-                                                            ? Image.asset(
-                                                          'assets/images/profile/u_p_p_1.jpg',
-                                                          fit: BoxFit.cover,
-                                                        )
-                                                            : Image.network(
-                                                          photoUrl,
-                                                          fit: BoxFit.cover,
-                                                          loadingBuilder: (
-                                                              context,
-                                                              child,
-                                                              loadingProgress,
-                                                              ) {
-                                                            if (loadingProgress ==
-                                                                null) {
-                                                              return child;
-                                                            }
-                                                            return const Center(
-                                                              child:
-                                                              CircularProgressIndicator(
-                                                                color:
-                                                                _ProfileTheme
-                                                                    .accent,
-                                                              ),
-                                                            );
-                                                          },
-                                                          errorBuilder: (
-                                                              context,
-                                                              error,
-                                                              stackTrace,
-                                                              ) {
-                                                            print(
-                                                              "Profile image loading failed: $error",
-                                                            );
-                                                            return Image.asset(
-                                                              'assets/images/profile/u_p_p_1.jpg',
-                                                              fit: BoxFit.cover,
-                                                            );
-                                                          },
-                                                        ),
-                                                      ),
-                                                    ),
-
-                                                  ),
-
-
-                                                  Positioned(
-                                                    bottom: 0,
-                                                    right: shortestval * 0.02,
-                                                    child: Material(
-                                                      color: _ProfileTheme.accent,
-                                                      shape: const CircleBorder(),
-                                                      elevation: 4,
-                                                      child: InkWell(
-                                                        customBorder:
-                                                        const CircleBorder(),
-                                                        onTap: _onChangePhotoPressed,
-                                                        child: Padding(
-                                                          padding:
-                                                          const EdgeInsets.all(9),
-                                                          child: Icon(
-                                                            Icons.camera_alt_rounded,
-                                                            size: shortestval * 0.045,
-                                                            color: _ProfileTheme.bgTop,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-
-
-                                                ],
-                                              ),
-
-                                              SizedBox(height: shortestval * 0.035),
-
-                                              // =========================================
-                                              // USER NAME
-                                              // =========================================
-                                              Text(
-                                                "User Name : ${user.firstName} ${user.lastName}",
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  fontFamily: bold,
-                                                  fontSize: shortestval * 0.052,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: _ProfileTheme.textPrimary,
-                                                  letterSpacing: 0.2,
-                                                ),
-                                              ),
-                                              SizedBox(height: shortestval * 0.008),
-                                              Text(
-                                                "Id : ${user.userNumber}",
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  fontFamily: bold,
-                                                  fontSize: shortestval * 0.052,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: _ProfileTheme.textPrimary,
-                                                  letterSpacing: 0.2,
-                                                ),
-                                              ),
-                                              SizedBox(height: shortestval * 0.008),
-
-                                              Text(
-                                                "Email : ${user.email}",
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  fontFamily: bold,
-                                                  fontSize: shortestval * 0.052,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: _ProfileTheme.textPrimary,
-                                                  letterSpacing: 0.2,
-                                                ),
-                                              ),
-                                              SizedBox(height: shortestval * 0.008),
-
-                                              Text(
-                                                "Address : ${user.address}",
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  fontFamily: bold,
-                                                  fontSize: shortestval * 0.052,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: _ProfileTheme.textPrimary,
-                                                  letterSpacing: 0.2,
-                                                ),
-                                              ),
-                                              SizedBox(height: shortestval * 0.008),
-
-
-                                              Text(
-                                                "Status : ${user.status==true?"Reserve":"Free"}",
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  fontFamily: bold,
-                                                  fontSize: shortestval * 0.052,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: _ProfileTheme.textPrimary,
-                                                  letterSpacing: 0.2,
-                                                ),
-                                              ),
-                                              SizedBox(height: shortestval * 0.008),
-
-
-                                              Text(
-                                                "Phone Number : ${user.phoneNumber}",
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  fontFamily: bold,
-                                                  fontSize: shortestval * 0.052,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: _ProfileTheme.textPrimary,
-                                                  letterSpacing: 0.2,
-                                                ),
-                                              ),
-                                              SizedBox(height: shortestval * 0.008),
-
-
-                                              Text(
-                                                "Whatsapp Number : ${user.whatsappPhoneNumber}",
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  fontFamily: bold,
-                                                  fontSize: shortestval * 0.052,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: _ProfileTheme.textPrimary,
-                                                  letterSpacing: 0.2,
-                                                ),
-                                              ),
-                                              SizedBox(height: shortestval * 0.008),
-
-
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 14,
-                                                  vertical: 5,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: _ProfileTheme.accent
-                                                      .withOpacity(0.12),
-                                                  borderRadius:
-                                                  BorderRadius.circular(20),
-                                                  border: Border.all(
-                                                    color: _ProfileTheme.accent
-                                                        .withOpacity(0.4),
-                                                  ),
-                                                ),
-                                                child: Text(
-                                                  "Latitude:  ${user.latitude}",
-                                                  style: TextStyle(
-                                                    fontFamily: semibold,
-                                                    fontSize: shortestval * 0.026,
-                                                    color: _ProfileTheme.accent,
-                                                    letterSpacing: 1.1,
-                                                  ),
-                                                ),
-                                              ),
-
-                                              SizedBox(height: shortestval * 0.008),
-
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(
-                                                  horizontal: 14,
-                                                  vertical: 5,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: _ProfileTheme.accent
-                                                      .withOpacity(0.12),
-                                                  borderRadius:
-                                                  BorderRadius.circular(20),
-                                                  border: Border.all(
-                                                    color: _ProfileTheme.accent
-                                                        .withOpacity(0.4),
-                                                  ),
-                                                ),
-                                                child: Text(
-                                                  "Longitude: :  ${user.longitude}",
-                                                  style: TextStyle(
-                                                    fontFamily: semibold,
-                                                    fontSize: shortestval * 0.026,
-                                                    color: _ProfileTheme.accent,
-                                                    letterSpacing: 1.1,
-                                                  ),
-                                                ),
-                                              ),
-
-                                              SizedBox(height: shortestval * 0.008),
-
-
-                                              Text(
-                                                "Screenshot your ID,Phone Number,Email as they need to recover your password from Login Screen.You cannot reset your password without it. ",
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  fontFamily: bold,
-                                                  fontSize: shortestval * 0.052,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: _ProfileTheme.textPrimary,
-                                                  letterSpacing: 0.2,
-                                                ),
-                                              ),
-
-                                              SizedBox(height: shortestval * 0.008),
-
-                                            ],
-                                          ),
-                                        );
-                                      }
-
-                                      return const Padding(
-                                        padding: EdgeInsets.all(24),
-                                        child: Text(
-                                          "No user data available",
-                                          style: TextStyle(
-                                            color: _ProfileTheme.textMuted,
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                            ),
-
-                            SizedBox(height: heightval * 0.035),
-
-                            // =============================================
-                            // ACTIONS — responsive grid (landscape) / list (portrait)
-                            // =============================================
-                            LayoutBuilder(
-                              builder: (context, constraints) {
-                                final crossAxisCount = isLandscape
-                                    ? (constraints.maxWidth > 900 ? 3 : 2)
-                                    : (constraints.maxWidth > 600 ? 2 : 1);
-
-                                return GridView.builder(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: actions.length,
-                                  gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: crossAxisCount,
-                                    crossAxisSpacing: 14,
-                                    mainAxisSpacing: 14,
-                                    childAspectRatio:
-                                    crossAxisCount == 1 ? 4.6 : 2.9,
-                                  ),
-                                  itemBuilder: (context, index) {
-                                    final item = actions[index];
-                                    final delayStart =
-                                    (index * 0.08).clamp(0.0, 0.6);
-                                    final anim = CurvedAnimation(
-                                      parent: _entranceController,
-                                      curve: Interval(
-                                        delayStart,
-                                        (delayStart + 0.4).clamp(0.0, 1.0),
-                                        curve: Curves.easeOutCubic,
-                                      ),
-                                    );
-                                    return AnimatedBuilder(
-                                      animation: anim,
-                                      builder: (context, child) {
-                                        return Opacity(
-                                          opacity: anim.value,
-                                          child: Transform.translate(
-                                            offset:
-                                            Offset(0, (1 - anim.value) * 24),
-                                            child: child,
-                                          ),
-                                        );
-                                      },
-                                      child: _ActionTile(item: item),
-                                    );
-                                  },
-                                );
-                              },
-                            ),
-
-                            SizedBox(height: heightval * 0.03),
-                          ],
+                      const SizedBox(height: 10),
+                      Text(
+                        "Take a screenshot of your email, phone number and whatsappnumber. "
+                            "They are needed to recover your password from the "
+                            "Login screen. You cannot reset your password without them.",
+                        style: TextStyle(
+                          color: _Theme.primaryText.withOpacity(0.76),
+                          fontSize: 12.8,
+                          height: 1.6,
                         ),
                       ),
-
-                      Footer(User_JwtToken: widget.User_JwtToken,)
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _pill(
+                              icon: Icons.badge_rounded,
+                              text: "ID",
+                              color: _Theme.mint),
+                          _pill(
+                              icon: Icons.phone_rounded,
+                              text: "Phone number",
+                              color: _Theme.mint),
+                          _pill(
+                              icon: Icons.alternate_email_rounded,
+                              text: "Email",
+                              color: _Theme.mint),
+                        ],
+                      ),
                     ],
                   ),
                 ),
-              );
-            },
+              ),
+            ],
           ),
         ),
       ),
+    );
+  }
+
+  // ============================================================
+  // ACTIONS — responsive grid of tiles (account-level actions only)
+  // ============================================================
+
+  Widget _buildActions(UserInfo user, bool isMobile) {
+    final List<_ActionItem> actions = [
+      _ActionItem(
+        icon: Icons.perm_media_rounded,
+        label: "Shared media.",
+        onTap: () => _open(
+              (context) => SelectSharedMedia(
+            Current_User_Jwt_Token: widget.User_JwtToken,
+          ),
+        ),
+      ),
+      _ActionItem(
+        icon: Icons.lock_reset_rounded,
+        label: "Update password",
+        onTap: () {
+          final String? phone = user.phoneNumber;
+          final String? whatsapp = user.whatsappPhoneNumber;
+          if (phone == null || whatsapp == null) {
+            Toast.Toastmsg("No data available. Phone details are missing.");
+            return;
+          }
+          _open(
+                (context) => UpdatePasswordScreen(
+              User_Email: widget.User_Email,
+              User_JwtToken: widget.User_JwtToken,
+              User_Role: widget.User_Role,
+              PhoneNumber: phone,
+              WhatsappNumber: whatsapp,
+            ),
+          );
+        },
+      ),
+      _ActionItem(
+        icon: Icons.my_location_rounded,
+        label: "Update latitude and longitude",
+        onTap: () => _open(
+              (context) => UpdateLocation(
+            User_Email: widget.User_Email,
+            User_JwtToken: widget.User_JwtToken,
+            User_Role: widget.User_Role,
+          ),
+        ),
+      ),
+      _ActionItem(
+        icon: Icons.home_work_rounded,
+        label: "Update address.",
+        onTap: () => _open(
+              (context) => UpdateAddress(
+            User_Email: widget.User_Email,
+            User_JwtToken: widget.User_JwtToken,
+            User_Role: widget.User_Role,
+          ),
+        ),
+      ),
+      _ActionItem(
+        icon: Icons.badge_rounded,
+        label: "Update User name",
+        onTap: () => _open(
+              (context) => UpdateUserName(
+            User_Email: widget.User_Email,
+            User_JwtToken: widget.User_JwtToken,
+            User_Role: widget.User_Role,
+          ),
+        ),
+      ),
+      _ActionItem(
+        icon: Icons.contact_phone_rounded,
+        label: "Update Contact Info.",
+        onTap: () => _open(
+              (context) => UpdContactInfo(
+            Current_User_Jwt_Token: widget.User_JwtToken,
+          ),
+        ),
+      ),
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(isMobile ? 16 : 24),
+      decoration: _cardDecoration(radius: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader(
+            icon: Icons.tune_rounded,
+            title: "Manage account",
+            subtitle: "Update your details and settings.",
+          ),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, box) {
+              final double maxW = box.maxWidth;
+              final int cols = maxW >= 900 ? 3 : (maxW >= 560 ? 2 : 1);
+              const double gap = 12;
+              final double w =
+              math.max(0.0, (maxW - gap * (cols - 1)) / cols);
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  for (int i = 0; i < actions.length; i++)
+                    SizedBox(width: w, child: _actionTile(actions[i], i)),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _actionTile(_ActionItem item, int index) {
+    return Obx(() {
+      final bool hovered = profileCont.hoveredActionIndex.value == index;
+      final bool pressed = profileCont.pressedActionIndex.value == index;
+
+      return MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => profileCont.setHoveredAction(index),
+        onExit: (_) => profileCont.clearHoveredAction(),
+        child: AnimatedScale(
+          scale: pressed ? 0.97 : 1.0,
+          duration: const Duration(milliseconds: 120),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: item.onTap,
+              onTapDown: (_) => profileCont.setPressedAction(index),
+              onTapCancel: () => profileCont.clearPressedAction(),
+              onTapUp: (_) => profileCont.clearPressedAction(),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                decoration: BoxDecoration(
+                  color: _Theme.surface,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: hovered
+                        ? _Theme.emerald.withOpacity(0.55)
+                        : _Theme.border,
+                    width: hovered ? 1.3 : 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: hovered
+                          ? _Theme.emerald.withOpacity(0.16)
+                          : Colors.black.withOpacity(0.12),
+                      blurRadius: hovered ? 22 : 10,
+                      offset: Offset(0, hovered ? 8 : 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [_Theme.emerald, _Theme.mint],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(item.icon, color: _Theme.bgTop, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        item.label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: _Theme.primaryText,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          height: 1.25,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    AnimatedSlide(
+                      duration: const Duration(milliseconds: 180),
+                      offset: Offset(hovered ? 0.25 : 0, 0),
+                      child: Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        color: hovered ? _Theme.mint : _Theme.mutedTextAlt,
+                        size: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _stateShell({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      decoration: BoxDecoration(
+        color: _Theme.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _Theme.border),
+      ),
+      child: Center(child: child),
     );
   }
 }
@@ -973,109 +1391,9 @@ class _ActionItem {
   _ActionItem({required this.icon, required this.label, required this.onTap});
 }
 
-
-class _ActionTile extends StatefulWidget {
-  final _ActionItem item;
-
-  const _ActionTile({
-    required this.item,
-  });
-
-  @override
-  State<_ActionTile> createState() => _ActionTileState();
-}
-
-class _ActionTileState extends State<_ActionTile> {
-  final ProviderGetx providerGetx = Get.put(ProviderGetx());
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(
-          () => AnimatedScale(
-        scale: providerGetx.actionTilePressed.value ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 120),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(18),
-
-            onTap: widget.item.onTap,
-
-            onTapDown: (_) {
-              providerGetx.setActionTilePressed(true);
-            },
-
-            onTapCancel: () {
-              providerGetx.setActionTilePressed(false);
-            },
-
-            onTapUp: (_) {
-              providerGetx.setActionTilePressed(false);
-            },
-
-            child: Container(
-              decoration: BoxDecoration(
-                color: _ProfileTheme.card,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: _ProfileTheme.cardBorder,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.25),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          _ProfileTheme.accent,
-                          _ProfileTheme.accentDeep,
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      widget.item.icon,
-                      color: _ProfileTheme.bgTop,
-                      size: 20,
-                    ),
-                  ),
-
-                  const SizedBox(width: 14),
-
-                  Expanded(
-                    child: Text(
-                      widget.item.label,
-                      style: const TextStyle(
-                        color: _ProfileTheme.textPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14.5,
-                      ),
-                    ),
-                  ),
-
-                  const Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    color: _ProfileTheme.textMuted,
-                    size: 14,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+class _InfoTile {
+  final IconData icon;
+  final String label;
+  final Object? value;
+  _InfoTile(this.icon, this.label, this.value);
 }

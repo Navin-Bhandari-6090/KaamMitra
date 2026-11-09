@@ -937,6 +937,8 @@ Future<int> GetNewMsgStatus({
 
 
 
+
+
 List<BookingInfoModel> ReactiveBookingInfos=[];
 
 Future<int> GetBookingInfoUser({
@@ -1113,7 +1115,7 @@ Future<void> PickFile()async{
   }
 }
 
-Future<void> ClearFilesValues()async
+void ClearFilesValues()
 {
 
   try{

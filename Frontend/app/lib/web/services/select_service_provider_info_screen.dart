@@ -1,15 +1,14 @@
 import 'package:app/web/common%20widget/GreenTextfield.dart';
-
 import 'package:app/web/services/services_provider_service_select.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
 import '../../constant/Server_Database.dart';
 import '../../models/ServiceScreenServiceModel.dart';
 import '../../models/ServiceScreenUserInfoModel.dart';
 import '../../state management/getx/services/select_service_provider_info_screen_getx.dart';
 import '../../constant/variable.dart';
 import '../common method/Commmon_Method.dart';
+import '../common widget/design/bolbs_background.dart';
 
 /// ---------------------------------------------------------------------------
 /// THEME TOKENS (dark green, modern) — matches Header.dart / ProviderProfile.dart
@@ -229,7 +228,6 @@ class _SelectServiceProviderInfoScreenState
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final double widthval = media.size.width;
-    final double heightval = media.size.height;
 
     final bool isMobile = widthval < 700;
     final bool isTablet = widthval >= 700 && widthval < 1100;
@@ -249,11 +247,12 @@ class _SelectServiceProviderInfoScreenState
     return Scaffold(
       backgroundColor: _Theme.bgTop,
       body: Stack(
+        fit: StackFit.expand,
         children: [
           // Fixed background gradient
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
+          const Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
@@ -263,28 +262,11 @@ class _SelectServiceProviderInfoScreenState
               ),
             ),
           ),
-          // Ambient bubbles
-          Positioned.fill(
+
+          // Ambient blobs + glass bubbles (full width and height, behind content)
+          const Positioned.fill(
             child: IgnorePointer(
-              child: Stack(
-                children: [
-                  Positioned(
-                    top: -heightval * 0.08,
-                    left: -widthval * 0.20,
-                    child: _bubble(widthval * 0.65, _Theme.emerald, 0.16),
-                  ),
-                  Positioned(
-                    top: heightval * 0.32,
-                    right: -widthval * 0.25,
-                    child: _bubble(widthval * 0.55, _Theme.mint, 0.10),
-                  ),
-                  Positioned(
-                    bottom: -heightval * 0.10,
-                    left: -widthval * 0.15,
-                    child: _bubble(widthval * 0.60, _Theme.emerald, 0.12),
-                  ),
-                ],
-              ),
+              child: AmbientBackground(),
             ),
           ),
 
@@ -377,23 +359,6 @@ class _SelectServiceProviderInfoScreenState
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _bubble(double size, Color color, double opacity) {
-    return Container(
-      height: size,
-      width: size,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(size / 2),
-        gradient: RadialGradient(
-          colors: [
-            color.withOpacity(opacity),
-            color.withOpacity(opacity * 0.25),
-            Colors.transparent,
-          ],
-        ),
       ),
     );
   }
@@ -1079,37 +1044,18 @@ class _SelectServiceProviderInfoScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: _Theme.amber.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _Theme.amber.withOpacity(0.25)),
-            ),
-            child: const Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.warning_amber_rounded, color: _Theme.amber, size: 18),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    "Describe all the details of the service you want to book. "
-                        "The description cannot be changed later. ",
-                    style: TextStyle(
-                      color: _Theme.amber,
-                      fontSize: 12.5,
-                      height: 1.45,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+          _noticeCard(
+            icon: Icons.lock_outline_rounded,
+            title: "Final once submitted",
+            message:
+            "Describe all the details of the service you want to book. "
+                "The description cannot be changed later.",
           ),
 
+          const SizedBox(height: 22),
 
-          const SizedBox(height: 16),
+          _stepHeader(number: "1", title: "Describe what you need"),
+          const SizedBox(height: 12),
 
           GreenField(
             controller: UserBookingDescriptionTextCont,
@@ -1120,22 +1066,23 @@ class _SelectServiceProviderInfoScreenState
             height: 100,
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
 
-          Text(
-            "Use CamScanner app to convert photos into file(.pdf).You can skip file and video.That are optional.",
-            style: TextStyle(
-              color: _Theme.amber,
-              fontSize: 12.5,
-              height: 1.45,
-              fontWeight: FontWeight.w600,
-            ),
+          _stepHeader(number: "2", title: "Attach file or video", optional: true),
+          const SizedBox(height: 12),
+
+          _noticeCard(
+            icon: Icons.tips_and_updates_rounded,
+            title: "Quick tip",
+            message:
+            "Use the CamScanner app to convert photos into a file (.pdf). "
+                "You can skip file and video. They are optional.",
+            subtle: true,
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          LayoutBuilder
-            (
+          LayoutBuilder(
             builder: (context, constraints) {
               final bool twoCol = constraints.maxWidth >= 480;
 
@@ -1153,8 +1100,7 @@ class _SelectServiceProviderInfoScreenState
                 },
               );
 
-              final videoPicker = _mediaPickerCard
-                (
+              final videoPicker = _mediaPickerCard(
                 icon: Icons.videocam_rounded,
                 title: "Attach video",
                 hint: "Short video that explains your needs.",
@@ -1168,8 +1114,7 @@ class _SelectServiceProviderInfoScreenState
                 },
               );
 
-              if (twoCol)
-              {
+              if (twoCol) {
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1185,26 +1130,291 @@ class _SelectServiceProviderInfoScreenState
                   const SizedBox(height: 12),
                   videoPicker,
                 ],
-
               );
             },
           ),
 
-          const SizedBox(height: 16),
+          if (widget.Current_User_Role == "user") ...[
+            const SizedBox(height: 24),
+            _supportCard(),
+          ],
+        ],
+      ),
+    );
+  }
 
-         if(widget.Current_User_Role=="user")Text
-           (
-            "A Small Request, A Big Support for KaamMitra.KaamMitra is free for user to use.Once your provider has completed the task or you have received the service, kindly visit your (Booking Screen) and update your task complete status to Yes(Completed).Your small action means a lot to us. It helps us grow and bring more useful services to you in the future.Thank you for being a part of KaamMitra Together, we grow.",
-            style: TextStyle(
-              color: _Theme.amber,
+  // ------------------------------------------------------------
+  // Modern notice card (replaces the old yellow text blocks)
+  // ------------------------------------------------------------
+  Widget _noticeCard({
+    required IconData icon,
+    required String title,
+    required String message,
+    bool subtle = false,
+  }) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: _Theme.surfaceBar,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _Theme.emerald.withOpacity(subtle ? 0.14 : 0.30),
+          ),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              _Theme.emerald.withOpacity(subtle ? 0.05 : 0.12),
+              _Theme.surfaceBar,
+            ],
+          ),
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                width: 4,
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [_Theme.emerald, _Theme.mint],
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _Theme.emerald.withOpacity(0.14),
+                          borderRadius: BorderRadius.circular(11),
+                        ),
+                        child: Icon(icon, color: _Theme.mint, size: 17),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                color: _Theme.primaryText,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.1,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              message,
+                              style: TextStyle(
+                                color: _Theme.primaryText.withOpacity(0.72),
+                                fontSize: 12.5,
+                                height: 1.55,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------
+  // Numbered step header
+  // ------------------------------------------------------------
+  Widget _stepHeader({
+    required String number,
+    required String title,
+    bool optional = false,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(colors: [_Theme.emerald, _Theme.mint]),
+          ),
+          child: Text(
+            number,
+            style: const TextStyle(
+              color: _Theme.bgTop,
               fontSize: 12.5,
-              height: 1.45,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w900,
             ),
           ),
+        ),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: _Theme.primaryText,
+              fontSize: 14.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ),
+        if (optional) ...[
+          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+            decoration: BoxDecoration(
+              color: _Theme.surfaceBar,
+              borderRadius: BorderRadius.circular(50),
+              border: Border.all(color: _Theme.border),
+            ),
+            child: const Text(
+              "Optional",
+              style: TextStyle(
+                color: _Theme.mutedTextAlt,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 
+  // ------------------------------------------------------------
+  // Friendly support message (users only)
+  // ------------------------------------------------------------
+  Widget _supportCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1B4330), Color(0xFF12261C), Color(0xFF101F18)],
+        ),
+        border: Border.all(color: _Theme.emerald.withOpacity(0.28)),
+        boxShadow: [
+          BoxShadow(
+            color: _Theme.emerald.withOpacity(0.10),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(
+                  color: _Theme.emerald.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.favorite_rounded,
+                    color: _Theme.mint, size: 18),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  "A small request, a big support",
+                  style: TextStyle(
+                    color: _Theme.primaryText,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            "KaamMitra is free for users. Once your provider has completed "
+                "the task or you have received the service, please update your "
+                "task status to Yes (Completed).",
+            style: TextStyle(
+              color: _Theme.primaryText.withOpacity(0.75),
+              fontSize: 12.5,
+              height: 1.6,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _flowChip(Icons.receipt_long_rounded, "Booking Screen"),
+              const Icon(Icons.arrow_forward_rounded,
+                  color: _Theme.mutedTextAlt, size: 15),
+              _flowChip(Icons.check_circle_rounded, "Completed: Yes"),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            "Your small action helps us grow and bring you more useful "
+                "services. Thank you for being a part of KaamMitra. Together, we grow.",
+            style: TextStyle(
+              color: _Theme.primaryText.withOpacity(0.60),
+              fontSize: 12,
+              height: 1.6,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-
+  Widget _flowChip(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      decoration: BoxDecoration(
+        color: _Theme.emerald.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(50),
+        border: Border.all(color: _Theme.emerald.withOpacity(0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: _Theme.mint, size: 14),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: _Theme.mint,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1300,17 +1510,21 @@ class _SelectServiceProviderInfoScreenState
       onPressDown: () => providerCont.setGalleryPressed(true),
       onPressEnd: () => providerCont.setGalleryPressed(false),
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ServicesScreenProviderServiceSelect(
-              User_Email: widget.Current_User_Email,
-              User_JwtToken: widget.Current_User_JwtToken,
-              User_Role: widget.Current_User_Role,
-              Provider_Email: widget.Provider_User_Email,
+        try {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ServicesScreenProviderServiceSelect(
+                User_Email: widget.Current_User_Email,
+                User_JwtToken: widget.Current_User_JwtToken,
+                User_Role: widget.Current_User_Role,
+                Provider_Email: widget.Provider_User_Email,
+              ),
             ),
-          ),
-        );
+          );
+        } catch (e) {
+          // debugPrint("Open gallery failed: $e");
+        }
       },
     );
 
@@ -1322,32 +1536,37 @@ class _SelectServiceProviderInfoScreenState
       onPressDown: () => providerCont.setBookPressed(true),
       onPressEnd: () => providerCont.setBookPressed(false),
       onTap: () async {
-        // 1. Validation (controller)
-        final String? error = providerCont.validateBooking(
-          providerStatus: status,
-          role: widget.Current_User_Role,
-          description: UserBookingDescriptionTextCont.text,
-        );
-        if (error != null) {
-          Toast.Toastmsg(error);
-          return;
+        try {
+          // 1. Validation (controller)
+          final String? error = providerCont.validateBooking(
+            providerStatus: status,
+            role: widget.Current_User_Role,
+            description: UserBookingDescriptionTextCont.text,
+          );
+          if (error != null) {
+            Toast.Toastmsg(error);
+            return;
+          }
+
+          // 2. Confirmation (UI)
+          final bool confirmed = await _confirmBooking();
+          if (!confirmed) return;
+          if (!mounted) return;
+
+          // 3. Booking + notifications (controller owns all API calls)
+          await providerCont.bookService(
+            context: context,
+            jwtToken: widget.Current_User_JwtToken,
+            userEmail: widget.Current_User_Email,
+            serviceName: widget.Provider_Service_Name,
+            serviceId: widget.ServiceId,
+            providerNumber: widget.Providernumber,
+            distance: widget.Distance,
+            description: UserBookingDescriptionTextCont.text.trim(),
+          );
+        } catch (e) {
+          // debugPrint("Book now failed: $e");
         }
-
-        // 2. Confirmation (UI)
-        final bool confirmed = await _confirmBooking();
-        if (!confirmed) return;
-
-        // 3. Booking + notifications (controller owns all API calls)
-        await providerCont.bookService(
-          context: context,
-          jwtToken: widget.Current_User_JwtToken,
-          userEmail: widget.Current_User_Email,
-          serviceName: widget.Provider_Service_Name,
-          serviceId: widget.ServiceId,
-          providerNumber: widget.Providernumber,
-          distance: widget.Distance,
-          description: UserBookingDescriptionTextCont.text.trim(),
-        );
       },
     );
 

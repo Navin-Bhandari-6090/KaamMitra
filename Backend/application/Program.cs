@@ -7,7 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 
-var corsUrl = "https://navinbhandari2002.github.io/kaammitra.github.io/";
+var corsUrl =
+    "https://navinbhandari2002.github.io/kaammitra.github.io/";
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -163,7 +164,7 @@ var dbContext = serviceScope.ServiceProvider
 dbContext.Database.Migrate();
 
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 app.UseStaticFiles();
 

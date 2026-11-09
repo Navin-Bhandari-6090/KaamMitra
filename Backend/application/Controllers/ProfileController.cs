@@ -2772,13 +2772,13 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 user.Longitude = obj.Longitude;
                     await Database.SaveChangesAsync();
                     return Ok("Location Update success.");
-            
+
 
             }
             catch (Exception e)
             {
 
-                return StatusCode(500, "Exception caught while updating email.");
+                return StatusCode(500, "Exception caught while updating location.");
             }
         }
 
@@ -2827,13 +2827,12 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 user.LastName = obj.LastName;
                     await Database.SaveChangesAsync();
                     return Ok("Username Update success.");
-             
 
             }
             catch (Exception e)
             {
 
-                return StatusCode(500, "Exception caught while updating email.");
+                return StatusCode(500, "Exception caught while updating username.");
             }
         }
 
@@ -3304,14 +3303,13 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                
                     user.Address = obj.Address;
                     await Database.SaveChangesAsync();
-                    return Ok("Username Update success.");
-         
+                    return Ok("Address Update success.");
 
             }
             catch (Exception e)
             {
 
-                return StatusCode(500, "Exception caught while updating email.");
+                return StatusCode(500, "Exception caught while updating address.");
             }
         }
 

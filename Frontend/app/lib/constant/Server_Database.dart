@@ -11,6 +11,5 @@
 
 // const String Backend_Server_Url="https://localhost:7269/";
 
-
 const String Backend_Server_Url =
-    "https://knew-marcus-aid-bugs.trycloudflare.com";
+    "http://kaammitra.runasp.net/";

@@ -12,4 +12,4 @@
 // const String Backend_Server_Url="https://localhost:7269/";
 
 const String Backend_Server_Url =
-    "http://kaammitra.runasp.net/";
+    "https://soft-haze-78bd.chhtrirupak4444.workers.dev/";

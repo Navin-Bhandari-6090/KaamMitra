@@ -8,7 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 
 var corsUrl =
-    "https://navinbhandari2002.github.io/kaammitra.github.io/";
+    "https://navinbhandari2002.github.io/";
 
 var builder = WebApplication.CreateBuilder(args);
 

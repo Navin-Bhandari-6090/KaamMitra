@@ -30,6 +30,12 @@ namespace application.Models.DTOModels
 
         public string ReceiverName { get; set; }
 
+        public string SenderPhoto { get; set; }
+
+        public string ReceiverPhoto { get; set; }
+
+
+
 
     }
 }

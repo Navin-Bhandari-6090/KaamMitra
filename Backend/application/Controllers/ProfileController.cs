@@ -4200,6 +4200,7 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                         CreatedAt = x.CreatedAt,
                         SenderNumber = x.SenderNumber,
                         ReceiverNumber = x.ReceiverNumber,
+
                         SenderName = Database.UserInfos
     .Where(u => u.UserNumber == x.SenderNumber)
     .Select(u => (u.FirstName + " " + u.LastName).Trim())
@@ -4208,7 +4209,17 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                         ReceiverName = Database.UserInfos
     .Where(u => u.UserNumber == x.ReceiverNumber)
     .Select(u => (u.FirstName + " " + u.LastName).Trim())
-    .FirstOrDefault() ?? string.Empty
+    .FirstOrDefault() ?? string.Empty,
+
+                        SenderPhoto = Database.UserInfos
+    .Where(u => u.UserNumber == x.SenderNumber)
+    .Select(u => (u.Photo))
+    .FirstOrDefault() ?? string.Empty,
+
+                        ReceiverPhoto = Database.UserInfos
+    .Where(u => u.UserNumber == x.ReceiverNumber)
+    .Select(u => (u.Photo))
+    .FirstOrDefault() ?? string.Empty,
                     })
                     .ToListAsync();
 

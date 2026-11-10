@@ -149,10 +149,10 @@ var app = builder.Build();
 //app.UseSwaggerUI();
 
 app.UseSwagger();
+
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("./swagger/v1/swagger.json", "KaamMitra API V1");
-    // Change this from "swagger" to string.Empty to map it directly to the root domain!
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "KaamMitra API V1");
     c.RoutePrefix = string.Empty;
 });
 

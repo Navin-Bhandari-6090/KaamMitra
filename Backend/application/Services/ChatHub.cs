@@ -5,6 +5,14 @@ using System.Security.Claims;
 
 namespace application.Services
 {
+    // Real-time channel (mapped at /chatHub, unchanged).
+    //
+    // Messages are NOT sent through the hub any more: ChatController saves them
+    // and pushes "ReceiveMessage", "MessagesRead" and "ConversationRead" to the
+    // user group. The hub itself only does:
+    //   - online / offline presence
+    //   - video-call signaling
+    //   - NotifyNewMessage (OLD flow, kept so the old message screen still works)
     [Authorize(Policy = "RequireProviderUserRole")]
     public class ChatHub : Hub
     {
@@ -13,7 +21,8 @@ namespace application.Services
             ConcurrentDictionary<string, byte>
         > OnlineUsers = new();
 
-        private static string UserGroup(int UserNumber)
+        // Public: ChatController uses it to push to one user.
+        public static string UserGroup(int UserNumber)
         {
             return $"user_{UserNumber}";
         }
@@ -32,9 +41,8 @@ namespace application.Services
 
                 return null;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"GetCurrentUserNumber error: {ex.Message}");
                 return null;
             }
         }
@@ -46,6 +54,65 @@ namespace application.Services
             return CurrentUserNumber.HasValue
                 && ReceiverNumber > 0
                 && ReceiverNumber != CurrentUserNumber.Value;
+        }
+
+        // ---------------------------------------------------------------------
+        // PRESENCE (safe when one user connects / disconnects from many tabs
+        // at the same moment)
+        // ---------------------------------------------------------------------
+
+        // Returns true when the user was offline before this connection.
+        private static bool AddConnection(int UserNumber, string ConnectionId)
+        {
+            while (true)
+            {
+                var Set = OnlineUsers.GetOrAdd(
+                    UserNumber,
+                    _ => new ConcurrentDictionary<string, byte>()
+                );
+
+                lock (Set)
+                {
+                    // The set was removed by a disconnect just now: try again.
+                    if (!OnlineUsers.TryGetValue(UserNumber, out var Current) ||
+                        !ReferenceEquals(Current, Set))
+                    {
+                        continue;
+                    }
+
+                    bool WasOffline = Set.IsEmpty;
+                    Set.TryAdd(ConnectionId, 0);
+                    return WasOffline;
+                }
+            }
+        }
+
+        // Returns true when the user has no connection left.
+        private static bool RemoveConnection(int UserNumber, string ConnectionId)
+        {
+            if (!OnlineUsers.TryGetValue(UserNumber, out var Set))
+            {
+                return false;
+            }
+
+            lock (Set)
+            {
+                Set.TryRemove(ConnectionId, out _);
+
+                if (!Set.IsEmpty)
+                {
+                    return false;
+                }
+
+                OnlineUsers.TryRemove(
+                    new KeyValuePair<int, ConcurrentDictionary<string, byte>>(
+                        UserNumber,
+                        Set
+                    )
+                );
+
+                return true;
+            }
         }
 
         public override async Task OnConnectedAsync()
@@ -60,31 +127,16 @@ namespace application.Services
                     return;
                 }
 
-                var Connections = OnlineUsers.GetOrAdd(
-                    UserNumber.Value,
-                    _ => new ConcurrentDictionary<string, byte>()
-                );
-
-                bool WasOffline = Connections.IsEmpty;
-
-                Connections.TryAdd(Context.ConnectionId, 0);
-
                 await Groups.AddToGroupAsync(
                     Context.ConnectionId,
                     UserGroup(UserNumber.Value)
                 );
 
-                Console.WriteLine(
-                    $"SignalR connected: UserNumber={UserNumber.Value}, " +
-                    $"ConnectionId={Context.ConnectionId}"
-                );
+                bool WasOffline = AddConnection(UserNumber.Value, Context.ConnectionId);
 
                 if (WasOffline)
                 {
-                    await Clients.All.SendAsync(
-                        "UserOnline",
-                        UserNumber.Value
-                    );
+                    await Clients.Others.SendAsync("UserOnline", UserNumber.Value);
                 }
 
                 await Clients.Caller.SendAsync(
@@ -94,9 +146,8 @@ namespace application.Services
 
                 await base.OnConnectedAsync();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"OnConnectedAsync error: {ex.Message}");
                 Context.Abort();
             }
         }
@@ -108,34 +159,23 @@ namespace application.Services
                 var UserNumber = GetCurrentUserNumber();
 
                 if (UserNumber.HasValue &&
-                    OnlineUsers.TryGetValue(UserNumber.Value, out var Connections))
+                    RemoveConnection(UserNumber.Value, Context.ConnectionId))
                 {
-                    Connections.TryRemove(Context.ConnectionId, out _);
-
-                    if (Connections.IsEmpty &&
-                        OnlineUsers.TryRemove(UserNumber.Value, out _))
-                    {
-                        await Clients.All.SendAsync(
-                            "UserOffline",
-                            UserNumber.Value
-                        );
-                    }
+                    await Clients.Others.SendAsync("UserOffline", UserNumber.Value);
                 }
-
-                Console.WriteLine(
-                    $"SignalR disconnected: ConnectionId={Context.ConnectionId}, " +
-                    $"Error={exception?.Message}"
-                );
 
                 await base.OnDisconnectedAsync(exception);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"OnDisconnectedAsync error: {ex.Message}");
             }
         }
 
-        // Called AFTER the REST API has saved the message in PostgreSQL.
+        // ---------------------------------------------------------------------
+        // OLD FLOW: called AFTER the REST API saved the message. The new screens
+        // do not use it (ChatController/send pushes the message itself).
+        // Remove it when the old message screen is gone.
+        // ---------------------------------------------------------------------
         public async Task NotifyNewMessage(
             int ReceiverNumber,
             int ChatId,
@@ -170,18 +210,21 @@ namespace application.Services
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"NotifyNewMessage error: {ex.Message}");
                 throw new HubException("Could not notify the recipient.");
             }
         }
 
-        // WebRTC signaling: send an offer to the recipient.
-        public async Task SendCallOffer(
+        // ---------------------------------------------------------------------
+        // VIDEO CALL SIGNALING (same method names and payloads as before)
+        // ---------------------------------------------------------------------
+        private async Task Relay(
+            string ClientMethod,
             int ReceiverNumber,
             string CallId,
-            object Offer)
+            string? PayloadName,
+            object? Payload)
         {
             try
             {
@@ -190,148 +233,58 @@ namespace application.Services
                 if (!SenderNumber.HasValue ||
                     !IsValidRecipient(ReceiverNumber) ||
                     string.IsNullOrWhiteSpace(CallId) ||
-                    Offer == null)
+                    (PayloadName != null && Payload == null))
                 {
-                    throw new HubException("Invalid call offer.");
+                    throw new HubException("Invalid call request.");
                 }
 
-                await Clients.Group(UserGroup(ReceiverNumber)).SendAsync(
-                    "IncomingCall",
-                    new
-                    {
-                        CallId,
-                        SenderNumber = SenderNumber.Value,
-                        ReceiverNumber,
-                        Offer
-                    }
-                );
+                var Data = new Dictionary<string, object?>
+                {
+                    ["callId"] = CallId,
+                    ["senderNumber"] = SenderNumber.Value,
+                    ["receiverNumber"] = ReceiverNumber
+                };
+
+                if (PayloadName != null)
+                {
+                    Data[PayloadName] = Payload;
+                }
+
+                await Clients.Group(UserGroup(ReceiverNumber))
+                    .SendAsync(ClientMethod, Data);
             }
             catch (HubException)
             {
                 throw;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"SendCallOffer error: {ex.Message}");
-                throw new HubException("Could not send the call offer.");
+                throw new HubException("Could not send the call signal.");
             }
         }
 
-        // WebRTC signaling: return the answer to the caller.
-        public async Task SendCallAnswer(
-            int ReceiverNumber,
-            string CallId,
-            object Answer)
+        // WebRTC: send an offer to the recipient.
+        public Task SendCallOffer(int ReceiverNumber, string CallId, object Offer)
         {
-            try
-            {
-                var SenderNumber = GetCurrentUserNumber();
-
-                if (!SenderNumber.HasValue ||
-                    !IsValidRecipient(ReceiverNumber) ||
-                    string.IsNullOrWhiteSpace(CallId) ||
-                    Answer == null)
-                {
-                    throw new HubException("Invalid call answer.");
-                }
-
-                await Clients.Group(UserGroup(ReceiverNumber)).SendAsync(
-                    "CallAnswer",
-                    new
-                    {
-                        CallId,
-                        SenderNumber = SenderNumber.Value,
-                        ReceiverNumber,
-                        Answer
-                    }
-                );
-            }
-            catch (HubException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"SendCallAnswer error: {ex.Message}");
-                throw new HubException("Could not send the call answer.");
-            }
+            return Relay("IncomingCall", ReceiverNumber, CallId, "offer", Offer);
         }
 
-        // WebRTC signaling: exchange ICE candidates.
-        public async Task SendIceCandidate(
-            int ReceiverNumber,
-            string CallId,
-            object Candidate)
+        // WebRTC: return the answer to the caller.
+        public Task SendCallAnswer(int ReceiverNumber, string CallId, object Answer)
         {
-            try
-            {
-                var SenderNumber = GetCurrentUserNumber();
-
-                if (!SenderNumber.HasValue ||
-                    !IsValidRecipient(ReceiverNumber) ||
-                    string.IsNullOrWhiteSpace(CallId) ||
-                    Candidate == null)
-                {
-                    throw new HubException("Invalid ICE candidate.");
-                }
-
-                await Clients.Group(UserGroup(ReceiverNumber)).SendAsync(
-                    "IceCandidate",
-                    new
-                    {
-                        CallId,
-                        SenderNumber = SenderNumber.Value,
-                        ReceiverNumber,
-                        Candidate
-                    }
-                );
-            }
-            catch (HubException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"SendIceCandidate error: {ex.Message}");
-                throw new HubException("Could not send the ICE candidate.");
-            }
+            return Relay("CallAnswer", ReceiverNumber, CallId, "answer", Answer);
         }
 
-        // Notify the other participant that a call has ended.
-        public async Task EndVideoCall(
-            int ReceiverNumber,
-            string CallId)
+        // WebRTC: exchange ICE candidates.
+        public Task SendIceCandidate(int ReceiverNumber, string CallId, object Candidate)
         {
-            try
-            {
-                var SenderNumber = GetCurrentUserNumber();
+            return Relay("IceCandidate", ReceiverNumber, CallId, "candidate", Candidate);
+        }
 
-                if (!SenderNumber.HasValue ||
-                    !IsValidRecipient(ReceiverNumber) ||
-                    string.IsNullOrWhiteSpace(CallId))
-                {
-                    throw new HubException("Invalid call-end request.");
-                }
-
-                await Clients.Group(UserGroup(ReceiverNumber)).SendAsync(
-                    "CallEnded",
-                    new
-                    {
-                        CallId,
-                        SenderNumber = SenderNumber.Value,
-                        ReceiverNumber
-                    }
-                );
-            }
-            catch (HubException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"EndVideoCall error: {ex.Message}");
-                throw new HubException("Could not end the call.");
-            }
+        // Tell the other participant that the call has ended.
+        public Task EndVideoCall(int ReceiverNumber, string CallId)
+        {
+            return Relay("CallEnded", ReceiverNumber, CallId, null, null);
         }
     }
 }

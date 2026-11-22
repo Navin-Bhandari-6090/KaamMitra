@@ -5,6 +5,14 @@
     {
       "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\controllers\\chatcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:controllers\\chatcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|e:\\workplace\\programming\\01 practice\\service app\\backend\\application\\services\\chathub.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FC49D248-7798-435B-AE11-F02A4B213F17}|application.csproj|solutionrelative:services\\chathub.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -24,9 +32,35 @@
               "RelativeDocumentMoniker": "Program.cs",
               "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Program.cs",
               "RelativeToolTip": "Program.cs",
-              "ViewState": "AgIAAKYAAAAAAAAAAAAmwLUAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAYAAAAAAAAAAAAAABMAAAAdAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-11-01T11:43:15.995Z",
+              "WhenOpened": "2026-11-22T15:12:14.957Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "ChatController.cs",
+              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Controllers\\ChatController.cs",
+              "RelativeDocumentMoniker": "Controllers\\ChatController.cs",
+              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Controllers\\ChatController.cs",
+              "RelativeToolTip": "Controllers\\ChatController.cs",
+              "ViewState": "AgIAANIBAAAAAAAAAAAqwH0BAABVAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-11-20T05:32:20.979Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "ChatHub.cs",
+              "DocumentMoniker": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Services\\ChatHub.cs",
+              "RelativeDocumentMoniker": "Services\\ChatHub.cs",
+              "ToolTip": "E:\\workplace\\programming\\01 practice\\Service app\\Backend\\application\\Services\\ChatHub.cs",
+              "RelativeToolTip": "Services\\ChatHub.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAACEBAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-11-10T13:04:35.57Z",
               "EditorCaption": ""
             }
           ]

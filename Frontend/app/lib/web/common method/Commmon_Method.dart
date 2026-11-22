@@ -686,6 +686,8 @@ Future<void> GetUserInfo({
   }
 }
 
+
+
 bool LastSendSucceeded = false;
 
 Future<bool> AddChatMessage({
@@ -738,7 +740,35 @@ Future<bool> AddChatMessage({
 }
 
 
+
+
 List<ChatInfoModel> ChatInfos=[];
+
+Future<List<ChatInfoModel>> FetchChatMessagesFor({
+  required int UserNumber,
+  required String User_JwtToken,
+}) async {
+  try {
+    final response = await http.post(
+      Uri.parse("${Backend_Server_Url}api/Home/getchatmessage"),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $User_JwtToken",
+      },
+      body: jsonEncode({"UserNumber": UserNumber}),
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body) as List<dynamic>;
+      return data
+          .map((item) => ChatInfoModel.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+  } catch (e) {
+    // print('FetchChatMessagesFor error: $e');
+  }
+  return <ChatInfoModel>[];
+}
 
 Future<void> GetChatMessages({
   required int UserNumber,

@@ -1,1055 +1,664 @@
 import 'dart:async';
+import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:get/get.dart' hide navigator;
-import 'package:permission_handler/permission_handler.dart';
+import 'package:get/get.dart';
 
-// Adjust these paths to your project.
-import '../../../models/ChatInfoModel.dart';
-import '../../../web/common method/Commmon_Method.dart';
+// Adjust the relative import segment counts if your folder depth differs.
+import '../../../constant/variable.dart';
+import '../../../web/common method/Commmon_Method.dart' as common;
+
+import '../../../web/common method/communicationcommonmethod.dart';
 import '../../../web/communi_services/services.dart';
-import '../../../web/communication/chat/chat_screen.dart';
+import 'chat_screen_getx.dart';
 
-const Color _kDanger = Color(0xFFEF4444);
+// Kept so any old file that imported it from here still compiles.
+DateTime? parseServerTime(String? raw) => MsgParseTime(raw);
 
-enum CallStage { idle, calling, incoming, connecting, connected }
+// =============================================================================
+// ONE BUBBLE: a message from the server, or one that is still being sent.
+// =============================================================================
+enum MsgSendState { sending, sent, failed }
 
-// The server stores UTC but may send it without a 'Z'. Dart would then read it
-// as local time. This forces UTC, then converts to the device's local time.
-DateTime? parseServerTime(String? raw) {
-  try {
-    final String s = (raw ?? '').trim();
-    if (s.isEmpty) return null;
+class MsgItem {
+  const MsgItem({
+    required this.chatId, // 0 = not saved yet (sending / failed)
+    required this.clientId,
+    required this.text,
+    required this.time,
+    required this.senderNumber,
+    this.isRead = false,
+    this.state = MsgSendState.sent,
+  });
 
-    final bool hasZone = s.endsWith('Z') ||
-        s.endsWith('z') ||
-        RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(s);
+  final int chatId;
+  final String clientId;
+  final String text;
+  final DateTime time;
+  final int senderNumber;
+  final bool isRead;
+  final MsgSendState state;
 
-    final DateTime? parsed = DateTime.tryParse(hasZone ? s : '${s}Z');
-    return parsed?.toLocal();
-  } catch (e) {
-    print('parseServerTime error: $e');
-    return null;
+  bool get isPending => chatId == 0;
+
+  factory MsgItem.fromServer(MsgMessage m) {
+    return MsgItem(
+      chatId: m.chatId,
+      clientId: m.clientId,
+      text: m.message,
+      time: m.time ?? DateTime.now(),
+      senderNumber: m.senderNumber,
+      isRead: m.isRead,
+      state: MsgSendState.sent,
+    );
+  }
+
+  MsgItem copyWith({bool? isRead, MsgSendState? state}) {
+    return MsgItem(
+      chatId: chatId,
+      clientId: clientId,
+      text: text,
+      time: time,
+      senderNumber: senderNumber,
+      isRead: isRead ?? this.isRead,
+      state: state ?? this.state,
+    );
   }
 }
 
+// =============================================================================
+// MESSAGE SCREEN GETX (one per open chat)
+//
+//  - newest 30 messages first, older ones load when you scroll up
+//  - messages arrive live over SignalR; the chat is marked read while open
+//  - a sent message shows at once (clock), then a tick, then a blue double
+//    tick when the other person has read it; a failed one can be retried
+//  - after a reconnect the newest page is fetched again, so nothing is missed
+//
+// Video calls are in VideoCallGetx (own file).
+// =============================================================================
 class MessageScreenGetx extends GetxController {
+  static const int PageSize = 30;
+
   MessageScreenGetx({
     required this.myNumber,
     required this.otherNumber,
     required this.otherName,
     required this.jwtToken,
+    this.otherPhotoPath = '',
+    this.myPhotoPath = '',
   });
 
   final int myNumber;
   final int otherNumber;
   final String otherName;
   final String jwtToken;
+  final String otherPhotoPath;
+  final String myPhotoPath;
 
   final TextEditingController textCont = TextEditingController();
 
-  // ---------------- CHAT STATE ----------------
-  final RxList<ChatInfoModel> messages = <ChatInfoModel>[].obs;
-  final RxBool isLoading = false.obs;
-  final RxBool isSending = false.obs;
-  final RxString draft = ''.obs;
-  final RxString loadError = ''.obs;
+  // ---- messages ----
+  final RxList<MsgItem> Items = <MsgItem>[].obs;
+  final RxBool IsLoading = false.obs;
+  final RxBool IsLoadingOlder = false.obs;
+  final RxBool HasMoreOlder = false.obs;
+  final RxBool HasLoadedOnce = false.obs;
+  final RxString LoadError = ''.obs;
 
-  // Prevents overlapping reloads. If a new message arrives while a reload is
-  // running, one more reload is done right after, so nothing is missed.
-  bool _refreshing = false;
-  bool _refreshAgain = false;
+  // ---- composer ----
+  final RxString Draft = ''.obs;
+  final RxString Notice = ''.obs; // short send error, clears by itself
 
-  // ---------------- PRESENCE ----------------
-  final RxBool isOnlineNow = false.obs;
-  Worker? _presenceWorker;
+  // ---- header / status ----
+  final RxString OtherPhoto = ''.obs; // raw path
+  final RxBool IsOnline = false.obs;
+  final RxBool IsConnected = false.obs;
 
-  // ---------------- CALL STATE ----------------
-  final Rx<CallStage> callStage = CallStage.idle.obs;
-  final RxBool micOn = true.obs;
-  final RxBool camOn = true.obs;
-  final RxBool speakerOn = true.obs;
-  final RxInt callSeconds = 0.obs;
-  final RxString callError = ''.obs;
-  final RxBool remoteVideoReady = false.obs;
+  // ---- scrolling ----
+  final RxBool IsAtBottom = true.obs;
+  final RxInt UnseenCount = 0.obs; // new messages while scrolled up
 
-  final RTCVideoRenderer localRenderer = RTCVideoRenderer();
-  final RTCVideoRenderer remoteRenderer = RTCVideoRenderer();
-  late final Future<void> _renderersReady = _initRenderers();
+  // The screen sets this so the controller can scroll to the newest message.
+  VoidCallback? ScrollToLatest;
 
   SignalRService? _signal;
-  StreamSubscription<Map<String, dynamic>>? _callSub;
   StreamSubscription<Map<String, dynamic>>? _chatSub;
-  MediaStream? _localStream;
-  RTCPeerConnection? _pc;
-  String? _callId;
-  Map<String, dynamic>? _pendingOffer;
-  Timer? _callTimer;
-  Timer? _statsTimer;
+  final List<Worker> _workers = <Worker>[];
 
-  // Remote ICE candidates that arrive before the remote description is set.
-  final List<RTCIceCandidate> _pendingRemoteCandidates = [];
-  bool _remoteDescSet = false;
+  bool _loadingInitial = false;
+  bool _loadAgain = false;
 
-  // Local ICE candidates that are gathered before the offer or answer is sent.
-  final List<RTCIceCandidate> _pendingLocalCandidates = [];
-  bool _canSendCandidates = false;
+  // Messages waiting to be sent, one after the other (keeps the order).
+  final List<String> _queue = <String>[];
+  bool _sending = false;
+  Timer? _noticeTimer;
+  Timer? _markReadTimer;
 
-  // Last byte counters per stream, used to decide if media is actually flowing.
-  final Map<String, num> _lastBytes = {};
-
-  String get callDurationText {
-    final int s = callSeconds.value;
-    final String m = (s ~/ 60).toString().padLeft(2, '0');
-    final String r = (s % 60).toString().padLeft(2, '0');
-    return '$m:$r';
-  }
-
-  String get callStatusText {
-    switch (callStage.value) {
-      case CallStage.idle:
-        return '';
-      case CallStage.calling:
-        return 'Calling...';
-      case CallStage.incoming:
-        return 'Incoming video call';
-      case CallStage.connecting:
-        return 'Connecting...';
-      case CallStage.connected:
-        return callDurationText;
-    }
-  }
-
+  // ---------------------------------------------------------------------------
+  // LIFECYCLE
+  // ---------------------------------------------------------------------------
   @override
   void onInit() {
     super.onInit();
+
+    OtherPhoto.value = otherPhotoPath;
+
+    try {
+      // Makes this screen work even when it was not opened from the chat
+      // screen: loads my conversations + connects SignalR (both idempotent),
+      // and tells the app that this chat is open (no unread badge for it).
+      final ChatScreenController chats = ChatScreenController.Ensure();
+      chats.Start(JwtToken: jwtToken, UserNumber: myNumber);
+      chats.SetOpenChat(otherNumber);
+    } catch (e) {
+      // print('MessageScreenGetx open chat error: $e');
+    }
+
     _bindSignal();
-    refreshMessages();
+    LoadInitial();
   }
 
   @override
   void onClose() {
     try {
-      endCall();
-      _callSub?.cancel();
       _chatSub?.cancel();
-      _presenceWorker?.dispose();
-      _callTimer?.cancel();
-      _statsTimer?.cancel();
+      for (final Worker w in _workers) {
+        w.dispose();
+      }
+      _workers.clear();
+      _noticeTimer?.cancel();
+      _markReadTimer?.cancel();
       textCont.dispose();
-      localRenderer.dispose();
-      remoteRenderer.dispose();
+
+      if (Get.isRegistered<ChatScreenController>()) {
+        Get.find<ChatScreenController>().ClearOpenChat(otherNumber);
+      }
     } catch (e) {
-      print('MessageScreenGetx onClose error: $e');
+      // print('MessageScreenGetx onClose error: $e');
     }
     super.onClose();
   }
 
-  // ===========================================================================
-  // LOGGING
-  // All call logs start with [CALL] or [STATS], so you can filter the console.
-  // ===========================================================================
-  void _log(String msg) {
-    debugPrint('[CALL] $msg');
-  }
-
-  // ===========================================================================
-  // SIGNALR BINDING (presence + call events + new messages)
-  // ===========================================================================
+  // ---------------------------------------------------------------------------
+  // SIGNALR (presence, connection state, live chat events)
+  // ---------------------------------------------------------------------------
   void _bindSignal() {
     try {
-      _signal = Get.find<SignalRService>();
+      final SignalRService s = Get.isRegistered<SignalRService>()
+          ? Get.find<SignalRService>()
+          : Get.put(SignalRService(), permanent: true);
+      _signal = s;
 
-      isOnlineNow.value = _signal!.OnlineUserNumbers.contains(otherNumber);
-      _presenceWorker = ever(_signal!.OnlineUserNumbers, (_) {
-        try {
-          isOnlineNow.value = _signal!.OnlineUserNumbers.contains(otherNumber);
-        } catch (e) {
-          print('Presence update error: $e');
-        }
-      });
+      IsOnline.value = s.OnlineUserNumbers.contains(otherNumber);
+      IsConnected.value = s.IsConnectedRx.value;
 
-      _callSub = _signal!.CallEvents.stream.listen(
-            (event) => _onCallEvent(event),
-        onError: (e) => _log('Call event stream error: $e'),
-      );
+      _workers.add(ever(s.OnlineUserNumbers, (_) {
+        IsOnline.value = s.OnlineUserNumbers.contains(otherNumber);
+      }));
+      _workers.add(ever(s.IsConnectedRx, (_) {
+        IsConnected.value = s.IsConnectedRx.value;
+      }));
 
-      _chatSub = _signal!.ChatEvents.stream.listen(
-            (event) => _onChatEvent(event),
-        onError: (e) => print('Chat event stream error: $e'),
+      _chatSub = s.ChatEvents.stream.listen(
+        _onChatEvent,
+        onError: (e) {
+          // print('MessageScreenGetx event stream error: $e');
+        },
       );
     } catch (e) {
-      print('SignalR bind error: $e');
-      isOnlineNow.value = false;
+      // print('MessageScreenGetx bind signal error: $e');
+      IsOnline.value = false;
     }
   }
 
-  // ===========================================================================
-  // REAL-TIME CHAT EVENTS
-  // ===========================================================================
+  int _i(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse('${v ?? ''}') ?? 0;
+  }
+
+  bool _b(dynamic v) {
+    if (v is bool) return v;
+    return '${v ?? ''}'.toLowerCase() == 'true';
+  }
+
   void _onChatEvent(Map<String, dynamic> e) {
     try {
       final String type = '${e['type']}';
 
       if (type == 'ReceiveMessage') {
-        // If the payload tells us who sent it, ignore other conversations.
-        final int? from = int.tryParse('${e['senderNumber']}');
-        if (from != null && from != otherNumber && from != myNumber) return;
-
-        refreshMessages(silent: true);
+        _onReceive(e);
+      } else if (type == 'MessagesRead') {
+        // The other person read my messages: every sent message gets the
+        // blue double tick.
+        if (_i(e['readerNumber']) == otherNumber) _markMineRead();
       } else if (type == 'Reconnected') {
         // Catch up on anything missed while the connection was down.
-        refreshMessages(silent: true);
+        LoadInitial(silent: true);
       }
     } catch (err) {
-      print('_onChatEvent error: $err');
+      // print('MessageScreenGetx _onChatEvent error: $err');
     }
   }
 
-  // ===========================================================================
-  // MESSAGES
-  // ===========================================================================
-  DateTime _timeOf(ChatInfoModel m) =>
-      parseServerTime('${m.storeAt ?? ''}') ??
-          DateTime.fromMillisecondsSinceEpoch(0);
+  void _onReceive(Map<String, dynamic> e) {
+    final int chatId = _i(e['chatId']);
+    final int sender = _i(e['senderNumber']);
+    final int receiver = _i(e['receiverNumber']);
 
-  // silent = true is used for background updates (no loading flag).
-  Future<void> refreshMessages({bool silent = false}) async {
-    if (_refreshing) {
-      _refreshAgain = true;
+    final bool mine = sender == myNumber;
+    final bool inThisChat = (mine && receiver == otherNumber) ||
+        (sender == otherNumber && receiver == myNumber);
+
+    // Other conversations are handled by the chat list, not here.
+    if (!inThisChat || chatId <= 0) return;
+
+    // Already shown (the REST answer and the live push both arrive).
+    if (Items.any((i) => i.chatId == chatId)) return;
+
+    _mergeServer(
+      <MsgMessage>[
+        MsgMessage(
+          chatId: chatId,
+          message: '${e['message'] ?? ''}',
+          storeAt: '${e['storeAt'] ?? ''}',
+          senderNumber: sender,
+          receiverNumber: receiver,
+          isRead: _b(e['isRead']),
+          clientId: '${e['clientId'] ?? ''}',
+        ),
+      ],
+    );
+
+    if (!mine) {
+      // The chat is open: these messages are read right away.
+      _markReadSoon();
+      if (!IsAtBottom.value) UnseenCount.value = UnseenCount.value + 1;
+    }
+  }
+
+  void _markMineRead() {
+    final List<MsgItem> next = Items
+        .map((i) => (i.senderNumber == myNumber && !i.isPending && !i.isRead)
+        ? i.copyWith(isRead: true)
+        : i)
+        .toList();
+    Items.assignAll(next);
+  }
+
+  // ---------------------------------------------------------------------------
+  // LOADING
+  // ---------------------------------------------------------------------------
+  void _handleSessionExpired() {
+    try {
+      final ctx = Get.context;
+      if (ctx != null) {
+      Toast.Toastmsg("Your session has expired. Please login again.");
+        common.Logout(context: ctx);
+      }
+    } catch (e) {
+      // print('MessageScreenGetx session expired error: $e');
+    }
+  }
+
+  // silent = true: background refresh (reconnect), no loading flag.
+  Future<void> LoadInitial({bool silent = false}) async {
+    if (_loadingInitial) {
+      _loadAgain = true;
       return;
     }
 
-    _refreshing = true;
+    _loadingInitial = true;
     try {
       if (!silent) {
-        isLoading.value = true;
-        loadError.value = '';
+        IsLoading.value = true;
+        LoadError.value = '';
       }
 
-      do {
-        _refreshAgain = false;
-
-        await GetChatMessages(
-          UserNumber: otherNumber,
-          User_JwtToken: jwtToken,
-        );
-
-        // Sort by real time so the order always matches the clock.
-        final List<ChatInfoModel> sorted = List<ChatInfoModel>.from(ChatInfos);
-        sorted.sort((a, b) => _timeOf(a).compareTo(_timeOf(b)));
-        messages.assignAll(sorted);
-      } while (_refreshAgain);
-    } catch (e) {
-      if (!silent) loadError.value = 'Could not load messages.';
-      print('refreshMessages error: $e');
-    } finally {
-      _refreshing = false;
-      if (!silent) isLoading.value = false;
-    }
-  }
-
-
-
-  Future<void> requestSend() async {
-    final String text = draft.value.trim();
-    if (text.isEmpty || isSending.value) return;
-
-    isSending.value = true;
-    try {
-      final bool sent = await AddChatMessage(
-        Message: text,
-        ReceiverNumber: otherNumber,
-        User_JwtToken: jwtToken,
+      final MsgMessagesResult r = await MsgGetMessages(
+        jwt: jwtToken,
+        userNumber: otherNumber,
+        limit: PageSize,
       );
 
-      if (sent) {
-        textCont.clear();
-        draft.value = '';
-        await refreshMessages(silent: true);
-        await _notifyReceiver(text);
+      if (!r.ok) {
+        if (r.statusCode == 401) {
+          _handleSessionExpired();
+        }
+        if (Items.isEmpty) {
+          LoadError.value = 'Could not load messages. Please try again.';
+        }
+        return;
       }
+
+      LoadError.value = '';
+      if (OtherPhoto.value.isEmpty && r.otherUserPhoto.isNotEmpty) {
+        OtherPhoto.value = r.otherUserPhoto;
+      }
+
+      final bool first = !HasLoadedOnce.value;
+      _mergeServer(r.messages);
+      if (first) HasMoreOlder.value = r.hasMore;
+      HasLoadedOnce.value = true;
+
+      _markReadSoon();
     } catch (e) {
-      print('requestSend error: $e');
+      // print('MessageScreenGetx LoadInitial error: $e');
+      if (Items.isEmpty) {
+        LoadError.value = 'Could not load messages. Please try again.';
+      }
     } finally {
-      isSending.value = false;
+      IsLoading.value = false;
+      _loadingInitial = false;
+
+      if (_loadAgain) {
+        _loadAgain = false;
+        LoadInitial(silent: true);
+      }
     }
   }
 
-  Future<void> _notifyReceiver(String text) async {
-    try {
-      ChatInfoModel? saved;
-      for (int i = messages.length - 1; i >= 0; i--) {
-        final ChatInfoModel m = messages[i];
-        if (m.chatId != null &&
-            m.senderNumber == myNumber &&
-            (m.message ?? '').trim() == text) {
-          saved = m;
-          break;
-        }
-      }
+  // Scroll up: loads the page before the oldest saved message.
+  Future<void> LoadOlder() async {
+    if (IsLoadingOlder.value || !HasMoreOlder.value || !HasLoadedOnce.value) {
+      return;
+    }
 
-      await _signal?.NotifyNewMessage(
-        ReceiverNumber: otherNumber,
-        ChatId: saved?.chatId?.toInt() ?? 0,
-        Message: text,
-        StoreAt: saved?.storeAt ?? '',
+    int oldest = 0;
+    for (final MsgItem i in Items) {
+      if (i.chatId > 0 && (oldest == 0 || i.chatId < oldest)) oldest = i.chatId;
+    }
+    if (oldest == 0) return;
+
+    IsLoadingOlder.value = true;
+    try {
+      final MsgMessagesResult r = await MsgGetMessages(
+        jwt: jwtToken,
+        userNumber: otherNumber,
+        beforeChatId: oldest,
+        limit: PageSize,
       );
-    } catch (e) {
-      print('_notifyReceiver error: $e');
-    }
-  }
 
-  // ===========================================================================
-  // PERMISSIONS
-  // Asks every time a call starts or is accepted, until both are granted.
-  // ===========================================================================
-  Future<bool> _ensureCallPermissions() async {
-    try {
-      // On web the browser shows its own prompt inside getUserMedia.
-      if (kIsWeb) return true;
-
-      while (true) {
-        final Map<Permission, PermissionStatus> s =
-        await [Permission.camera, Permission.microphone].request();
-
-        final PermissionStatus? cam = s[Permission.camera];
-        final PermissionStatus? mic = s[Permission.microphone];
-        _log('Permission camera=$cam microphone=$mic');
-
-        if (cam?.isGranted == true && mic?.isGranted == true) return true;
-
-        final bool blocked = cam?.isPermanentlyDenied == true ||
-            mic?.isPermanentlyDenied == true ||
-            cam?.isRestricted == true ||
-            mic?.isRestricted == true;
-
-        if (blocked) {
-          // The system will no longer show its prompt: send the user to
-          // settings instead.
-          final bool open = await confirmAction(
-            title: 'Allow camera and microphone',
-            message: 'Video calls need camera and microphone access. '
-                'Open settings and turn both on.',
-            confirmText: 'Open settings',
-          );
-          if (open) await openAppSettings();
-          return false;
-        }
-
-        // Denied this time only: explain and ask again.
-        final bool retry = await confirmAction(
-          title: 'Permission needed',
-          message: 'Camera and microphone are required for video calls.',
-          confirmText: 'Allow',
-        );
-        if (!retry) return false;
+      if (!r.ok) {
+        if (r.statusCode == 401) _handleSessionExpired();
+        return;
       }
+
+      _mergeServer(r.messages);
+      HasMoreOlder.value = r.hasMore;
     } catch (e) {
-      _log('Permission flow ERROR: $e');
-      return false;
+      // print('MessageScreenGetx LoadOlder error: $e');
+    } finally {
+      IsLoadingOlder.value = false;
     }
   }
 
-  // ===========================================================================
-  // MEDIA
-  // ===========================================================================
-  Future<void> _initRenderers() async {
-    try {
-      await localRenderer.initialize();
-      await remoteRenderer.initialize();
-
-      localRenderer.onFirstFrameRendered = () {
-        _log('LOCAL video: first frame rendered on screen (camera works)');
-      };
-      remoteRenderer.onFirstFrameRendered = () {
-        _log('REMOTE video: first frame rendered on screen (remote video works)');
-      };
-
-      _log('Renderers initialized');
-    } catch (e) {
-      callError.value = 'Video is not supported on this device.';
-      _log('Renderer init ERROR: $e');
-    }
+  Future<void> Refresh() async {
+    await LoadInitial();
   }
 
-  // Permissions are already checked by _ensureCallPermissions().
-  Future<bool> _openLocalMedia() async {
+  // Puts server messages into the list: saved messages sorted by ChatId, then
+  // the ones still being sent. Removes a "sending" copy once the server has it.
+  void _mergeServer(List<MsgMessage> incoming) {
+    final Map<int, MsgItem> byId = <int, MsgItem>{
+      for (final MsgItem i in Items)
+        if (i.chatId > 0) i.chatId: i,
+    };
+    final List<MsgItem> pending = Items.where((i) => i.isPending).toList();
+
+    int maxKnown = 0;
+    for (final int id in byId.keys) {
+      if (id > maxKnown) maxKnown = id;
+    }
+
+    final List<int> newer = <int>[];
+    for (final MsgMessage m in incoming) {
+      if (m.chatId <= 0) continue;
+      if (!byId.containsKey(m.chatId) && m.chatId > maxKnown) newer.add(m.chatId);
+      byId[m.chatId] = MsgItem.fromServer(m);
+    }
+
+    // A "sending" message the server already has (matched by ClientId, or by
+    // the same text when the answer was lost): drop the local copy.
+    for (final int id in newer) {
+      final MsgItem saved = byId[id]!;
+      if (saved.senderNumber != myNumber) continue;
+
+      int p = -1;
+      if (saved.clientId.isNotEmpty) {
+        p = pending.indexWhere((x) => x.clientId == saved.clientId);
+      }
+      if (p < 0) {
+        p = pending.indexWhere((x) => x.text.trim() == saved.text.trim());
+      }
+      if (p >= 0) pending.removeAt(p);
+    }
+
+    final List<MsgItem> server = byId.values.toList()
+      ..sort((a, b) => a.chatId.compareTo(b.chatId));
+
+    Items.assignAll(<MsgItem>[...server, ...pending]);
+  }
+
+  // ---------------------------------------------------------------------------
+  // MARK READ (the chat is open, so what arrives is read)
+  // ---------------------------------------------------------------------------
+  void _markReadSoon() {
     try {
-      _log('Calling getUserMedia (audio + video)...');
-      _localStream ??= await navigator.mediaDevices.getUserMedia({
-        'audio': true,
-        'video': {
-          'facingMode': 'user',
-          'width': {'ideal': 1280},
-          'height': {'ideal': 720},
-        },
+      _markReadTimer?.cancel();
+      _markReadTimer = Timer(const Duration(milliseconds: 250), () {
+        _markRead();
       });
-
-      final List<MediaStreamTrack> audio = _localStream!.getAudioTracks();
-      final List<MediaStreamTrack> video = _localStream!.getVideoTracks();
-      _log('getUserMedia OK: audioTracks=${audio.length} '
-          'videoTracks=${video.length}');
-      for (final MediaStreamTrack t in video) {
-        _log('LOCAL video track: label="${t.label}" enabled=${t.enabled}');
-      }
-      for (final MediaStreamTrack t in audio) {
-        _log('LOCAL audio track: label="${t.label}" enabled=${t.enabled}');
-      }
-
-      localRenderer.srcObject = _localStream;
-      _applyTrackStates();
-      return true;
     } catch (e) {
-      _log('getUserMedia FAILED: $e');
-      return false;
+      // print('MessageScreenGetx markReadSoon error: $e');
     }
   }
 
-  void _applyTrackStates() {
+  Future<void> _markRead() async {
     try {
-      for (final MediaStreamTrack t in _localStream?.getAudioTracks() ?? []) {
-        t.enabled = micOn.value;
-      }
-      for (final MediaStreamTrack t in _localStream?.getVideoTracks() ?? []) {
-        t.enabled = camOn.value;
-      }
-      _log('Track states applied: mic=${micOn.value} cam=${camOn.value}');
-    } catch (e) {
-      _log('Apply track state ERROR: $e');
-    }
-  }
+      // Only when there is something unread from the other person.
+      final bool anyUnread = Items.any(
+            (i) => i.senderNumber == otherNumber && !i.isPending && !i.isRead,
+      );
+      if (!anyUnread) return;
 
-  Future<void> _createPeer() async {
-    _log('Creating RTCPeerConnection...');
-    final RTCPeerConnection pc = await createPeerConnection({
-      'iceServers': [
-        {'urls': 'stun:stun.l.google.com:19302'},
-      ],
-      'sdpSemantics': 'unified-plan',
-    });
-    _pc = pc;
-
-    for (final MediaStreamTrack track in _localStream!.getTracks()) {
-      await pc.addTrack(track, _localStream!);
-      _log('Added LOCAL ${track.kind} track to peer connection');
-    }
-
-    pc.onIceCandidate = (RTCIceCandidate c) {
-      try {
-        _sendLocalCandidate(c);
-      } catch (e) {
-        _log('onIceCandidate ERROR: $e');
-      }
-    };
-
-    pc.onIceConnectionState = (RTCIceConnectionState state) {
-      _log('ICE connection state: $state');
-    };
-
-    pc.onTrack = (RTCTrackEvent event) {
-      try {
-        _log('onTrack: REMOTE ${event.track.kind} track received, '
-            'streams=${event.streams.length}');
-        if (event.streams.isNotEmpty) {
-          remoteRenderer.srcObject = event.streams.first;
-          remoteVideoReady.value = true;
-          _log('Remote stream attached to remote renderer');
+      // The server reply "ConversationRead" is not needed here: the other
+      // person's list gets "MessagesRead" and ours is cleared optimistically.
+      if (Get.isRegistered<ChatScreenController>()) {
+        final ChatScreenController chats = Get.find<ChatScreenController>();
+        if (chats.Jwt.isNotEmpty) {
+          await chats.MarkRead(otherNumber);
+          _setIncomingRead();
+          return;
         }
-      } catch (e) {
-        _log('onTrack ERROR: $e');
       }
-    };
 
-    pc.onConnectionState = (RTCPeerConnectionState state) {
-      try {
-        _log('Peer connection state: $state');
-        if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnected) {
-          _markConnected();
-          _startStatsLogging();
-        } else if (state ==
-            RTCPeerConnectionState.RTCPeerConnectionStateFailed) {
-          _fail('The connection failed. Check your network and try again.');
+      await MsgMarkRead(jwt: jwtToken, userNumber: otherNumber);
+      _setIncomingRead();
+    } catch (e) {
+      // print('MessageScreenGetx markRead error: $e');
+    }
+  }
+
+  // Incoming messages are stored as read after the server accepted it, so the
+  // next check does not call the server again.
+  void _setIncomingRead() {
+    final List<MsgItem> next = Items
+        .map((i) => (i.senderNumber == otherNumber && !i.isPending && !i.isRead)
+        ? i.copyWith(isRead: true)
+        : i)
+        .toList();
+    Items.assignAll(next);
+  }
+
+  // ---------------------------------------------------------------------------
+  // SENDING (instant bubble, then sent / read ticks, retry when it fails)
+  // ---------------------------------------------------------------------------
+  bool get HasText => Draft.value.trim().isNotEmpty;
+
+  void SendMessage() {
+    try {
+      final String text = Draft.value.trim();
+      if (text.isEmpty) return;
+
+      if (text.length > 4000) {
+        _showNotice('A message can have 4000 characters at most.');
+        return;
+      }
+
+      textCont.clear();
+      Draft.value = '';
+
+      final String clientId = '${DateTime.now().microsecondsSinceEpoch}_$myNumber';
+
+      Items.add(MsgItem(
+        chatId: 0,
+        clientId: clientId,
+        text: text,
+        time: DateTime.now(),
+        senderNumber: myNumber,
+        state: MsgSendState.sending,
+      ));
+
+      ScrollToLatest?.call();
+
+      _queue.add(clientId);
+      _pump();
+    } catch (e) {
+      // print('MessageScreenGetx SendMessage error: $e');
+    }
+  }
+
+  // Sends the waiting messages one after the other.
+  Future<void> _pump() async {
+    if (_sending) return;
+    _sending = true;
+
+    try {
+      while (_queue.isNotEmpty) {
+        final String id = _queue.first;
+        final int idx = Items.indexWhere((i) => i.isPending && i.clientId == id);
+
+        // Deleted by the user while it waited.
+        if (idx < 0) {
+          _queue.removeAt(0);
+          continue;
         }
-      } catch (e) {
-        _log('onConnectionState ERROR: $e');
-      }
-    };
-  }
 
-  // ===========================================================================
-  // STREAM PROOF: logs whether bytes are really moving in each direction
-  // ===========================================================================
-  void _startStatsLogging() {
-    _statsTimer?.cancel();
-    _lastBytes.clear();
-    _statsTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      _logStats();
-    });
-    _log('Stats logging started (every 2s)');
-  }
+        final MsgItem item = Items[idx];
 
-  Future<void> _logStats() async {
-    try {
-      final RTCPeerConnection? pc = _pc;
-      if (pc == null) return;
+        final MsgSendResult r = await MsgSendMessage(
+          jwt: jwtToken,
+          receiverNumber: otherNumber,
+          message: item.text,
+          clientId: id,
+        );
 
-      final List<StatsReport> reports = await pc.getStats();
+        _queue.remove(id);
 
-      for (final StatsReport r in reports) {
-        final String type = r.type;
-        if (type != 'outbound-rtp' && type != 'inbound-rtp') continue;
+        if (r.ok && r.message != null) {
+          _mergeServer(<MsgMessage>[r.message!]);
+        } else {
+          _setState(id, MsgSendState.failed);
 
-        final dynamic kindRaw = r.values['kind'] ?? r.values['mediaType'];
-        final String kind = '$kindRaw';
-        final bool outgoing = type == 'outbound-rtp';
-        final String key = '$type|$kind';
-
-        final num bytes = num.tryParse(
-          '${outgoing ? r.values['bytesSent'] : r.values['bytesReceived']}',
-        ) ??
-            0;
-        final num packets = num.tryParse(
-          '${outgoing ? r.values['packetsSent'] : r.values['packetsReceived']}',
-        ) ??
-            0;
-
-        final num previous = _lastBytes[key] ?? 0;
-        final num delta = bytes - previous;
-        _lastBytes[key] = bytes;
-
-        final String direction = outgoing ? 'SENDING' : 'RECEIVING';
-        final String status = delta > 0 ? 'FLOWING' : 'NO DATA';
-
-        _log('[STATS] $direction $kind: $status '
-            '(+${delta}B in last 2s, total ${bytes}B, packets $packets)');
+          if (r.statusCode == 401) {
+            _handleSessionExpired();
+          } else if (r.error.isNotEmpty) {
+            _showNotice(r.error);
+          } else {
+            _showNotice('Message not sent. Check your connection and retry.');
+          }
+        }
       }
     } catch (e) {
-      _log('Stats ERROR: $e');
+      // print('MessageScreenGetx _pump error: $e');
+    } finally {
+      _sending = false;
     }
   }
 
-  // ===========================================================================
-  // ICE CANDIDATE HANDLING
-  // ===========================================================================
-
-  // Local candidates are held until the offer or answer is on its way.
-  // Otherwise the other side would receive them before it knows the call.
-  void _sendLocalCandidate(RTCIceCandidate c) {
-    if (c.candidate == null) return;
-
-    if (!_canSendCandidates || _callId == null) {
-      _pendingLocalCandidates.add(c);
-      return;
-    }
-
-    _signal?.SendIceCandidate(
-      ReceiverNumber: otherNumber,
-      CallId: _callId!,
-      Candidate: {
-        'candidate': c.candidate,
-        'sdpMid': c.sdpMid,
-        'sdpMLineIndex': c.sdpMLineIndex,
-      },
-    );
+  void _setState(String clientId, MsgSendState state) {
+    final int idx = Items.indexWhere((i) => i.isPending && i.clientId == clientId);
+    if (idx < 0) return;
+    Items[idx] = Items[idx].copyWith(state: state);
   }
 
-  void _flushLocalCandidates() {
-    _canSendCandidates = true;
-    final List<RTCIceCandidate> held =
-    List<RTCIceCandidate>.from(_pendingLocalCandidates);
-    _pendingLocalCandidates.clear();
-    _log('Sending ${held.length} buffered local ICE candidates');
-    for (final RTCIceCandidate c in held) {
-      _sendLocalCandidate(c);
-    }
-  }
-
-  Future<void> _flushRemoteCandidates() async {
-    final List<RTCIceCandidate> held =
-    List<RTCIceCandidate>.from(_pendingRemoteCandidates);
-    _pendingRemoteCandidates.clear();
-    _log('Applying ${held.length} buffered remote ICE candidates');
-    for (final RTCIceCandidate c in held) {
-      await _pc?.addCandidate(c);
-    }
-  }
-
-  // ===========================================================================
-  // CALL ACTIONS
-  // ===========================================================================
-
-  // Caller: ask permission, open camera, create offer, send it.
-  Future<void> startCall() async {
+  void Retry(String clientId) {
     try {
-      if (callStage.value != CallStage.idle) return;
+      final int idx =
+      Items.indexWhere((i) => i.isPending && i.clientId == clientId);
+      if (idx < 0 || Items[idx].state != MsgSendState.failed) return;
 
-      if (_signal == null || !_signal!.IsSignalRConnected) {
-        callError.value = 'You are offline. Check your connection.';
-        _log('startCall blocked: SignalR not connected');
-        return;
-      }
-
-      callError.value = '';
-
-      // Asked every time until granted.
-      if (!await _ensureCallPermissions()) {
-        callError.value =
-        'Camera and microphone permission is required for video calls.';
-        return;
-      }
-
-      callStage.value = CallStage.calling;
-      _callId = '${DateTime.now().millisecondsSinceEpoch}_$myNumber';
-      _log('=== START CALL to user $otherNumber, callId=$_callId ===');
-
-      await _renderersReady;
-
-      final bool ok = await _openLocalMedia();
-      if (!ok) {
-        _fail('Could not open the camera or microphone.');
-        return;
-      }
-
-      await _createPeer();
-      final RTCSessionDescription offer = await _pc!.createOffer();
-      await _pc!.setLocalDescription(offer);
-      _log('Offer created and set as local description');
-
-      await _signal!.SendCallOffer(
-        ReceiverNumber: otherNumber,
-        CallId: _callId!,
-        Offer: {'sdp': offer.sdp, 'type': offer.type},
-      );
-      _log('Offer SENT to user $otherNumber');
-
-      _flushLocalCandidates();
+      Items[idx] = Items[idx].copyWith(state: MsgSendState.sending);
+      if (!_queue.contains(clientId)) _queue.add(clientId);
+      _pump();
     } catch (e) {
-      _log('startCall ERROR: $e');
-      _fail('Could not start the call.');
+      // print('MessageScreenGetx Retry error: $e');
     }
   }
 
-  // Callee: ask permission, open camera, apply offer, create answer, send it.
-  Future<void> acceptCall() async {
+  void DiscardFailed(String clientId) {
     try {
-      if (callStage.value != CallStage.incoming || _pendingOffer == null) {
-        return;
-      }
-
-      // Asked every time until granted. If refused, the incoming screen stays
-      // so the user can try again or decline.
-      if (!await _ensureCallPermissions()) {
-        callError.value =
-        'Camera and microphone permission is required to accept the call.';
-        return;
-      }
-
-      _log('=== ACCEPT CALL from user $otherNumber, callId=$_callId ===');
-      callStage.value = CallStage.connecting;
-      await _renderersReady;
-
-      final bool ok = await _openLocalMedia();
-      if (!ok) {
-        _fail('Could not open the camera or microphone.');
-        return;
-      }
-
-      await _createPeer();
-
-      await _pc!.setRemoteDescription(RTCSessionDescription(
-        _pendingOffer!['sdp'] as String?,
-        _pendingOffer!['type'] as String?,
-      ));
-      _remoteDescSet = true;
-      _log('Remote offer set');
-      await _flushRemoteCandidates();
-
-      final RTCSessionDescription answer = await _pc!.createAnswer();
-      await _pc!.setLocalDescription(answer);
-      _log('Answer created and set as local description');
-
-      await _signal!.SendCallAnswer(
-        ReceiverNumber: otherNumber,
-        CallId: _callId!,
-        Answer: {'sdp': answer.sdp, 'type': answer.type},
-      );
-      _log('Answer SENT to user $otherNumber');
-
-      _flushLocalCandidates();
+      _queue.remove(clientId);
+      Items.removeWhere((i) => i.isPending && i.clientId == clientId);
     } catch (e) {
-      _log('acceptCall ERROR: $e');
-      _fail('Could not accept the call.');
+      // print('MessageScreenGetx Discard error: $e');
     }
   }
 
-  void declineCall() {
+  void _showNotice(String text) {
     try {
-      if (callStage.value != CallStage.incoming) return;
-      final String? id = _callId;
-      if (id != null) {
-        _signal?.EndVideoCall(ReceiverNumber: otherNumber, CallId: id);
-      }
-      _log('Call DECLINED');
-      _cleanup();
+      Notice.value = text;
+      _noticeTimer?.cancel();
+      _noticeTimer = Timer(const Duration(seconds: 5), () {
+        Notice.value = '';
+      });
     } catch (e) {
-      _log('declineCall ERROR: $e');
+      // print('MessageScreenGetx notice error: $e');
     }
   }
 
-  // Hang up and tell the other side.
-  void endCall() {
-    try {
-      final String? id = _callId;
-      if (id != null && callStage.value != CallStage.idle) {
-        _signal?.EndVideoCall(ReceiverNumber: otherNumber, CallId: id);
-      }
-      if (callStage.value != CallStage.idle) _log('Call ENDED by this user');
-      _cleanup();
-    } catch (e) {
-      _log('endCall ERROR: $e');
-    }
+  void ClearNotice() {
+    Notice.value = '';
   }
 
-  void toggleMic() {
-    try {
-      micOn.toggle();
-      _applyTrackStates();
-    } catch (e) {
-      _log('toggleMic ERROR: $e');
-    }
+  // ---------------------------------------------------------------------------
+  // SCROLL STATE (the screen reports it)
+  // ---------------------------------------------------------------------------
+  void SetAtBottom(bool value) {
+    if (IsAtBottom.value != value) IsAtBottom.value = value;
+    if (value && UnseenCount.value != 0) UnseenCount.value = 0;
   }
 
-  void toggleCamera() {
-    try {
-      camOn.toggle();
-      _applyTrackStates();
-    } catch (e) {
-      _log('toggleCamera ERROR: $e');
-    }
+  // ---------------------------------------------------------------------------
+  // LABELS
+  // ---------------------------------------------------------------------------
+  String TimeLabel(DateTime t) {
+    final int h = t.hour % 12 == 0 ? 12 : t.hour % 12;
+    final String mm = t.minute.toString().padLeft(2, '0');
+    return '$h:$mm ${t.hour >= 12 ? 'PM' : 'AM'}';
   }
 
-  // UI only for now. Speaker routing needs native audio APIs.
-  void toggleSpeaker() {
-    try {
-      speakerOn.toggle();
-    } catch (e) {
-      _log('toggleSpeaker ERROR: $e');
-    }
-  }
+  bool SameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
-  // ===========================================================================
-  // INCOMING SIGNALING
-  // ===========================================================================
-  void _onCallEvent(Map<String, dynamic> e) {
-    try {
-      final int from = int.tryParse('${e['senderNumber']}') ?? 0;
-      if (from != otherNumber) return; // only this conversation
+  // "Today", "Yesterday" or "05 Nov 2026".
+  String DayLabel(DateTime d) {
+    const List<String> months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
 
-      final String type = '${e['type']}';
-      final String callId = '${e['callId']}';
-      _log('Signal received: $type (callId=$callId)');
+    final DateTime now = DateTime.now();
+    final DateTime today = DateTime(now.year, now.month, now.day);
+    final DateTime day = DateTime(d.year, d.month, d.day);
+    final int diff = today.difference(day).inDays;
 
-      if (type == 'IncomingCall') {
-        _onIncoming(e);
-      } else if (type == 'CallAnswer' && callId == _callId) {
-        _onAnswer(e);
-      } else if (type == 'IceCandidate' && callId == _callId) {
-        _onRemoteCandidate(e);
-      } else if (type == 'CallEnded' && callId == _callId) {
-        _log('Remote user ended the call');
-        _cleanup();
-      }
-    } catch (err) {
-      _log('_onCallEvent ERROR: $err');
-    }
-  }
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Yesterday';
 
-  void _onIncoming(Map<String, dynamic> e) {
-    if (callStage.value != CallStage.idle) {
-      // Already in a call: tell the caller we are busy.
-      _signal?.EndVideoCall(
-        ReceiverNumber: otherNumber,
-        CallId: '${e['callId']}',
-      );
-      _log('Incoming call ignored: already in a call');
-      return;
-    }
-    _callId = '${e['callId']}';
-    _pendingOffer = Map<String, dynamic>.from(e['offer'] as Map);
-    callStage.value = CallStage.incoming;
-    _log('Incoming call from user $otherNumber, callId=$_callId');
-  }
-
-  Future<void> _onAnswer(Map<String, dynamic> e) async {
-    try {
-      if (_pc == null) return;
-      final Map<String, dynamic> a =
-      Map<String, dynamic>.from(e['answer'] as Map);
-
-      await _pc!.setRemoteDescription(RTCSessionDescription(
-        a['sdp'] as String?,
-        a['type'] as String?,
-      ));
-      _remoteDescSet = true;
-      _log('Remote answer set');
-      await _flushRemoteCandidates();
-      callStage.value = CallStage.connecting;
-    } catch (err) {
-      _log('_onAnswer ERROR: $err');
-      _fail('Could not connect the call.');
-    }
-  }
-
-  Future<void> _onRemoteCandidate(Map<String, dynamic> e) async {
-    try {
-      final Map<String, dynamic> m =
-      Map<String, dynamic>.from(e['candidate'] as Map);
-
-      final RTCIceCandidate cand = RTCIceCandidate(
-        m['candidate'] as String?,
-        m['sdpMid'] as String?,
-        (m['sdpMLineIndex'] as num?)?.toInt(),
-      );
-
-      if (_pc == null || !_remoteDescSet) {
-        _pendingRemoteCandidates.add(cand);
-      } else {
-        await _pc!.addCandidate(cand);
-      }
-    } catch (err) {
-      _log('_onRemoteCandidate ERROR: $err');
-    }
-  }
-
-  // ===========================================================================
-  // STATE HELPERS
-  // ===========================================================================
-  void _markConnected() {
-    try {
-      if (callStage.value == CallStage.connected) return;
-      callStage.value = CallStage.connected;
-      callSeconds.value = 0;
-      _callTimer?.cancel();
-      _callTimer = Timer.periodic(
-        const Duration(seconds: 1),
-            (_) => callSeconds.value++,
-      );
-      _log('=== CALL CONNECTED ===');
-    } catch (e) {
-      _log('_markConnected ERROR: $e');
-    }
-  }
-
-  void _fail(String message) {
-    try {
-      _log('Call FAILED: $message');
-      callError.value = message;
-      final String? id = _callId;
-      if (id != null) {
-        _signal?.EndVideoCall(ReceiverNumber: otherNumber, CallId: id);
-      }
-      _cleanup();
-    } catch (e) {
-      _log('_fail ERROR: $e');
-    }
-  }
-
-  void _cleanup() {
-    try {
-      _callTimer?.cancel();
-      _callTimer = null;
-      _statsTimer?.cancel();
-      _statsTimer = null;
-      _lastBytes.clear();
-      callSeconds.value = 0;
-
-      final RTCPeerConnection? pc = _pc;
-      _pc = null;
-      pc?.close();
-
-      try {
-        _localStream?.getTracks().forEach((t) => t.stop());
-        _localStream?.dispose();
-      } catch (e) {
-        _log('Stop local media ERROR: $e');
-      }
-      _localStream = null;
-
-      try {
-        localRenderer.srcObject = null;
-        remoteRenderer.srcObject = null;
-      } catch (e) {
-        _log('Clear renderer ERROR: $e');
-      }
-      remoteVideoReady.value = false;
-
-      _pendingRemoteCandidates.clear();
-      _pendingLocalCandidates.clear();
-      _canSendCandidates = false;
-      _remoteDescSet = false;
-      _pendingOffer = null;
-      _callId = null;
-
-      micOn.value = true;
-      camOn.value = true;
-      speakerOn.value = true;
-
-      callStage.value = CallStage.idle;
-      _log('Call resources released');
-    } catch (e) {
-      _log('_cleanup ERROR: $e');
-    }
-  }
-}
-
-// =============================================================================
-// CONFIRMATION (use for every add / update / delete that touches the database)
-// Also used by the permission flow.
-// =============================================================================
-Future<bool> confirmAction({
-  required String title,
-  required String message,
-  String confirmText = 'Confirm',
-  bool destructive = false,
-}) async {
-  try {
-    final bool? result = await Get.dialog<bool>(
-      MessageConfirmDialog(
-        title: title,
-        message: message,
-        confirmText: confirmText,
-        destructive: destructive,
-      ),
-      barrierDismissible: true,
-    );
-    return result ?? false;
-  } catch (e) {
-    print('confirmAction error: $e');
-    return false;
-  }
-}
-
-class MessageConfirmDialog extends StatelessWidget {
-  final String title;
-  final String message;
-  final String confirmText;
-  final bool destructive;
-
-  const MessageConfirmDialog({
-    super.key,
-    required this.title,
-    required this.message,
-    required this.confirmText,
-    required this.destructive,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final Color accent = destructive ? _kDanger : ChatAccent;
-
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 380),
-        child: Container(
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            color: ChatSurface,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: ChatBorder),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.35),
-                blurRadius: 30,
-                offset: const Offset(0, 14),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: accent.withOpacity(0.12),
-                  border: Border.all(color: accent.withOpacity(0.35)),
-                ),
-                child: Icon(
-                  destructive
-                      ? Icons.warning_amber_rounded
-                      : Icons.help_outline_rounded,
-                  color: accent,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: ChatText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                style: const TextStyle(
-                  color: ChatMuted,
-                  fontSize: 13.5,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 22),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Get.back(result: false),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: ChatText,
-                        side: const BorderSide(color: ChatBorder),
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                      ),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Get.back(result: true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: accent,
-                        foregroundColor:
-                        destructive ? Colors.white : ChatBackground,
-                        elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                      ),
-                      child: Text(
-                        confirmText,
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    final String dd = d.day.toString().padLeft(2, '0');
+    return '$dd ${months[math.max(0, math.min(11, d.month - 1))]} ${d.year}';
   }
 }

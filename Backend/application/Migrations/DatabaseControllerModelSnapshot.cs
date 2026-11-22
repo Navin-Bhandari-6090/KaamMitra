@@ -218,9 +218,15 @@ namespace application.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ChatId"));
 
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Message")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("ReceiverNumber")
                         .HasColumnType("integer");

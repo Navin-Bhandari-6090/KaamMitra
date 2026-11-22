@@ -232,6 +232,9 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             }
         }
 
+
+
+
         [Authorize(Policy = "RequireforAllRole")]
         [HttpPut]
         [Route("addchatstatus")]

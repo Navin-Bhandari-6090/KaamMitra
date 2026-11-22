@@ -1,13 +1,15 @@
-/// sharedMediaId : 1
-/// mediaDescription : "tytyyrte"
-/// servicePhoto : "/uploads/media/photos/774de4d015c748f8afe7180261e77ed6.jpg"
-/// serviceVideo : ""
+/// sharedMediaId : 2
+/// mediaDescription : "fds fsdf fssd"
+/// servicePhoto : "/uploads/media/photos/8d3344825f014d6a8d5606ef6881e67c.png"
+/// serviceVideo : "/uploads/media/videos/b49d5e0d621a451c8a3d0ddcbfc460ce.mp4"
 /// serviceFile : ""
-/// createdAt : "2026-10-30T06:59:12.582095Z"
-/// senderNumber : 5
-/// receiverNumber : 6
-/// senderName : "aaa55 aaa"
-/// receiverName : "aaa 6 aaa"
+/// createdAt : "2026-11-10T08:15:32.319254Z"
+/// senderNumber : 2
+/// receiverNumber : 1
+/// senderName : "vdgfdgdf gfdgfgfd"
+/// receiverName : "gdfggdf dfgdgf"
+/// senderPhoto : ""
+/// receiverPhoto : ""
 
 class SharedMediaModel {
   SharedMediaModel({
@@ -20,7 +22,9 @@ class SharedMediaModel {
       num? senderNumber, 
       num? receiverNumber, 
       String? senderName, 
-      String? receiverName,}){
+      String? receiverName, 
+      String? senderPhoto, 
+      String? receiverPhoto,}){
     _sharedMediaId = sharedMediaId;
     _mediaDescription = mediaDescription;
     _servicePhoto = servicePhoto;
@@ -31,6 +35,8 @@ class SharedMediaModel {
     _receiverNumber = receiverNumber;
     _senderName = senderName;
     _receiverName = receiverName;
+    _senderPhoto = senderPhoto;
+    _receiverPhoto = receiverPhoto;
 }
 
   SharedMediaModel.fromJson(dynamic json) {
@@ -44,6 +50,8 @@ class SharedMediaModel {
     _receiverNumber = json['receiverNumber'];
     _senderName = json['senderName'];
     _receiverName = json['receiverName'];
+    _senderPhoto = json['senderPhoto'];
+    _receiverPhoto = json['receiverPhoto'];
   }
   num? _sharedMediaId;
   String? _mediaDescription;
@@ -55,6 +63,8 @@ class SharedMediaModel {
   num? _receiverNumber;
   String? _senderName;
   String? _receiverName;
+  String? _senderPhoto;
+  String? _receiverPhoto;
 SharedMediaModel copyWith({  num? sharedMediaId,
   String? mediaDescription,
   String? servicePhoto,
@@ -65,6 +75,8 @@ SharedMediaModel copyWith({  num? sharedMediaId,
   num? receiverNumber,
   String? senderName,
   String? receiverName,
+  String? senderPhoto,
+  String? receiverPhoto,
 }) => SharedMediaModel(  sharedMediaId: sharedMediaId ?? _sharedMediaId,
   mediaDescription: mediaDescription ?? _mediaDescription,
   servicePhoto: servicePhoto ?? _servicePhoto,
@@ -75,6 +87,8 @@ SharedMediaModel copyWith({  num? sharedMediaId,
   receiverNumber: receiverNumber ?? _receiverNumber,
   senderName: senderName ?? _senderName,
   receiverName: receiverName ?? _receiverName,
+  senderPhoto: senderPhoto ?? _senderPhoto,
+  receiverPhoto: receiverPhoto ?? _receiverPhoto,
 );
   num? get sharedMediaId => _sharedMediaId;
   String? get mediaDescription => _mediaDescription;
@@ -86,6 +100,8 @@ SharedMediaModel copyWith({  num? sharedMediaId,
   num? get receiverNumber => _receiverNumber;
   String? get senderName => _senderName;
   String? get receiverName => _receiverName;
+  String? get senderPhoto => _senderPhoto;
+  String? get receiverPhoto => _receiverPhoto;
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
@@ -99,6 +115,8 @@ SharedMediaModel copyWith({  num? sharedMediaId,
     map['receiverNumber'] = _receiverNumber;
     map['senderName'] = _senderName;
     map['receiverName'] = _receiverName;
+    map['senderPhoto'] = _senderPhoto;
+    map['receiverPhoto'] = _receiverPhoto;
     return map;
   }
 

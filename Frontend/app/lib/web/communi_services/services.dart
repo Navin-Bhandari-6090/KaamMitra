@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:app/constant/Server_Database.dart';
 import 'package:get/get.dart';
@@ -6,23 +7,45 @@ import 'package:signalr_netcore/http_connection_options.dart';
 import 'package:signalr_netcore/hub_connection.dart';
 import 'package:signalr_netcore/hub_connection_builder.dart';
 
+// =============================================================================
+// SIGNALR SERVICE (permanent, one per app)
+//  - connects once after login and reconnects by itself with back-off
+//  - pushes chat events to ChatEvents and call events to CallEvents
+//  - every method the old screens used is still here
+// =============================================================================
 class SignalRService extends GetxService {
   HubConnection? connection;
 
   bool IsSignalRConnected = false;
   bool IsSignalRConnecting = false;
 
-  // Reactive online-user list for ChatScreen.
+  // Reactive mirror of IsSignalRConnected (screens listen to this).
+  final RxBool IsConnectedRx = false.obs;
+
+  // Reactive online-user list.
   final RxSet<int> OnlineUserNumbers = <int>{}.obs;
 
-  // Call signaling is pushed here so MessageScreenGetx can listen.
+  // Call signaling.
   final StreamController<Map<String, dynamic>> CallEvents =
   StreamController<Map<String, dynamic>>.broadcast();
 
-  // Chat events (new message, reconnected) are pushed here so
-  // MessageScreenGetx can update the open chat in real time.
+  // Chat events. 'type' is one of:
+  //   ReceiveMessage    a full message pushed by the server
+  //   MessagesRead      the other person read my messages
+  //   ConversationRead  I read a chat (from another tab / device)
+  //   Reconnected       the connection is up (again): refetch what was missed
   final StreamController<Map<String, dynamic>> ChatEvents =
   StreamController<Map<String, dynamic>>.broadcast();
+
+  String _jwt = '';
+  bool _manualClose = false;
+  int _retryAttempt = 0;
+  Timer? _retryTimer;
+
+  void _setConnected(bool value) {
+    IsSignalRConnected = value;
+    if (IsConnectedRx.value != value) IsConnectedRx.value = value;
+  }
 
   void _emitCall(String type, dynamic payload) {
     try {
@@ -30,7 +53,7 @@ class SignalRService extends GetxService {
         CallEvents.add({...Map<String, dynamic>.from(payload), 'type': type});
       }
     } catch (e) {
-      print('Emit call event error: $e');
+      // print('Emit call event error: $e');
     }
   }
 
@@ -41,96 +64,134 @@ class SignalRService extends GetxService {
           : <String, dynamic>{};
       ChatEvents.add({...data, 'type': type});
     } catch (e) {
-      print('Emit chat event error: $e');
+      // print('Emit chat event error: $e');
+    }
+  }
+
+  // Retry after 2, 4, 8, 15, then every 30 seconds, until connected.
+  void _scheduleReconnect() {
+    try {
+      if (_manualClose || _jwt.isEmpty) return;
+      if (_retryTimer?.isActive == true) return;
+
+      const List<int> delays = [2, 4, 8, 15, 30];
+      final int seconds = delays[math.min(_retryAttempt, delays.length - 1)];
+      _retryAttempt++;
+
+      _retryTimer = Timer(Duration(seconds: seconds), () {
+        if (_manualClose) return;
+        ConnectSignalR(User_JwtToken: _jwt);
+      });
+    } catch (e) {
+      // print('SignalR schedule reconnect error: $e');
     }
   }
 
   Future<void> ConnectSignalR({required String User_JwtToken}) async {
     try {
       if (User_JwtToken.trim().isEmpty) {
-        print('SignalR: JWT token is missing.');
+        // print('SignalR: JWT token is missing.');
         return;
       }
 
+      _jwt = User_JwtToken;
+      _manualClose = false;
+
       if (IsSignalRConnected || IsSignalRConnecting) {
-        print('SignalR is already connected or connecting.');
+        // print('SignalR is already connected or connecting.');
         return;
       }
 
       IsSignalRConnecting = true;
+      _retryTimer?.cancel();
 
-      connection = HubConnectionBuilder()
+      final HubConnection hub = HubConnectionBuilder()
           .withUrl(
-        Backend_Server_Url+'chatHub',
+        Backend_Server_Url + 'chatHub',
         options: HttpConnectionOptions(
-          accessTokenFactory: () async => User_JwtToken,
+          accessTokenFactory: () async => _jwt,
         ),
       )
           .withAutomaticReconnect()
           .build();
+
+      connection = hub;
 
       // Register events BEFORE starting the connection.
       ListenForOnlineUsers();
       ListenForChatMessages();
       ListenForVideoCalls();
 
-      connection!.onclose(({error}) {
+      hub.onclose(({error}) {
         try {
-          IsSignalRConnected = false;
+          // Ignore callbacks of an old, already replaced connection.
+          if (!identical(connection, hub)) return;
+
+          _setConnected(false);
           IsSignalRConnecting = false;
           OnlineUserNumbers.clear();
+          connection = null;
 
-          print('SignalR connection closed: $error');
+          // print('SignalR connection closed: $error');
+          _scheduleReconnect();
         } catch (e) {
-          print('SignalR onclose callback error: $e');
+          // print('SignalR onclose callback error: $e');
         }
       });
 
-      connection!.onreconnecting(({error}) {
+      hub.onreconnecting(({error}) {
         try {
-          IsSignalRConnected = false;
-          print('SignalR reconnecting: $error');
+          _setConnected(false);
+          // print('SignalR reconnecting: $error');
         } catch (e) {
-          print('SignalR reconnect callback error: $e');
+          // print('SignalR reconnecting callback error: $e');
         }
       });
 
-      connection!.onreconnected(({connectionId}) {
+      hub.onreconnected(({connectionId}) {
         try {
-          IsSignalRConnected = true;
+          _setConnected(true);
           IsSignalRConnecting = false;
+          _retryAttempt = 0;
 
-          print('SignalR reconnected: $connectionId');
-          // Messages may have arrived while disconnected: tell open chats
-          // to reload.
+          // print('SignalR reconnected: $connectionId');
+          // Messages may have arrived while disconnected.
           _emitChat('Reconnected', null);
         } catch (e) {
-          print('SignalR reconnected callback error: $e');
+          // print('SignalR reconnected callback error: $e');
         }
       });
 
-      await connection!.start();
+      await hub.start();
 
-      IsSignalRConnected = true;
-      print('SignalR connected successfully.');
+      _setConnected(true);
+      _retryAttempt = 0;
+
+      // Every successful connect asks the screens to refetch once. That also
+      // covers messages that arrived between the first page load and now.
+      _emitChat('Reconnected', null);
+
+      // print('SignalR connected successfully.');
     } catch (e) {
-      IsSignalRConnected = false;
-      print('SignalR connection error: $e');
+      // print('SignalR connection error: $e');
+      _setConnected(false);
 
       try {
         await connection?.stop();
       } catch (stopError) {
-        print('SignalR cleanup error: $stopError');
+        // print('SignalR cleanup error: $stopError');
       }
 
       connection = null;
+      _scheduleReconnect();
     } finally {
       IsSignalRConnecting = false;
     }
   }
 
+  // ---------------------------------------------------------------------------
   // ONLINE / OFFLINE EVENTS
-
+  // ---------------------------------------------------------------------------
   void ListenForOnlineUsers() {
     try {
       connection?.on('OnlineUsers', (arguments) {
@@ -144,17 +205,13 @@ class SignalRService extends GetxService {
 
             for (final item in data) {
               final userNumber = int.tryParse(item.toString());
-
-              if (userNumber != null) {
-                parsedUsers.add(userNumber);
-              }
+              if (userNumber != null) parsedUsers.add(userNumber);
             }
 
             OnlineUserNumbers.assignAll(parsedUsers);
-            print('Online users: $OnlineUserNumbers');
           }
         } catch (e) {
-          print('OnlineUsers event error: $e');
+          // print('OnlineUsers event error: $e');
         }
       });
 
@@ -163,14 +220,9 @@ class SignalRService extends GetxService {
           if (arguments == null || arguments.isEmpty) return;
 
           final userNumber = int.tryParse(arguments[0].toString());
-
-          if (userNumber != null) {
-            OnlineUserNumbers.add(userNumber);
-          }
-
-          print('User online: $userNumber');
+          if (userNumber != null) OnlineUserNumbers.add(userNumber);
         } catch (e) {
-          print('UserOnline event error: $e');
+          // print('UserOnline event error: $e');
         }
       });
 
@@ -179,45 +231,58 @@ class SignalRService extends GetxService {
           if (arguments == null || arguments.isEmpty) return;
 
           final userNumber = int.tryParse(arguments[0].toString());
-
-          if (userNumber != null) {
-            OnlineUserNumbers.remove(userNumber);
-          }
-
-          print('User offline: $userNumber');
+          if (userNumber != null) OnlineUserNumbers.remove(userNumber);
         } catch (e) {
-          print('UserOffline event error: $e');
+          // print('UserOffline event error: $e');
         }
       });
     } catch (e) {
-      print('Online listener setup error: $e');
+      // print('Online listener setup error: $e');
     }
   }
 
-  // REAL-TIME CHAT EVENT
-
+  // ---------------------------------------------------------------------------
+  // REAL-TIME CHAT EVENTS
+  // ---------------------------------------------------------------------------
   void ListenForChatMessages() {
     try {
       connection?.on('ReceiveMessage', (arguments) {
         try {
-          print('Real-time message received: $arguments');
-
-          // Pass it to the open chat screen (if any). Payload may be missing
-          // or in any shape, the screen simply reloads from the server.
           final dynamic payload =
           (arguments != null && arguments.isNotEmpty) ? arguments[0] : null;
           _emitChat('ReceiveMessage', payload);
         } catch (e) {
-          print('ReceiveMessage event error: $e');
+          // print('ReceiveMessage event error: $e');
+        }
+      });
+
+      connection?.on('MessagesRead', (arguments) {
+        try {
+          final dynamic payload =
+          (arguments != null && arguments.isNotEmpty) ? arguments[0] : null;
+          _emitChat('MessagesRead', payload);
+        } catch (e) {
+          // print('MessagesRead event error: $e');
+        }
+      });
+
+      connection?.on('ConversationRead', (arguments) {
+        try {
+          final dynamic payload =
+          (arguments != null && arguments.isNotEmpty) ? arguments[0] : null;
+          _emitChat('ConversationRead', payload);
+        } catch (e) {
+          // print('ConversationRead event error: $e');
         }
       });
     } catch (e) {
-      print('Chat listener setup error: $e');
+      // print('Chat listener setup error: $e');
     }
   }
 
+  // ---------------------------------------------------------------------------
   // VIDEO CALL SIGNALING EVENTS
-
+  // ---------------------------------------------------------------------------
   void ListenForVideoCalls() {
     try {
       connection?.on('IncomingCall', (arguments) {
@@ -225,7 +290,7 @@ class SignalRService extends GetxService {
           if (arguments == null || arguments.isEmpty) return;
           _emitCall('IncomingCall', arguments[0]);
         } catch (e) {
-          print('IncomingCall event error: $e');
+          // print('IncomingCall event error: $e');
         }
       });
 
@@ -234,7 +299,7 @@ class SignalRService extends GetxService {
           if (arguments == null || arguments.isEmpty) return;
           _emitCall('CallAnswer', arguments[0]);
         } catch (e) {
-          print('CallAnswer event error: $e');
+          // print('CallAnswer event error: $e');
         }
       });
 
@@ -243,7 +308,7 @@ class SignalRService extends GetxService {
           if (arguments == null || arguments.isEmpty) return;
           _emitCall('IceCandidate', arguments[0]);
         } catch (e) {
-          print('IceCandidate event error: $e');
+          // print('IceCandidate event error: $e');
         }
       });
 
@@ -252,15 +317,16 @@ class SignalRService extends GetxService {
           if (arguments == null || arguments.isEmpty) return;
           _emitCall('CallEnded', arguments[0]);
         } catch (e) {
-          print('CallEnded event error: $e');
+          // print('CallEnded event error: $e');
         }
       });
     } catch (e) {
-      print('Video call listener setup error: $e');
+      // print('Video call listener setup error: $e');
     }
   }
 
-  // Send a real-time notification AFTER your REST API saves the message.
+  // OLD flow (REST saves, then this notifies). Kept only for the old message
+  // screen. The new screens send through the REST "send" endpoint instead.
   Future<void> NotifyNewMessage({
     required int ReceiverNumber,
     required int ChatId,
@@ -269,7 +335,7 @@ class SignalRService extends GetxService {
   }) async {
     try {
       if (!IsSignalRConnected || connection == null) {
-        print('Cannot notify recipient: SignalR is disconnected.');
+        // print('Cannot notify recipient: SignalR is disconnected.');
         return;
       }
 
@@ -278,12 +344,13 @@ class SignalRService extends GetxService {
         args: [ReceiverNumber, ChatId, Message, StoreAt],
       );
     } catch (e) {
-      print('SignalR message notification error: $e');
+      // print('SignalR message notification error: $e');
     }
   }
 
+  // ---------------------------------------------------------------------------
   // VIDEO SIGNALING METHODS
-
+  // ---------------------------------------------------------------------------
   Future<void> SendCallOffer({
     required int ReceiverNumber,
     required String CallId,
@@ -297,7 +364,7 @@ class SignalRService extends GetxService {
         args: [ReceiverNumber, CallId, Offer],
       );
     } catch (e) {
-      print('Send call offer error: $e');
+      // print('Send call offer error: $e');
     }
   }
 
@@ -314,7 +381,7 @@ class SignalRService extends GetxService {
         args: [ReceiverNumber, CallId, Answer],
       );
     } catch (e) {
-      print('Send call answer error: $e');
+      // print('Send call answer error: $e');
     }
   }
 
@@ -331,7 +398,7 @@ class SignalRService extends GetxService {
         args: [ReceiverNumber, CallId, Candidate],
       );
     } catch (e) {
-      print('Send ICE candidate error: $e');
+      // print('Send ICE candidate error: $e');
     }
   }
 
@@ -344,16 +411,22 @@ class SignalRService extends GetxService {
 
       await connection!.invoke('EndVideoCall', args: [ReceiverNumber, CallId]);
     } catch (e) {
-      print('End video call error: $e');
+      // print('End video call error: $e');
     }
   }
 
+  // Call on logout: stops the connection and the automatic reconnect.
   Future<void> DisconnectSignalR() async {
     try {
+      _manualClose = true;
+      _retryTimer?.cancel();
+      _retryAttempt = 0;
+      _jwt = '';
+
       final currentConnection = connection;
 
       connection = null;
-      IsSignalRConnected = false;
+      _setConnected(false);
       IsSignalRConnecting = false;
       OnlineUserNumbers.clear();
 
@@ -361,11 +434,11 @@ class SignalRService extends GetxService {
         await currentConnection.stop();
       }
 
-      print('SignalR disconnected.');
+      // print('SignalR disconnected.');
     } catch (e) {
-      print('SignalR disconnect error: $e');
+      // print('SignalR disconnect error: $e');
     } finally {
-      IsSignalRConnected = false;
+      _setConnected(false);
       IsSignalRConnecting = false;
     }
   }

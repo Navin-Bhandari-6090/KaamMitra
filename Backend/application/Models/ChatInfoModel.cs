@@ -20,5 +20,11 @@ namespace application.Models
         [Required]
         public int ReceiverNumber { get; set; }
 
+        // false until the receiver opens the chat.
+        public bool IsRead { get; set; }
+
+        // When the receiver read it (null while unread).
+        public DateTime? ReadAt { get; set; }
+
     }
 }

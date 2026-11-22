@@ -114,6 +114,7 @@ class _SendMediaState extends State<SendMedia> {
       if (!c.validate()) return;
       final bool ok = await _confirmSend();
       if (ok && mounted) await c.submit(context);
+      ClearFilesValues();
     } catch (_) {
       Toast.Toastmsg("Something went wrong. Please try again.");
     }
@@ -142,6 +143,7 @@ class _SendMediaState extends State<SendMedia> {
           ),
           title: const Row(
             children: [
+
               Icon(Icons.send_rounded, color: _C.accent),
               SizedBox(width: 10),
               Flexible(
@@ -153,6 +155,7 @@ class _SendMediaState extends State<SendMedia> {
                       fontWeight: FontWeight.w700),
                 ),
               ),
+
             ],
           ),
           content: Column(

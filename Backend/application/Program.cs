@@ -6,9 +6,19 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
+using static System.Net.WebRequestMethods;
 
-var corsUrl =
-    "https://navinbhandari2002.github.io/";
+//var corsUrl =
+//    "https://navinbhandari2002.github.io/";
+
+
+
+var corsUrl = new[]
+{
+    "https://navinbhandari2002.github.io",
+    "http://localhost:64045",
+     "http://localhost:64046"
+};
 
 var builder = WebApplication.CreateBuilder(args);
 

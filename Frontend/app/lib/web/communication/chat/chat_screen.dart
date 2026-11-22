@@ -4,11 +4,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../models/AdminUserInfosModel.dart';
 import '../../../state management/getx/communication/chat_screen_getx.dart';
-import 'mwssage_screen.dart';
-// Controller lives in its own file. Adjust the path to where you save it.
 
+import '../../common method/communicationcommonmethod.dart';
+import 'mwssage_screen.dart';
 
 // Public palette (kept with the same names/values: other chat files use them).
 const Color ChatBackground = Color(0xFF0F1F17);
@@ -21,9 +20,10 @@ const Color ChatBorder = Color(0xFF234232);
 
 const Color _Emerald = Color(0xFF22C55E);
 const Color _Warn = Color(0xFFFBBF24);
+const Color _ReadBlue = Color(0xFF38BDF8);
 
 // =============================================================================
-// SCREEN (StatefulWidget only for controller lifecycle — zero setState)
+// SCREEN (StatefulWidget only for controller lifecycle, zero setState)
 // =============================================================================
 class ChatScreen extends StatefulWidget {
   final String User_JwtToken;
@@ -40,39 +40,62 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  // The controller is global (permanent): it keeps live data while this
+  // screen is closed, so reopening it is instant.
   late final ChatScreenController Controller;
+
+  final TextEditingController _searchCont = TextEditingController();
+  final ScrollController _scroll = ScrollController();
 
   @override
   void initState() {
     super.initState();
 
     try {
-      Controller = Get.put(
-        ChatScreenController(),
-        tag: 'ChatScreen_${widget.CurrentUserNumber}',
-      );
-
-      Controller.Initialize(
+      Controller = ChatScreenController.Ensure();
+      Controller.ResetSearch();
+      Controller.Start(
         JwtToken: widget.User_JwtToken,
         UserNumber: widget.CurrentUserNumber,
       );
+
+      _scroll.addListener(_onScroll);
     } catch (e) {
-      print('ChatScreen initState error: $e');
+      // print('ChatScreen initState error: $e');
     }
   }
 
   @override
   void dispose() {
     try {
-      Get.delete<ChatScreenController>(
-        tag: 'ChatScreen_${widget.CurrentUserNumber}',
-      );
+      _scroll.removeListener(_onScroll);
+      _scroll.dispose();
+      _searchCont.dispose();
     } catch (e) {
-      print('ChatScreen dispose error: $e');
+      // print('ChatScreen dispose error: $e');
     }
 
-    // Do not disconnect the shared SignalR connection here.
+    // The controller and the SignalR connection stay alive on purpose.
     super.dispose();
+  }
+
+  void _onScroll() {
+    try {
+      if (!_scroll.hasClients) return;
+      final ScrollPosition p = _scroll.position;
+      Controller.OnScroll(p.pixels, p.maxScrollExtent);
+    } catch (e) {
+      // print('ChatScreen scroll error: $e');
+    }
+  }
+
+  void _clearSearch() {
+    try {
+      _searchCont.clear();
+      Controller.OnSearchChanged('');
+    } catch (e) {
+      // print('ChatScreen clear search error: $e');
+    }
   }
 
   @override
@@ -107,7 +130,45 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // APP BAR — bordered back arrow (primary text color), title, live status
+  // OPEN A CHAT
+  // ---------------------------------------------------------------------------
+  Future<void> _openChat(MsgConversation c) async {
+    try {
+      final NavigatorState nav = Navigator.of(context);
+
+      // Messages from this person are now read: the badge clears at once and
+      // the server tells them (read ticks).
+      Controller.SetOpenChat(c.userNumber);
+
+      final String myName = Controller.MyName.value.trim();
+
+      await nav.push(
+        MaterialPageRoute(
+          builder: (_) => ChatMessageScreen(
+            ReceiverNumber: c.userNumber,
+            ReceiverName: c.name,
+            CurrentUserNumber: widget.CurrentUserNumber,
+            CurrentUserName:
+            myName.isEmpty ? 'User ${widget.CurrentUserNumber}' : myName,
+            CurrentUserPhotoPath: Controller.MyPhoto.value,
+            ReceiverPhotoPath: c.photo,
+            User_JwtToken: widget.User_JwtToken,
+          ),
+        ),
+      );
+    } catch (e) {
+      // print('Open chat error: $e');
+    } finally {
+      try {
+        Controller.ClearOpenChat(c.userNumber);
+      } catch (e) {
+        // print('Close chat error: $e');
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // APP BAR: bordered back arrow, title, live connection status
   // ---------------------------------------------------------------------------
   PreferredSizeWidget _buildAppBar(BuildContext context) {
     return AppBar(
@@ -128,7 +189,7 @@ class _ChatScreenState extends State<ChatScreen> {
               try {
                 Get.back();
               } catch (e) {
-                print('ChatScreen back navigation error: $e');
+                // print('ChatScreen back navigation error: $e');
               }
             },
             child: Container(
@@ -204,7 +265,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  // Reads Controller.IsConnected (a real observable) -> no more Obx crash.
   Widget _buildConnectionPill(BuildContext context) {
     final bool compact = MediaQuery.of(context).size.width < 430;
 
@@ -255,25 +315,26 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // BODY — one scroll view, so it works at any height (portrait/landscape)
+  // BODY: one scroll view, works at any size
   // ---------------------------------------------------------------------------
   Widget _buildScrollBody(bool isWide, double hPad) {
     // Reading these registers the reactive dependencies.
-    final bool loading = Controller.IsLoading.value;
-    final String error = Controller.ErrorMessage.value;
-    final bool searching = Controller.SearchText.value.trim().isNotEmpty;
-    final List<AdminUserInfosModel> users = Controller.GetFilteredUsers();
-    final bool noUsersAtAll = Controller.Users.isEmpty;
+    final bool loading = Controller.IsInitialLoading;
+    final String error = Controller.ErrorText;
+    final bool searching = Controller.IsSearchMode;
+    final List<MsgConversation> items = Controller.GetVisibleItems();
+    final String sectionTitle = Controller.SectionTitle;
+    final bool loadingMore = Controller.IsLoadingMoreItems;
 
     Widget content;
 
-    if (loading && noUsersAtAll) {
+    if (loading && items.isEmpty) {
       content = SliverToBoxAdapter(
         child: Wrap(
           spacing: 14,
           runSpacing: 14,
           children: [
-            for (int i = 0; i < (isWide ? 6 : 3); i++)
+            for (int i = 0; i < (isWide ? 6 : 4); i++)
               const SizedBox(
                 width: 340,
                 height: 116,
@@ -282,17 +343,17 @@ class _ChatScreenState extends State<ChatScreen> {
           ],
         ),
       );
-    } else if (error.isNotEmpty && noUsersAtAll) {
+    } else if (error.isNotEmpty && items.isEmpty) {
       content = SliverToBoxAdapter(
         child: _buildEmptyState(
           icon: Icons.cloud_off_rounded,
           title: 'Could not load people',
           subtitle: error,
           buttonText: 'Try again',
-          onPressed: Controller.LoadUsers,
+          onPressed: Controller.RefreshAll,
         ),
       );
-    } else if (users.isEmpty) {
+    } else if (items.isEmpty) {
       content = SliverToBoxAdapter(
         child: _buildEmptyState(
           icon: searching
@@ -303,25 +364,37 @@ class _ChatScreenState extends State<ChatScreen> {
               ? 'Try a different username or user ID.'
               : 'There are no other registered users to display yet.',
           buttonText: searching ? 'Clear search' : 'Refresh',
-          onPressed: searching ? Controller.ClearSearch : Controller.LoadUsers,
+          onPressed: searching ? _clearSearch : Controller.RefreshAll,
         ),
       );
     } else {
       content = SliverGrid(
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 440,
-          mainAxisExtent: 104,
+          mainAxisExtent: 116,
           crossAxisSpacing: 14,
           mainAxisSpacing: 14,
         ),
         delegate: SliverChildBuilderDelegate(
               (context, index) {
+            final MsgConversation c = items[index];
+
             return _Entrance(
+              key: ValueKey<String>('c_${c.userNumber}'),
               index: math.min(index, 8),
-              child: _buildUserCard(users[index], index),
+              child: _buildUserCard(c),
             );
           },
-          childCount: users.length,
+          childCount: items.length,
+          // Keeps each card's state when the order changes (live reorder).
+          findChildIndexCallback: (Key key) {
+            if (key is ValueKey<String>) {
+              final int i =
+              items.indexWhere((u) => 'c_${u.userNumber}' == key.value);
+              return i < 0 ? null : i;
+            }
+            return null;
+          },
         ),
       );
     }
@@ -329,8 +402,9 @@ class _ChatScreenState extends State<ChatScreen> {
     return RefreshIndicator(
       color: ChatAccent,
       backgroundColor: ChatSurface,
-      onRefresh: Controller.LoadUsers,
+      onRefresh: Controller.RefreshAll,
       child: CustomScrollView(
+        controller: _scroll,
         physics: const AlwaysScrollableScrollPhysics(
           parent: BouncingScrollPhysics(),
         ),
@@ -349,11 +423,29 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
           SliverPadding(
             padding: EdgeInsets.fromLTRB(hPad, 16, hPad, 10),
-            sliver: SliverToBoxAdapter(child: _buildSectionHeader()),
+            sliver:
+            SliverToBoxAdapter(child: _buildSectionHeader(sectionTitle)),
           ),
           SliverPadding(
-            padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 32),
+            padding: EdgeInsets.fromLTRB(hPad, 0, hPad, 0),
             sliver: content,
+          ),
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 64,
+              child: Center(
+                child: loadingMore
+                    ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.2,
+                    color: ChatAccent,
+                  ),
+                )
+                    : const SizedBox.shrink(),
+              ),
+            ),
           ),
         ],
       ),
@@ -414,7 +506,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
                 const SizedBox(height: 16),
                 Obx(() {
-                  final int count = Controller.Users.length;
+                  final int unread = Controller.UnreadTotal.value;
                   final int online = Controller.OnlineCount;
 
                   return Wrap(
@@ -422,8 +514,9 @@ class _ChatScreenState extends State<ChatScreen> {
                     runSpacing: 8,
                     children: [
                       _Chip(
-                        icon: Icons.people_alt_rounded,
-                        text: '$count ${count == 1 ? 'person' : 'people'} available',
+                        icon: Icons.mark_chat_unread_rounded,
+                        text: unread > 0 ? '$unread unread' : 'All caught up',
+                        color: unread > 0 ? ChatAccent : ChatMuted,
                       ),
                       _Chip(
                         icon: Icons.circle,
@@ -480,12 +573,12 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // SEARCH
+  // SEARCH (username or user id)
   // ---------------------------------------------------------------------------
   Widget _buildSearch() {
     return TextField(
-      controller: Controller.SearchCont,
-      onChanged: (value) => Controller.SearchText.value = value,
+      controller: _searchCont,
+      onChanged: Controller.OnSearchChanged,
       style: const TextStyle(color: ChatText, fontSize: 14),
       cursorColor: ChatAccent,
       decoration: InputDecoration(
@@ -498,7 +591,7 @@ class _ChatScreenState extends State<ChatScreen> {
           tooltip: 'Clear',
           icon: const Icon(Icons.close_rounded,
               color: ChatMuted, size: 18),
-          onPressed: Controller.ClearSearch,
+          onPressed: _clearSearch,
         )),
         filled: true,
         fillColor: ChatSurface.withOpacity(0.95),
@@ -519,17 +612,17 @@ class _ChatScreenState extends State<ChatScreen> {
   // ---------------------------------------------------------------------------
   // SECTION HEADER
   // ---------------------------------------------------------------------------
-  Widget _buildSectionHeader() {
+  Widget _buildSectionHeader(String title) {
     return Row(
       children: [
         const Icon(Icons.groups_rounded, color: ChatAccent, size: 20),
         const SizedBox(width: 8),
-        const Expanded(
+        Expanded(
           child: Text(
-            'People',
+            title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
+            style: const TextStyle(
               color: ChatText,
               fontSize: 17,
               fontWeight: FontWeight.w800,
@@ -537,10 +630,10 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
         Obx(() {
-          final bool loading = Controller.IsLoading.value;
+          final bool refreshing = Controller.IsRefreshing;
           return TextButton.icon(
-            onPressed: loading ? null : Controller.LoadUsers,
-            icon: loading
+            onPressed: refreshing ? null : Controller.RefreshAll,
+            icon: refreshing
                 ? const SizedBox(
               width: 15,
               height: 15,
@@ -560,25 +653,26 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // USER CARD — username, user ID and online status only
+  // USER CARD: photo, name, last date, last message (+ticks), unread badge,
+  // user id, online / offline
   // ---------------------------------------------------------------------------
-  Widget _buildUserCard(AdminUserInfosModel user, int index) {
-    final String fullName =
-    '${user.firstName ?? ''} ${user.lastName ?? ''}'.trim();
-    final String? name = fullName.isEmpty ? null : fullName;
-    final int? userNumber = user.userNumber as int?;
+  Widget _buildUserCard(MsgConversation c) {
+    final bool unread = c.unreadCount > 0;
+    final bool mine = c.lastSenderNumber == widget.CurrentUserNumber;
+    final String lastText = Controller.LastMessageText(c);
+    final String dateText = Controller.DateText(c);
 
     return Obx(() {
-      final bool online = Controller.IsUserOnline(userNumber);
-      final bool hovered = Controller.HoveredIndex.value == index;
+      final bool online = Controller.IsUserOnline(c.userNumber);
+      final bool hovered = Controller.HoveredUser.value == c.userNumber;
       final Color tone = online ? ChatAccent : ChatMuted;
 
       return MouseRegion(
         cursor: SystemMouseCursors.click,
-        onEnter: (_) => Controller.HoveredIndex.value = index,
+        onEnter: (_) => Controller.HoveredUser.value = c.userNumber,
         onExit: (_) {
-          if (Controller.HoveredIndex.value == index) {
-            Controller.HoveredIndex.value = -1;
+          if (Controller.HoveredUser.value == c.userNumber) {
+            Controller.HoveredUser.value = -1;
           }
         },
         child: AnimatedScale(
@@ -588,35 +682,20 @@ class _ChatScreenState extends State<ChatScreen> {
             color: Colors.transparent,
             child: InkWell(
               borderRadius: BorderRadius.circular(20),
-              onTap: () {
-                try {
-                  if (userNumber == null) return;
-
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ChatMessageScreen(
-                        ReceiverNumber: userNumber,
-                        ReceiverName: name ?? 'User $userNumber',
-                        CurrentUserNumber: widget.CurrentUserNumber,
-                        User_JwtToken: widget.User_JwtToken,
-                      ),
-                    ),
-                  );
-                } catch (e) {
-                  print('Open chat error: $e');
-                }
-              },
+              onTap: () => _openChat(c),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: ChatSurface.withOpacity(hovered ? 1 : 0.95),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: hovered
+                    color: unread
+                        ? ChatAccent.withOpacity(0.75)
+                        : hovered
                         ? ChatAccent.withOpacity(0.5)
                         : ChatBorder,
-                    width: hovered ? 1.3 : 1,
+                    width: unread || hovered ? 1.3 : 1,
                   ),
                   boxShadow: [
                     BoxShadow(
@@ -629,91 +708,110 @@ class _ChatScreenState extends State<ChatScreen> {
                   ],
                 ),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // status accent bar (replaces the old circular avatar)
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      width: 5,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        gradient: online
-                            ? const LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [_Emerald, ChatAccent],
-                        )
-                            : null,
-                        color: online ? null : ChatBorder,
-                        boxShadow: online
-                            ? [
-                          BoxShadow(
-                            color: ChatAccent.withOpacity(0.5),
-                            blurRadius: 10,
-                          ),
-                        ]
-                            : [],
-                      ),
+                    _UserAvatar(
+                      photoUrl: c.photoUrl,
+                      online: online,
+                      size: 54,
                     ),
-                    const SizedBox(width: 14),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Center(
-                        child: SingleChildScrollView(
-                          physics: const NeverScrollableScrollPhysics(),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
-                              Text(
-                                name ?? 'No data available',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: name == null ? ChatMuted : ChatText,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 16,
-                                  fontStyle: name == null
-                                      ? FontStyle.italic
-                                      : FontStyle.normal,
+                              Expanded(
+                                child: Text(
+                                  c.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: ChatText,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15.5,
+                                  ),
                                 ),
                               ),
-                              const SizedBox(height: 10),
-
-                              Wrap (
-                                spacing: 8,
-                                runSpacing: 6,
-                                children: [
-                                  _MiniPill(
-                                    icon: Icons.badge_rounded,
-                                    text: userNumber == null
-                                        ? 'ID: No data'
-                                        : 'ID: $userNumber',
+                              if (dateText.isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  dateText,
+                                  style: TextStyle(
+                                    color: unread ? ChatAccent : ChatMuted,
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
                                   ),
-                                  _MiniPill(
-                                    icon: Icons.circle,
-                                    text: online ? 'Online' : 'Offline',
-                                    color: tone,
-                                    iconSize: 8,
-                                  ),
-                                ],
-                              ),
-
-
+                                ),
+                              ],
                             ],
                           ),
-                        ),
+                          const SizedBox(height: 5),
+                          Row(
+                            children: [
+                              // Read tick for my own last message.
+                              if (mine && c.hasMessage) ...[
+                                Icon(
+                                  Icons.done_all_rounded,
+                                  size: 15,
+                                  color: c.lastIsRead ? _ReadBlue : ChatMuted,
+                                ),
+                                const SizedBox(width: 4),
+                              ],
+                              Expanded(
+                                child: Text(
+                                  lastText,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: unread
+                                        ? ChatText
+                                        : ChatText.withOpacity(0.62),
+                                    fontSize: 12.5,
+                                    fontWeight: unread
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    fontStyle: c.hasMessage
+                                        ? FontStyle.normal
+                                        : FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                              if (unread) ...[
+                                const SizedBox(width: 8),
+                                _UnreadBadge(count: c.unreadCount),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: [
+                              _MiniPill(
+                                icon: Icons.badge_rounded,
+                                text: 'ID: ${c.userNumber}',
+                              ),
+                              _MiniPill(
+                                icon: Icons.circle,
+                                text: online ? 'Online' : 'Offline',
+                                color: tone,
+                                iconSize: 8,
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Center(
-                      child: AnimatedSlide(
-                        duration: const Duration(milliseconds: 180),
-                        offset: Offset(hovered ? 0.2 : 0, 0),
-                        child: Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          color: hovered ? ChatAccent : ChatMuted,
-                          size: 14,
-                        ),
+                    AnimatedSlide(
+                      duration: const Duration(milliseconds: 180),
+                      offset: Offset(hovered ? 0.2 : 0, 0),
+                      child: Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        color: hovered ? ChatAccent : ChatMuted,
+                        size: 14,
                       ),
                     ),
                   ],
@@ -799,6 +897,110 @@ class _ChatScreenState extends State<ChatScreen> {
             child: Text(buttonText),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// AVATAR: photo when there is one, people icon when empty / null / broken
+// =============================================================================
+class _UserAvatar extends StatelessWidget {
+  final String photoUrl;
+  final bool online;
+  final double size;
+
+  const _UserAvatar({
+    required this.photoUrl,
+    required this.online,
+    required this.size,
+  });
+
+  Widget _fallback() {
+    return Container(
+      color: ChatHeader,
+      alignment: Alignment.center,
+      child: Icon(Icons.person_rounded, color: ChatMuted, size: size * 0.58),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: online ? ChatAccent.withOpacity(0.7) : ChatBorder,
+                  width: 1.4,
+                ),
+              ),
+              child: ClipOval(
+                child: photoUrl.isEmpty
+                    ? _fallback()
+                    : Image.network(
+                  photoUrl,
+                  fit: BoxFit.cover,
+                  width: size,
+                  height: size,
+                  cacheWidth: (size * 2).round(),
+                  errorBuilder: (context, error, stack) => _fallback(),
+                  loadingBuilder: (context, child, progress) =>
+                  progress == null ? child : _fallback(),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: -1,
+            bottom: -1,
+            child: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: online ? ChatAccent : ChatMuted,
+                border: Border.all(color: ChatSurface, width: 2),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UnreadBadge extends StatelessWidget {
+  final int count;
+
+  const _UnreadBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 22),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: ChatAccent,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: ChatAccent.withOpacity(0.5), blurRadius: 8),
+        ],
+      ),
+      child: Text(
+        count > 99 ? '99+' : '$count',
+        style: const TextStyle(
+          color: ChatBackground,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }
@@ -894,7 +1096,7 @@ class _MiniPill extends StatelessWidget {
 class _Entrance extends StatelessWidget {
   final int index;
   final Widget child;
-  const _Entrance({required this.index, required this.child});
+  const _Entrance({super.key, required this.index, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -947,7 +1149,7 @@ class _SkeletonBoxState extends State<_SkeletonBox>
 }
 
 // =============================================================================
-// AMBIENT BACKGROUND — heavily blurred emerald/mint blobs + glass bubbles.
+// AMBIENT BACKGROUND: blurred emerald/mint blobs + glass bubbles.
 // Wrapped in IgnorePointer by the caller, so it can never block taps.
 // =============================================================================
 class _ChatAmbientBackground extends StatelessWidget {

@@ -914,6 +914,137 @@
     "ReturnTypes": []
   },
   {
+    "ContainingType": "application.Controllers.ChatController",
+    "Method": "GetConversations",
+    "RelativePath": "api/Chat/conversations",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "page",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "pageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ChatController",
+    "Method": "GetChatMessages",
+    "RelativePath": "api/Chat/getchatmessage",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "application.Models.DTOModels.UserNumberDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ChatController",
+    "Method": "GetMyChatMessages",
+    "RelativePath": "api/Chat/getmychatmessage",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ChatController",
+    "Method": "MarkRead",
+    "RelativePath": "api/Chat/markread",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "application.Models.DTOModels.UserNumberDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ChatController",
+    "Method": "GetMessages",
+    "RelativePath": "api/Chat/messages",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "application.Controllers.ChatMessagesPageDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ChatController",
+    "Method": "SearchUsers",
+    "RelativePath": "api/Chat/searchusers",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "q",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "page",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "pageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ChatController",
+    "Method": "Send",
+    "RelativePath": "api/Chat/send",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "model",
+        "Type": "application.Controllers.ChatSendDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ChatController",
+    "Method": "GetUnread",
+    "RelativePath": "api/Chat/unread",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
     "ContainingType": "application.Controllers.HomeController",
     "Method": "AddChatMessage",
     "RelativePath": "api/Home/addchatmessage",

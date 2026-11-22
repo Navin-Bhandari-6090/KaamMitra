@@ -1,15 +1,6 @@
-2026/11/07-17:31:31.284 7dbc Reusing MANIFEST C:\Users\rupak\AppData\Local\Temp\flutter_tools.aab172d\flutter_tools_chrome_device.34a425c4\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
-2026/11/07-17:31:31.285 7dbc Recovering log #19
-2026/11/07-17:31:31.286 7dbc Reusing old log C:\Users\rupak\AppData\Local\Temp\flutter_tools.aab172d\flutter_tools_chrome_device.34a425c4\Default\EdgeCoupons/coupons_data.db/000019.log 
-2026/11/07-17:31:31.286 7dbc Delete type=0 #4
-2026/11/07-17:31:31.286 7dbc Delete type=0 #7
-2026/11/07-17:31:31.287 7dbc Delete type=2 #8
-2026/11/07-17:31:31.287 7dbc Delete type=0 #10
-2026/11/07-17:31:31.287 7dbc Delete type=2 #11
-2026/11/07-17:31:31.287 7dbc Delete type=0 #13
-2026/11/07-17:31:31.287 7dbc Delete type=2 #14
-2026/11/07-17:31:31.371 7dbc Delete type=0 #16
-2026/11/07-17:31:31.372 7dbc Delete type=2 #17
-2026/11/07-17:31:32.050 9714 Level-0 table #24: started
-2026/11/07-17:31:32.054 9714 Level-0 table #24: 683444 bytes OK
-2026/11/07-17:31:32.061 9714 Delete type=0 #19
+2026/11/22-21:08:10.920 8be4 Reusing MANIFEST C:\Users\rupak\AppData\Local\Temp\flutter_tools.f689bf3\flutter_tools_chrome_device.ee3e09e3\Default\EdgeCoupons/coupons_data.db/MANIFEST-000001
+2026/11/22-21:08:10.947 8be4 Recovering log #4
+2026/11/22-21:08:10.949 8be4 Reusing old log C:\Users\rupak\AppData\Local\Temp\flutter_tools.f689bf3\flutter_tools_chrome_device.ee3e09e3\Default\EdgeCoupons/coupons_data.db/000004.log 
+2026/11/22-21:08:12.528 647c Level-0 table #8: started
+2026/11/22-21:08:12.531 647c Level-0 table #8: 683444 bytes OK
+2026/11/22-21:08:12.534 647c Delete type=0 #4

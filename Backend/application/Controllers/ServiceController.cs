@@ -565,6 +565,323 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         }
 
 
+        [Authorize(Policy = "RequireProviderRole")]
+        [Route("addnotice")]
+        [HttpPost]
+        public async Task<IActionResult> AddNotice([FromBody] NoticeInfoDTO obj)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return StatusCode(400, ModelState);
+                }
+
+                // Get provider number from JWT
+                var ProviderNumberClaim = User.FindFirst(
+                    System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                if (string.IsNullOrWhiteSpace(ProviderNumberClaim) ||
+                    !int.TryParse(ProviderNumberClaim, out int ProviderNumber))
+                {
+                    return StatusCode(506);
+                }
+
+                // Validate service ID
+                if (obj.ProviderServiceId <= 0)
+                {
+                    return StatusCode(507, "Invalid service ID.");
+                }
+
+                // Validate notice message
+                if (string.IsNullOrWhiteSpace(obj.Message))
+                {
+                    return StatusCode(508, "Notice message is required.");
+                }
+
+                // Verify provider account
+                var ProviderData = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == ProviderNumber);
+
+                if (ProviderData == null)
+                {
+                    return StatusCode(510, "Provider not found.");
+                }
+
+                if (ProviderData.LoginAccess == false)
+                {
+                    return StatusCode(511, "Your account has been blocked by the system.");
+                }
+
+                // Verify service belongs to current provider
+                var ServiceData = await Database.ProviderServiceInfo
+                    .FirstOrDefaultAsync(x =>
+                        x.ProviderServiceId == obj.ProviderServiceId &&
+                        x.UserNumber == ProviderNumber);
+
+                if (ServiceData == null)
+                {
+                    return StatusCode(512, "Service not found or does not belong to you.");
+                }
+
+                // Create notice
+                var NoticeData = new NoticeInfoModel
+                {
+                    ProviderNumber = ProviderNumber,
+                    ProviderServiceId = obj.ProviderServiceId,
+                    Message = obj.Message.Trim(),
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await Database.Notice.AddAsync(NoticeData);
+                await Database.SaveChangesAsync();
+
+                return StatusCode(200, "Notice added successfully.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+
+        [Authorize(Policy = "RequireProviderRole")]
+        [Route("deletenotice")]
+        [HttpDelete]
+        public async Task<IActionResult> DeleteNotice([FromBody] DeleteNoticeIdDTO obj)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return StatusCode(400, ModelState);
+                }
+
+                // Get current provider number from JWT
+                var ProviderNumberClaim = User.FindFirst(
+                    System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                if (string.IsNullOrWhiteSpace(ProviderNumberClaim) ||
+                    !int.TryParse(ProviderNumberClaim, out int ProviderNumber))
+                {
+                    return StatusCode(506);
+                }
+
+                // Validate notice ID
+                if (obj.NoticeId <= 0)
+                {
+                    return StatusCode(507, "Invalid notice ID.");
+                }
+
+                // Verify provider account
+                var ProviderData = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == ProviderNumber);
+
+                if (ProviderData == null)
+                {
+                    return StatusCode(510, "Provider not found.");
+                }
+
+                if (ProviderData.LoginAccess == false)
+                {
+                    return StatusCode(511, "Your account has been blocked by the system.");
+                }
+
+                // Find notice belonging to current provider
+                var NoticeData = await Database.Notice
+                    .FirstOrDefaultAsync(x =>
+                        x.NoticeId == obj.NoticeId &&
+                        x.ProviderNumber == ProviderNumber);
+
+                if (NoticeData == null)
+                {
+                    return StatusCode(512, "Notice not found or you are not authorized to delete it.");
+                }
+
+                // Delete notice
+                Database.Notice.Remove(NoticeData);
+                await Database.SaveChangesAsync();
+
+                return StatusCode(200, "Notice deleted successfully.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+
+
+        [Authorize(Policy = "RequireProviderUserRole")]
+        [Route("getnoticeuser")]
+        [HttpPost]
+        public async Task<IActionResult> GetNoticeUser([FromBody] GetNoticeUserDTO obj)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return StatusCode(400, ModelState);
+                }
+
+                // Get current user number from JWT
+                var CurrentUserNumberClaim = User.FindFirst(
+                    System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                if (string.IsNullOrWhiteSpace(CurrentUserNumberClaim) ||
+                    !int.TryParse(CurrentUserNumberClaim, out int CurrentUserNumber))
+                {
+                    return StatusCode(506);
+                }
+
+                // Validate provider number and service ID
+                if (obj.ProviderNumber <= 0 || obj.ProviderServiceId <= 0)
+                {
+                    return StatusCode(507, "Invalid provider number or service ID.");
+                }
+
+                // Validate current user
+                var CurrentUserData = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == CurrentUserNumber);
+
+                if (CurrentUserData == null)
+                {
+                    return StatusCode(510, "Current user not found.");
+                }
+
+                if (CurrentUserData.LoginAccess == false)
+                {
+                    return StatusCode(511, "Your account has been blocked by the system.");
+                }
+
+                // Validate provider
+                var ProviderData = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == obj.ProviderNumber);
+
+                if (ProviderData == null)
+                {
+                    return StatusCode(512, "Provider not found.");
+                }
+
+                if (ProviderData.LoginAccess == false)
+                {
+                    return StatusCode(513, "This provider account has been blocked.");
+                }
+
+                // Verify provider service belongs to requested provider
+                var ServiceData = await Database.ProviderServiceInfo
+                    .FirstOrDefaultAsync(x =>
+                        x.ProviderServiceId == obj.ProviderServiceId &&
+                        x.UserNumber == obj.ProviderNumber);
+
+                if (ServiceData == null)
+                {
+                    return StatusCode(514, "Provider service not found.");
+                }
+
+                // Retrieve notices with provider and service information
+                var NoticeData = await (
+                    from notice in Database.Notice
+                    join provider in Database.UserInfos
+                        on notice.ProviderNumber equals provider.UserNumber
+                    join service in Database.ProviderServiceInfo
+                        on notice.ProviderServiceId equals service.ProviderServiceId
+                    where notice.ProviderNumber == obj.ProviderNumber
+                          && notice.ProviderServiceId == obj.ProviderServiceId
+                          && service.UserNumber == obj.ProviderNumber
+                    select new NoticeResponseDTO
+                    {
+                        NoticeId = notice.NoticeId,
+                        ProviderNumber = notice.ProviderNumber,
+                        CreatedAt = notice.CreatedAt,
+                        Message = notice.Message,
+                        FirstName = provider.FirstName,
+                        LastName = provider.LastName,
+                        Photo = provider.Photo,
+                        ServiceName = service.ServiceName
+                    }
+                )
+                .OrderByDescending(x => x.CreatedAt)
+                .ThenByDescending(x => x.NoticeId)
+                .ToListAsync();
+
+                return StatusCode(200, NoticeData);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+
+        [Authorize(Policy = "RequireProviderRole")]
+        [Route("getnoticepro")]
+        [HttpGet]
+        public async Task<IActionResult> GetNoticePro()
+        {
+            try
+            {
+                // Get provider number from JWT
+                var ProviderNumberClaim = User.FindFirst(
+                    System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                if (string.IsNullOrWhiteSpace(ProviderNumberClaim) ||
+                    !int.TryParse(ProviderNumberClaim, out int ProviderNumber))
+                {
+                    return StatusCode(506);
+                }
+
+                // Validate provider
+                var ProviderData = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == ProviderNumber);
+
+                if (ProviderData == null)
+                {
+                    return StatusCode(510, "Provider not found.");
+                }
+
+                if (ProviderData.LoginAccess == false)
+                {
+                    return StatusCode(511, "Your account has been blocked by the system.");
+                }
+
+                // Retrieve all notices of current provider with service name
+                var NoticeData = await (
+                    from notice in Database.Notice
+                    join service in Database.ProviderServiceInfo
+                        on notice.ProviderServiceId equals service.ProviderServiceId
+                    where notice.ProviderNumber == ProviderNumber
+                          && service.UserNumber == ProviderNumber
+                    select new NoticeResponseDTO
+                    {
+                        NoticeId = notice.NoticeId,
+                        ProviderNumber = notice.ProviderNumber,
+                        CreatedAt = notice.CreatedAt,
+                        Message = notice.Message,
+                        ServiceName = service.ServiceName
+                    }
+                )
+                .OrderByDescending(x => x.CreatedAt)
+                .ThenByDescending(x => x.NoticeId)
+                .ToListAsync();
+
+                return StatusCode(200, NoticeData);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+
+
+
+
+
+
+
+
+
 
 
     }

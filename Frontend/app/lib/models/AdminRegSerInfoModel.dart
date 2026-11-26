@@ -1,10 +1,11 @@
 /// serviceId : 1
-/// serviceName : "plumber"
-/// serviceDescription : "ddffd"
-/// domesticPrice : 56
-/// domesticPriceDiscount : 3
-/// internationalPrice : 5445
-/// internationalPriceDiscount : 3
+/// serviceName : "driver"
+/// serviceDescription : "gjdflgfg;g"
+/// domesticPrice : 200
+/// domesticPriceDiscount : 23
+/// internationalPrice : 23
+/// internationalPriceDiscount : 34
+/// noOfRes : 0
 
 class AdminRegSerInfoModel {
   AdminRegSerInfoModel({
@@ -14,7 +15,8 @@ class AdminRegSerInfoModel {
       num? domesticPrice, 
       num? domesticPriceDiscount, 
       num? internationalPrice, 
-      num? internationalPriceDiscount,}){
+      num? internationalPriceDiscount, 
+      num? noOfRes,}){
     _serviceId = serviceId;
     _serviceName = serviceName;
     _serviceDescription = serviceDescription;
@@ -22,6 +24,7 @@ class AdminRegSerInfoModel {
     _domesticPriceDiscount = domesticPriceDiscount;
     _internationalPrice = internationalPrice;
     _internationalPriceDiscount = internationalPriceDiscount;
+    _noOfRes = noOfRes;
 }
 
   AdminRegSerInfoModel.fromJson(dynamic json) {
@@ -32,6 +35,7 @@ class AdminRegSerInfoModel {
     _domesticPriceDiscount = json['domesticPriceDiscount'];
     _internationalPrice = json['internationalPrice'];
     _internationalPriceDiscount = json['internationalPriceDiscount'];
+    _noOfRes = json['noOfRes'];
   }
   num? _serviceId;
   String? _serviceName;
@@ -40,6 +44,7 @@ class AdminRegSerInfoModel {
   num? _domesticPriceDiscount;
   num? _internationalPrice;
   num? _internationalPriceDiscount;
+  num? _noOfRes;
 AdminRegSerInfoModel copyWith({  num? serviceId,
   String? serviceName,
   String? serviceDescription,
@@ -47,6 +52,7 @@ AdminRegSerInfoModel copyWith({  num? serviceId,
   num? domesticPriceDiscount,
   num? internationalPrice,
   num? internationalPriceDiscount,
+  num? noOfRes,
 }) => AdminRegSerInfoModel(  serviceId: serviceId ?? _serviceId,
   serviceName: serviceName ?? _serviceName,
   serviceDescription: serviceDescription ?? _serviceDescription,
@@ -54,6 +60,7 @@ AdminRegSerInfoModel copyWith({  num? serviceId,
   domesticPriceDiscount: domesticPriceDiscount ?? _domesticPriceDiscount,
   internationalPrice: internationalPrice ?? _internationalPrice,
   internationalPriceDiscount: internationalPriceDiscount ?? _internationalPriceDiscount,
+  noOfRes: noOfRes ?? _noOfRes,
 );
   num? get serviceId => _serviceId;
   String? get serviceName => _serviceName;
@@ -62,6 +69,7 @@ AdminRegSerInfoModel copyWith({  num? serviceId,
   num? get domesticPriceDiscount => _domesticPriceDiscount;
   num? get internationalPrice => _internationalPrice;
   num? get internationalPriceDiscount => _internationalPriceDiscount;
+  num? get noOfRes => _noOfRes;
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
@@ -72,6 +80,7 @@ AdminRegSerInfoModel copyWith({  num? serviceId,
     map['domesticPriceDiscount'] = _domesticPriceDiscount;
     map['internationalPrice'] = _internationalPrice;
     map['internationalPriceDiscount'] = _internationalPriceDiscount;
+    map['noOfRes'] = _noOfRes;
     return map;
   }
 

@@ -29,6 +29,7 @@ import 'Provider_Update_Service_File.dart';
 import 'Select_Ser_Res_Update.dart';
 import 'add_update_fonepay_qr.dart';
 import 'delete_serv_res.dart';
+import 'notice_action_select.dart';
 
 // ---------------------------------------------------------------------------
 // THEME TOKENS (dark green) — matches Header.dart / ProviderProfile.dart
@@ -1231,9 +1232,11 @@ class _ProviderProfileState extends State<ProviderProfile>
         icon: Icons.perm_media_rounded,
         label: "Shared media.",
         onTap: () => _open(
-              (context) => SelectSharedMedia(
+              (context) =>
+                  SelectSharedMedia(
             Current_User_Jwt_Token: widget.User_JwtToken,
           ),
+
         ),
       ),
       _ActionItem(
@@ -1425,7 +1428,9 @@ class _ProviderProfileState extends State<ProviderProfile>
           ),
         ],
       ),
-      _ToolSection(
+
+      _ToolSection
+        (
         title: "Payments & cleanup",
         icon: Icons.qr_code_2_rounded,
         items: [
@@ -1452,6 +1457,32 @@ class _ProviderProfileState extends State<ProviderProfile>
           ),
         ],
       ),
+
+      _ToolSection
+        (
+        title: "Notices",
+        icon: Icons.qr_code_2_rounded,
+        items: [
+
+
+          _ActionItem(
+            icon: Icons.qr_code_2_rounded,
+            label: "Manage notices",
+            onTap: () => _open(
+                  (context) => NoticeActionSelect(
+
+                Current_User_JwtToken: widget.User_JwtToken,
+
+              ),
+            ),
+          ),
+
+        ],
+      ),
+
+
+
+
     ];
   }
 

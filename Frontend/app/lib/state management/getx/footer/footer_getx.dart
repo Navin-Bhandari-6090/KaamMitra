@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -9,7 +10,6 @@ import '../../../constant/Server_Database.dart';
 import '../../../constant/variable.dart';
 import '../../../models/FooterInfosModel.dart';
 import '../../../web/common method/Commmon_Method.dart';
-
 
 /// UI state for the footer. It only reads footer data and exposes it
 /// reactively, so the footer never needs setState.
@@ -26,11 +26,19 @@ class FooterController extends GetxController {
   /// Key of the item currently hovered (web hover effect).
   final RxString hoveredKey = ''.obs;
 
-  bool get hasAnyData =>
-      contactNumber.value.isNotEmpty ||
+  /// Prevents several overlapping requests (e.g. quick rebuilds).
+  bool _isFetching = false;
+
+  bool get hasAnyData {
+    try {
+      return contactNumber.value.isNotEmpty ||
           address.value.isNotEmpty ||
           email.value.isNotEmpty ||
           socialMediaInfo.value.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Loading
@@ -39,45 +47,71 @@ class FooterController extends GetxController {
     required String jwtToken,
     required BuildContext context,
   }) async {
+    if (_isFetching) return;
+    _isFetching = true;
+
     try {
       if (!hasAnyData) isLoading.value = true;
 
       final String url = Backend_Server_Url + "api/Home/getfooterinfo";
 
-      final response = await http.get(
+      final http.Response response = await http
+          .get(
         Uri.parse(url),
         headers: {
           "Content-Type": "application/json",
           "Authorization": "Bearer $jwtToken",
         },
-      );
+      )
+          .timeout(const Duration(seconds: 20));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-
-        // Backend returns a single object because the table has only one row
-        final FooterInfosModel model = FooterInfosModel.fromJson(data);
-
-        contactNumber.value = _clean(model.contactNumber);
-        address.value = _clean(model.address);
-        email.value = _clean(model.email);
-        socialMediaInfo.value = _clean(model.socialMediaInfo);
+        _applyResponse(response.body);
       } else if (response.statusCode == 401) {
-        if (context.mounted) await Logout(context: context);
+        await _safeLogout(context);
       } else if (response.statusCode == 502) {
-        if (context.mounted) await Logout(context: context);
-        Toast.Toastmsg("Session End.Relogin please.");
+        await _safeLogout(context);
+        _safeToast("Session End.Relogin please.");
       } else if (response.statusCode == 506) {
-        Toast.Toastmsg(
+        _safeToast(
           "You have been blocked by the system. Please contact the KaamMitra community.",
         );
-        if (context.mounted) Logout(context: context);
+        await _safeLogout(context);
       }
       // 400 / 403 / 404 / 500 / others: show nothing, footer shows "No data available"
-    } catch (e) {
-      debugPrint('FooterController.loadFooter error: $e');
+    } on TimeoutException catch (_) {
+      // debugPrint('FooterController.loadFooter timeout');
+    } catch (_) {
+      // debugPrint('FooterController.loadFooter error: $e');
     } finally {
-      isLoading.value = false;
+      _isFetching = false;
+      try {
+        isLoading.value = false;
+      } catch (_) {}
+    }
+  }
+
+  /// Parses the response safely. A bad body never crashes the footer.
+  void _applyResponse(String body) {
+    try {
+      dynamic data = jsonDecode(body);
+
+      // Backend returns a single object because the table has only one row,
+      // but tolerate a list too.
+      if (data is List) {
+        if (data.isEmpty) return;
+        data = data.first;
+      }
+      if (data is! Map<String, dynamic>) return;
+
+      final FooterInfosModel model = FooterInfosModel.fromJson(data);
+
+      contactNumber.value = _clean(model.contactNumber);
+      address.value = _clean(model.address);
+      email.value = _clean(model.email);
+      socialMediaInfo.value = _clean(model.socialMediaInfo);
+    } catch (_) {
+      // debugPrint('FooterController._applyResponse error: $e');
     }
   }
 
@@ -85,11 +119,15 @@ class FooterController extends GetxController {
   // Hover
   // ---------------------------------------------------------------------------
   void setHover(String key) {
-    hoveredKey.value = key;
+    try {
+      hoveredKey.value = key;
+    } catch (_) {}
   }
 
   void clearHover(String key) {
-    if (hoveredKey.value == key) hoveredKey.value = '';
+    try {
+      if (hoveredKey.value == key) hoveredKey.value = '';
+    } catch (_) {}
   }
 
   // ---------------------------------------------------------------------------
@@ -99,15 +137,29 @@ class FooterController extends GetxController {
     try {
       if (value.trim().isEmpty) return;
       await Clipboard.setData(ClipboardData(text: value.trim()));
-      Toast.Toastmsg('$label copied');
-    } catch (e) {
-      debugPrint('FooterController.copyText error: $e');
+      _safeToast('$label copied');
+    } catch (_) {
+      // debugPrint('FooterController.copyText error: $e');
     }
   }
 
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
+  Future<void> _safeLogout(BuildContext context) async {
+    try {
+      if (context.mounted) await Logout(context: context);
+    } catch (_) {
+      // debugPrint('FooterController logout error: $e');
+    }
+  }
+
+  void _safeToast(String message) {
+    try {
+      Toast.Toastmsg(message);
+    } catch (_) {}
+  }
+
   String _clean(String? v) {
     try {
       final String s = (v ?? '').trim();

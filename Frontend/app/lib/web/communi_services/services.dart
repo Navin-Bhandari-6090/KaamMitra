@@ -11,6 +11,7 @@ import 'package:signalr_netcore/hub_connection_builder.dart';
 // SIGNALR SERVICE (permanent, one per app)
 //  - connects once after login and reconnects by itself with back-off
 //  - pushes chat events to ChatEvents and call events to CallEvents
+//  - tells the server which chat screen is open (for the Read tick)
 //  - every method the old screens used is still here
 // =============================================================================
 class SignalRService extends GetxService {
@@ -25,15 +26,28 @@ class SignalRService extends GetxService {
   // Reactive online-user list.
   final RxSet<int> OnlineUserNumbers = <int>{}.obs;
 
+  // The user number whose message screen is open right now (0 = none).
+  // It survives a reconnect, so the server is told again automatically.
+  final RxInt OpenChatUserNumber = 0.obs;
+
+  // True while the app/tab is in the background (chat is open but hidden).
+  bool _chatPaused = false;
+
   // Call signaling.
   final StreamController<Map<String, dynamic>> CallEvents =
   StreamController<Map<String, dynamic>>.broadcast();
 
-  // Chat events. 'type' is one of:
-  //   ReceiveMessage    a full message pushed by the server
-  //   MessagesRead      the other person read my messages
-  //   ConversationRead  I read a chat (from another tab / device)
-  //   Reconnected       the connection is up (again): refetch what was missed
+  // Chat events. 'type' is one of (payload keys are camelCase):
+  //   ReceiveMessage     a full message pushed by the server (has "status")
+  //   MessagesDelivered  the other person came online, my Sent messages to
+  //                      them are now Delivered (receiverNumber, deliveredAt)
+  //   MessagesRead       one or more of my messages were read
+  //                      (readerNumber, chatIds, readAt)
+  //   ConversationRead   the other person opened our chat: every message I
+  //                      sent them is Read (readerNumber, readAt)
+  //   UnreadCleared      I read a chat in another tab/device: clear its
+  //                      unread badge (userNumber)
+  //   Reconnected        the connection is up (again): refetch what was missed
   final StreamController<Map<String, dynamic>> ChatEvents =
   StreamController<Map<String, dynamic>>.broadcast();
 
@@ -87,7 +101,26 @@ class SignalRService extends GetxService {
     }
   }
 
+  // After every (re)connect the server has forgotten which chat screen was
+  // open, so tell it again. Safe to call at any time.
+  Future<void> _restoreOpenChat() async {
+    try {
+      final int otherNumber = OpenChatUserNumber.value;
+
+      if (otherNumber <= 0 || _chatPaused) return;
+      if (!IsSignalRConnected || connection == null) return;
+
+      await connection!.invoke('OpenChat', args: [otherNumber]);
+    } catch (e) {
+      // print('SignalR restore open chat error: $e');
+    }
+  }
+
   Future<void> ConnectSignalR({required String User_JwtToken}) async {
+    // Only the call that sets IsSignalRConnecting may reset it. A call that
+    // returns early must not clear the flag of the call that is connecting.
+    bool ownsConnecting = false;
+
     try {
       if (User_JwtToken.trim().isEmpty) {
         // print('SignalR: JWT token is missing.');
@@ -103,6 +136,7 @@ class SignalRService extends GetxService {
       }
 
       IsSignalRConnecting = true;
+      ownsConnecting = true;
       _retryTimer?.cancel();
 
       final HubConnection hub = HubConnectionBuilder()
@@ -155,8 +189,13 @@ class SignalRService extends GetxService {
           _retryAttempt = 0;
 
           // print('SignalR reconnected: $connectionId');
-          // Messages may have arrived while disconnected.
-          _emitChat('Reconnected', null);
+
+          // Tell the server the open chat again FIRST, then ask the screens
+          // to refetch, so the refetch already sees the Read status.
+          _restoreOpenChat().then((_) {
+            // Messages may have arrived while disconnected.
+            _emitChat('Reconnected', null);
+          });
         } catch (e) {
           // print('SignalR reconnected callback error: $e');
         }
@@ -166,6 +205,9 @@ class SignalRService extends GetxService {
 
       _setConnected(true);
       _retryAttempt = 0;
+
+      // Restore the open chat (if a message screen is open) first.
+      await _restoreOpenChat();
 
       // Every successful connect asks the screens to refetch once. That also
       // covers messages that arrived between the first page load and now.
@@ -185,7 +227,84 @@ class SignalRService extends GetxService {
       connection = null;
       _scheduleReconnect();
     } finally {
-      IsSignalRConnecting = false;
+      if (ownsConnecting) {
+        IsSignalRConnecting = false;
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // OPEN CHAT / READ STATUS (call these from the message screen)
+  // ---------------------------------------------------------------------------
+
+  // The message screen for this user opened: all their messages become Read.
+  // If SignalR is not connected yet it is sent automatically after connect.
+  Future<void> OpenChat({required int OtherNumber}) async {
+    try {
+      if (OtherNumber <= 0) return;
+
+      OpenChatUserNumber.value = OtherNumber;
+      _chatPaused = false;
+
+      await _restoreOpenChat();
+    } catch (e) {
+      // print('SignalR open chat error: $e');
+    }
+  }
+
+  // The message screen closed (call in onClose / dispose).
+  Future<void> CloseChat() async {
+    try {
+      OpenChatUserNumber.value = 0;
+      _chatPaused = false;
+
+      if (!IsSignalRConnected || connection == null) return;
+
+      await connection!.invoke('CloseChat');
+    } catch (e) {
+      // print('SignalR close chat error: $e');
+    }
+  }
+
+  // The tab/app went to the background while the chat is open: new messages
+  // must only be Delivered, not Read. The open chat is remembered.
+  Future<void> PauseOpenChat() async {
+    try {
+      if (OpenChatUserNumber.value <= 0) return;
+
+      _chatPaused = true;
+
+      if (!IsSignalRConnected || connection == null) return;
+
+      await connection!.invoke('CloseChat');
+    } catch (e) {
+      // print('SignalR pause open chat error: $e');
+    }
+  }
+
+  // The tab/app came back to the front: the chat is Read again.
+  Future<void> ResumeOpenChat() async {
+    try {
+      if (OpenChatUserNumber.value <= 0) return;
+
+      _chatPaused = false;
+
+      await _restoreOpenChat();
+    } catch (e) {
+      // print('SignalR resume open chat error: $e');
+    }
+  }
+
+  // A message arrived while the screen is open and visible: mark it Read now.
+  // (The server already saves such a message as Read, this is a safety net.)
+  Future<void> MarkMessageRead({required int ChatId}) async {
+    try {
+      if (ChatId <= 0) return;
+      if (!IsSignalRConnected || connection == null) return;
+
+      await connection!.invoke('MarkMessageRead', args: [ChatId]);
+    } catch (e) {
+      // print('SignalR mark message read error: $e');
     }
   }
 
@@ -256,6 +375,17 @@ class SignalRService extends GetxService {
         }
       });
 
+      // My Sent messages became Delivered (the receiver came online).
+      connection?.on('MessagesDelivered', (arguments) {
+        try {
+          final dynamic payload =
+          (arguments != null && arguments.isNotEmpty) ? arguments[0] : null;
+          _emitChat('MessagesDelivered', payload);
+        } catch (e) {
+          // print('MessagesDelivered event error: $e');
+        }
+      });
+
       connection?.on('MessagesRead', (arguments) {
         try {
           final dynamic payload =
@@ -273,6 +403,17 @@ class SignalRService extends GetxService {
           _emitChat('ConversationRead', payload);
         } catch (e) {
           // print('ConversationRead event error: $e');
+        }
+      });
+
+      // I opened this chat in another tab/device: clear its unread badge.
+      connection?.on('UnreadCleared', (arguments) {
+        try {
+          final dynamic payload =
+          (arguments != null && arguments.isNotEmpty) ? arguments[0] : null;
+          _emitChat('UnreadCleared', payload);
+        } catch (e) {
+          // print('UnreadCleared event error: $e');
         }
       });
     } catch (e) {
@@ -422,6 +563,10 @@ class SignalRService extends GetxService {
       _retryTimer?.cancel();
       _retryAttempt = 0;
       _jwt = '';
+
+      // A logged-out user has no open chat.
+      OpenChatUserNumber.value = 0;
+      _chatPaused = false;
 
       final currentConnection = connection;
 

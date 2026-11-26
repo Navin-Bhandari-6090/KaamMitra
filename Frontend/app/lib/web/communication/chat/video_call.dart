@@ -6,6 +6,7 @@ import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:get/get.dart' hide navigator;
 
 import '../../../state management/getx/communication/video_call_getx.dart';
+import '../../common method/communicationcommonmethod.dart';
 import 'chat_screen.dart';
 
 const Color _Emerald = Color(0xFF22C55E);
@@ -13,115 +14,40 @@ const Color _Warn = Color(0xFFFBBF24);
 const Color _Danger = Color(0xFFEF4444);
 
 // =============================================================================
-// VIDEO CALL UI (the call window and the call error banner)
-// Use VideoCallOverlay on top of any screen: while idle it draws nothing and
-// never blocks taps.
+// VIDEO CALL WINDOW
+// Shown by VideoCallGetx in the app's Navigator overlay, on top of every
+// screen. While idle (or while a permission dialog must be visible) it draws
+// nothing and never blocks taps.
 // =============================================================================
-class VideoCallOverlay extends StatelessWidget {
-  final VideoCallGetx controller;
-  final String name;
-  final String photoUrl;
-
-  const VideoCallOverlay({
-    super.key,
-    required this.controller,
-    required this.name,
-    required this.photoUrl,
-  });
+class VideoCallPage extends StatelessWidget {
+  const VideoCallPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final VideoCallGetx controller = VideoCallGetx.Ensure();
+
     return Obx(() {
-      final CallStage stage = controller.callStage.value;
-      if (stage == CallStage.idle) {
-        return const IgnorePointer(child: SizedBox.shrink());
-      }
-      return _VideoCallView(
-        controller: controller,
-        name: name,
-        photoUrl: photoUrl,
-      );
-    });
-  }
-}
-
-// Shown when a call failed and the call window is closed again.
-class CallErrorBanner extends StatelessWidget {
-  final VideoCallGetx controller;
-
-  const CallErrorBanner({super.key, required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return Obx(() {
-      final String msg = controller.callError.value;
-      final bool inCall = controller.callStage.value != CallStage.idle;
-
-      if (msg.isEmpty || inCall) {
+      if (controller.overlayHidden.value ||
+          controller.callStage.value == CallStage.idle) {
         return const SizedBox.shrink();
       }
 
-      return SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: _Danger.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _Danger.withOpacity(0.45)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.error_outline_rounded,
-                    color: _Danger, size: 18),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    msg,
-                    style: const TextStyle(
-                      color: ChatText,
-                      fontSize: 12.5,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Dismiss',
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.close_rounded,
-                      color: ChatMuted, size: 18),
-                  onPressed: () {
-                    try {
-                      controller.callError.value = '';
-                    } catch (e) {
-                      // print('Dismiss banner error: $e');
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
+      // Overlay entries have no Material above them.
+      return Material(
+        color: ChatBackground,
+        child: _VideoCallView(controller: controller),
       );
     });
   }
 }
 
 // =============================================================================
-// CALL WINDOW
+// CALL WINDOW LAYOUT (fits any size: parts hide or scale down, never overflow)
 // =============================================================================
 class _VideoCallView extends StatelessWidget {
   final VideoCallGetx controller;
-  final String name;
-  final String photoUrl;
 
-  const _VideoCallView({
-    required this.controller,
-    required this.name,
-    required this.photoUrl,
-  });
+  const _VideoCallView({required this.controller});
 
   @override
   Widget build(BuildContext context) {
@@ -142,30 +68,36 @@ class _VideoCallView extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, box) {
               final bool landscape = box.maxWidth > box.maxHeight;
+              final bool shortH = box.maxHeight < 380;
+              final bool tinyH = box.maxHeight < 240;
+              final bool narrow = box.maxWidth < 340;
+              final bool compact = shortH || narrow;
 
               return Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 960),
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+                    padding: EdgeInsets.fromLTRB(
+                      compact ? 8 : 16,
+                      8,
+                      compact ? 8 : 16,
+                      compact ? 8 : 14,
+                    ),
                     child: Column(
                       children: [
-                        _CallHeader(
-                          controller: controller,
-                          name: name,
-                          photoUrl: photoUrl,
-                        ),
-                        const SizedBox(height: 12),
+                        if (!tinyH) ...[
+                          _CallHeader(controller: controller),
+                          const SizedBox(height: 12),
+                        ],
                         Expanded(
                           child: _RemoteStage(
                             controller: controller,
-                            name: name,
-                            photoUrl: photoUrl,
                             landscape: landscape,
+                            small: compact,
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        _CallControls(controller: controller),
+                        SizedBox(height: compact ? 8 : 16),
+                        _CallControls(controller: controller, compact: compact),
                       ],
                     ),
                   ),
@@ -181,28 +113,25 @@ class _VideoCallView extends StatelessWidget {
 
 class _CallHeader extends StatelessWidget {
   final VideoCallGetx controller;
-  final String name;
-  final String photoUrl;
 
-  const _CallHeader({
-    required this.controller,
-    required this.name,
-    required this.photoUrl,
-  });
+  const _CallHeader({required this.controller});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _CallAvatar(photoUrl: photoUrl, size: 42),
+        Obx(() => _CallAvatar(
+          photoUrl: MsgPhotoUrl(controller.peerPhoto.value),
+          size: 42,
+        )),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                name,
+              Obx(() => Text(
+                controller.peerName.value,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -210,7 +139,7 @@ class _CallHeader extends StatelessWidget {
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                 ),
-              ),
+              )),
               const SizedBox(height: 3),
               Obx(() {
                 final CallStage s = controller.callStage.value;
@@ -236,13 +165,17 @@ class _CallHeader extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      controller.callStatusText,
-                      style: TextStyle(
-                        color: tone,
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        fontFeatures: const [FontFeature.tabularFigures()],
+                    Flexible(
+                      child: Text(
+                        controller.callStatusText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: tone,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
                       ),
                     ),
                   ],
@@ -258,15 +191,13 @@ class _CallHeader extends StatelessWidget {
 
 class _RemoteStage extends StatelessWidget {
   final VideoCallGetx controller;
-  final String name;
-  final String photoUrl;
   final bool landscape;
+  final bool small;
 
   const _RemoteStage({
     required this.controller,
-    required this.name,
-    required this.photoUrl,
     required this.landscape,
+    required this.small,
   });
 
   @override
@@ -274,7 +205,7 @@ class _RemoteStage extends StatelessWidget {
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(small ? 20 : 28),
         border: Border.all(color: ChatBorder),
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -300,9 +231,12 @@ class _RemoteStage extends StatelessWidget {
                 );
               }
               return Center(
-                child: _PulseAvatar(
-                  photoUrl: photoUrl,
-                  active: controller.callStage.value != CallStage.connected,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: _PulseAvatar(
+                    photoUrl: MsgPhotoUrl(controller.peerPhoto.value),
+                    active: controller.callStage.value != CallStage.connected,
+                  ),
                 ),
               );
             }),
@@ -310,12 +244,20 @@ class _RemoteStage extends StatelessWidget {
           Positioned(
             left: 14,
             bottom: 14,
-            child: _NameTag(name: name),
+            right: 14,
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: Obx(() => _NameTag(name: controller.peerName.value)),
+            ),
           ),
           Positioned(
             top: 14,
             right: 14,
-            child: _LocalTile(controller: controller, landscape: landscape),
+            child: _LocalTile(
+              controller: controller,
+              landscape: landscape,
+              small: small,
+            ),
           ),
         ],
       ),
@@ -326,13 +268,19 @@ class _RemoteStage extends StatelessWidget {
 class _LocalTile extends StatelessWidget {
   final VideoCallGetx controller;
   final bool landscape;
+  final bool small;
 
-  const _LocalTile({required this.controller, required this.landscape});
+  const _LocalTile({
+    required this.controller,
+    required this.landscape,
+    required this.small,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final double w = landscape ? 150 : 108;
-    final double h = landscape ? 96 : 146;
+    final double scale = small ? 0.7 : 1.0;
+    final double w = (landscape ? 150 : 108) * scale;
+    final double h = (landscape ? 96 : 146) * scale;
 
     return Container(
       width: w,
@@ -356,17 +304,20 @@ class _LocalTile extends StatelessWidget {
             child: Obx(() {
               if (!controller.camOn.value) {
                 return const Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.videocam_off_rounded,
-                          color: ChatMuted, size: 22),
-                      SizedBox(height: 4),
-                      Text(
-                        'Camera off',
-                        style: TextStyle(color: ChatMuted, fontSize: 10),
-                      ),
-                    ],
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.videocam_off_rounded,
+                            color: ChatMuted, size: 22),
+                        SizedBox(height: 4),
+                        Text(
+                          'Camera off',
+                          style: TextStyle(color: ChatMuted, fontSize: 10),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               }
@@ -408,43 +359,47 @@ class _LocalTile extends StatelessWidget {
 
 class _CallControls extends StatelessWidget {
   final VideoCallGetx controller;
+  final bool compact;
 
-  const _CallControls({required this.controller});
+  const _CallControls({required this.controller, required this.compact});
 
   @override
   Widget build(BuildContext context) {
     final Size screen = MediaQuery.of(context).size;
-    final double size = (math.min(screen.width, screen.height) * 0.16)
+    final double size = compact
+        ? 44
+        : (math.min(screen.width, screen.height) * 0.16)
         .clamp(48.0, 66.0)
         .toDouble();
+    final bool labels = !compact;
 
     return Obx(() {
-      if (controller.callStage.value == CallStage.incoming) {
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _CallControl(
-              icon: Icons.call_end_rounded,
-              label: 'Decline',
-              danger: true,
-              size: size,
-              onTap: controller.declineCall,
-            ),
-            const SizedBox(width: 40),
-            _CallControl(
-              icon: Icons.videocam_rounded,
-              label: 'Accept',
-              positive: true,
-              size: size,
-              onTap: controller.acceptCall,
-            ),
-          ],
-        );
-      }
+      final List<Widget> children;
 
-      return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
+      if (controller.callStage.value == CallStage.incoming) {
+        children = [
+          _CallControl(
+            icon: Icons.call_end_rounded,
+            label: 'Decline',
+            danger: true,
+            size: size,
+            showLabel: labels,
+            onTap: controller.declineCall,
+          ),
+          SizedBox(width: compact ? 24 : 40),
+          _CallControl(
+            icon: Icons.videocam_rounded,
+            label: 'Accept',
+            positive: true,
+            size: size,
+            showLabel: labels,
+            onTap: controller.acceptCall,
+          ),
+        ];
+      } else {
+        final double gap = compact ? 10 : 18;
+
+        children = [
           _CallControl(
             icon: controller.micOn.value
                 ? Icons.mic_rounded
@@ -452,9 +407,10 @@ class _CallControls extends StatelessWidget {
             label: 'Mic',
             active: controller.micOn.value,
             size: size,
+            showLabel: labels,
             onTap: controller.toggleMic,
           ),
-          const SizedBox(width: 18),
+          SizedBox(width: gap),
           _CallControl(
             icon: controller.camOn.value
                 ? Icons.videocam_rounded
@@ -462,9 +418,10 @@ class _CallControls extends StatelessWidget {
             label: 'Camera',
             active: controller.camOn.value,
             size: size,
+            showLabel: labels,
             onTap: controller.toggleCamera,
           ),
-          const SizedBox(width: 18),
+          SizedBox(width: gap),
           _CallControl(
             icon: controller.speakerOn.value
                 ? Icons.volume_up_rounded
@@ -472,17 +429,29 @@ class _CallControls extends StatelessWidget {
             label: 'Speaker',
             active: controller.speakerOn.value,
             size: size,
+            showLabel: labels,
             onTap: controller.toggleSpeaker,
           ),
-          const SizedBox(width: 18),
+          SizedBox(width: gap),
           _CallControl(
             icon: Icons.call_end_rounded,
             label: 'End',
             danger: true,
             size: size + 4,
+            showLabel: labels,
             onTap: controller.endCall,
           ),
-        ],
+        ];
+      }
+
+      // Scales down on narrow widths instead of overflowing.
+      return FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children,
+        ),
       );
     });
   }
@@ -494,6 +463,7 @@ class _CallControl extends StatelessWidget {
   final bool active;
   final bool danger;
   final bool positive;
+  final bool showLabel;
   final double size;
   final VoidCallback onTap;
 
@@ -502,6 +472,7 @@ class _CallControl extends StatelessWidget {
     required this.label,
     required this.onTap,
     required this.size,
+    this.showLabel = true,
     this.active = true,
     this.danger = false,
     this.positive = false,
@@ -559,11 +530,13 @@ class _CallControl extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 6),
-        Text(
-          label,
-          style: const TextStyle(color: ChatMuted, fontSize: 11),
-        ),
+        if (showLabel) ...[
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: const TextStyle(color: ChatMuted, fontSize: 11),
+          ),
+        ],
       ],
     );
   }

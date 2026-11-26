@@ -12,6 +12,54 @@ import 'package:http/http.dart' as http;
 const String _Base = '${Backend_Server_Url}api/Chat/';
 const Duration _Timeout = Duration(seconds: 20);
 
+// -----------------------------------------------------------------------------
+// USER NOT VALID (status 525)
+// The server returns 525 when the JWT is bad, the user no longer exists, or
+// KaamMitra blocked the user. The app must log the user out.
+//
+// Set MsgOnNotValidated ONCE (for example after login, or in main) to the
+// function that logs the user out. Every call below runs it automatically on
+// 525, at most once, so many requests failing together log out only once.
+// Call MsgResetNotValidated() after a successful login.
+// The result objects also expose "notValidated" if a screen wants to check.
+// -----------------------------------------------------------------------------
+const int MsgNotValidatedCode = 525;
+
+void Function()? MsgOnNotValidated;
+bool _NotValidatedFired = false;
+
+void MsgResetNotValidated() {
+  _NotValidatedFired = false;
+}
+
+// Returns true when the status code is 525 (and starts the logout once).
+bool _CheckNotValidated(int statusCode) {
+  if (statusCode != MsgNotValidatedCode) return false;
+
+  if (!_NotValidatedFired) {
+    _NotValidatedFired = true;
+    try {
+      MsgOnNotValidated?.call();
+    } catch (e) {
+      // print('MsgOnNotValidated error: $e');
+    }
+  }
+
+  return true;
+}
+
+// -----------------------------------------------------------------------------
+// MESSAGE STATUS (same numbers as the server). It only moves forward.
+//   1 Sent       single grey tick
+//   2 Delivered  double grey tick
+//   3 Read       double blue tick
+// -----------------------------------------------------------------------------
+class MsgStatus {
+  static const int sent = 1;
+  static const int delivered = 2;
+  static const int read = 3;
+}
+
 Map<String, String> _Headers(String jwt, {bool json = false}) {
   return {
     'Accept': 'application/json',
@@ -38,6 +86,19 @@ bool _toBool(dynamic v, [bool fallback = false]) {
   if (s == 'true') return true;
   if (s == 'false') return false;
   return fallback;
+}
+
+// Reads a status. New servers send a number. Old responses only have a bool
+// read flag, so fall back to it. The result is always 1, 2 or 3.
+int _toStatus(dynamic status, dynamic readFlag, {int unreadFallback = 1}) {
+  if (status is num) {
+    return status.toInt().clamp(MsgStatus.sent, MsgStatus.read);
+  }
+
+  final int parsed = int.tryParse('${status ?? ''}') ?? 0;
+  if (parsed >= MsgStatus.sent && parsed <= MsgStatus.read) return parsed;
+
+  return _toBool(readFlag) ? MsgStatus.read : unreadFallback;
 }
 
 // Server time is UTC. If it arrives without a 'Z', force UTC, then convert to
@@ -86,7 +147,7 @@ class MsgConversation {
     this.lastMessage = '',
     this.lastSenderNumber = 0,
     this.lastMessageAt = '',
-    this.lastIsRead = true,
+    this.lastStatus = MsgStatus.read,
     this.unreadCount = 0,
   });
 
@@ -98,12 +159,16 @@ class MsgConversation {
   final String lastMessage;
   final int lastSenderNumber;
   final String lastMessageAt;
-  final bool lastIsRead;
+
+  // Status of the LAST message (1 Sent, 2 Delivered, 3 Read). The card shows
+  // this tick only when the last message was sent by me.
+  final int lastStatus;
   final int unreadCount;
 
   String get photoUrl => MsgPhotoUrl(photo);
   DateTime? get lastTime => MsgParseTime(lastMessageAt);
   bool get hasMessage => lastMessage.trim().isNotEmpty;
+  bool get lastIsRead => lastStatus >= MsgStatus.read;
 
   factory MsgConversation.fromJson(Map<String, dynamic> j) {
     final int number = _toInt(j['userNumber']);
@@ -118,7 +183,11 @@ class MsgConversation {
       lastMessage: _toStr(j['lastMessage']),
       lastSenderNumber: _toInt(j['lastSenderNumber']),
       lastMessageAt: _toStr(j['lastMessageAt']),
-      lastIsRead: _toBool(j['lastIsRead'], true),
+      lastStatus: _toStatus(
+        j['lastStatus'],
+        j['lastIsRead'],
+        unreadFallback: MsgStatus.delivered,
+      ),
       unreadCount: _toInt(j['unreadCount']),
     );
   }
@@ -130,7 +199,7 @@ class MsgConversation {
     String? lastMessage,
     int? lastSenderNumber,
     String? lastMessageAt,
-    bool? lastIsRead,
+    int? lastStatus,
     int? unreadCount,
   }) {
     return MsgConversation(
@@ -142,13 +211,20 @@ class MsgConversation {
       lastMessage: lastMessage ?? this.lastMessage,
       lastSenderNumber: lastSenderNumber ?? this.lastSenderNumber,
       lastMessageAt: lastMessageAt ?? this.lastMessageAt,
-      lastIsRead: lastIsRead ?? this.lastIsRead,
+      lastStatus: lastStatus ?? this.lastStatus,
       unreadCount: unreadCount ?? this.unreadCount,
     );
+  }
+
+  // Moves the last message's status forward only (never back).
+  MsgConversation withLastStatusAtLeast(int newStatus) {
+    if (newStatus <= lastStatus) return this;
+    return copyWith(lastStatus: newStatus);
   }
 }
 
 // One message of a chat (used by the message screen).
+// chatId 0 means "not saved yet" (a temporary bubble while sending).
 class MsgMessage {
   const MsgMessage({
     required this.chatId,
@@ -156,7 +232,9 @@ class MsgMessage {
     required this.storeAt,
     required this.senderNumber,
     required this.receiverNumber,
-    this.isRead = false,
+    this.status = MsgStatus.sent,
+    this.deliveredAt = '',
+    this.readAt = '',
     this.clientId = '',
   });
 
@@ -165,10 +243,21 @@ class MsgMessage {
   final String storeAt;
   final int senderNumber;
   final int receiverNumber;
-  final bool isRead;
+
+  // 1 Sent, 2 Delivered, 3 Read. Always one of these.
+  final int status;
+  final String deliveredAt;
+  final String readAt;
   final String clientId;
 
   DateTime? get time => MsgParseTime(storeAt);
+  DateTime? get deliveredTime => MsgParseTime(deliveredAt);
+  DateTime? get readTime => MsgParseTime(readAt);
+
+  bool get isPending => chatId <= 0;
+  bool get isSent => status == MsgStatus.sent;
+  bool get isDelivered => status == MsgStatus.delivered;
+  bool get isRead => status >= MsgStatus.read;
 
   factory MsgMessage.fromJson(Map<String, dynamic> j) {
     return MsgMessage(
@@ -177,8 +266,50 @@ class MsgMessage {
       storeAt: _toStr(j['storeAt']),
       senderNumber: _toInt(j['senderNumber']),
       receiverNumber: _toInt(j['receiverNumber']),
-      isRead: _toBool(j['isRead']),
+      status: _toStatus(j['status'], j['isRead']),
+      deliveredAt: _toStr(j['deliveredAt']),
+      readAt: _toStr(j['readAt']),
       clientId: _toStr(j['clientId']),
+    );
+  }
+
+  MsgMessage copyWith({
+    int? chatId,
+    String? message,
+    String? storeAt,
+    int? status,
+    String? deliveredAt,
+    String? readAt,
+    String? clientId,
+  }) {
+    return MsgMessage(
+      chatId: chatId ?? this.chatId,
+      message: message ?? this.message,
+      storeAt: storeAt ?? this.storeAt,
+      senderNumber: senderNumber,
+      receiverNumber: receiverNumber,
+      status: status ?? this.status,
+      deliveredAt: deliveredAt ?? this.deliveredAt,
+      readAt: readAt ?? this.readAt,
+      clientId: clientId ?? this.clientId,
+    );
+  }
+
+  // Moves the status forward only, so a late or repeated event can never turn
+  // a Read message back into Delivered.
+  MsgMessage withStatusAtLeast(
+      int newStatus, {
+        String? deliveredAt,
+        String? readAt,
+      }) {
+    if (newStatus <= status) return this;
+
+    return copyWith(
+      status: newStatus,
+      deliveredAt: this.deliveredAt.isNotEmpty ? this.deliveredAt : deliveredAt,
+      readAt: newStatus >= MsgStatus.read
+          ? (this.readAt.isNotEmpty ? this.readAt : readAt)
+          : this.readAt,
     );
   }
 }
@@ -202,6 +333,9 @@ class MsgListResult {
   final int statusCode;
   final String meName;
   final String mePhoto;
+
+  // True when the user must be logged out (status 525).
+  bool get notValidated => statusCode == MsgNotValidatedCode;
 }
 
 class MsgMessagesResult {
@@ -220,6 +354,8 @@ class MsgMessagesResult {
   final int statusCode;
   final String currentUserPhoto;
   final String otherUserPhoto;
+
+  bool get notValidated => statusCode == MsgNotValidatedCode;
 }
 
 class MsgSendResult {
@@ -231,9 +367,11 @@ class MsgSendResult {
   });
 
   final bool ok;
-  final MsgMessage? message;
+  final MsgMessage? message; // the saved message, with its first status
   final int statusCode;
   final String error; // readable reason from the server (400 / 403 / 404)
+
+  bool get notValidated => statusCode == MsgNotValidatedCode;
 }
 
 // =============================================================================
@@ -284,6 +422,8 @@ Future<MsgListResult> MsgGetConversations({
     )
         .timeout(_Timeout);
 
+    _CheckNotValidated(response.statusCode);
+
     if (response.statusCode != 200) {
       return MsgListResult(ok: false, statusCode: response.statusCode);
     }
@@ -309,6 +449,8 @@ Future<MsgListResult> MsgSearchUsers({
       headers: _Headers(jwt),
     )
         .timeout(_Timeout);
+
+    _CheckNotValidated(response.statusCode);
 
     if (response.statusCode != 200) {
       return MsgListResult(ok: false, statusCode: response.statusCode);
@@ -341,6 +483,8 @@ Future<MsgMessagesResult> MsgGetMessages({
     )
         .timeout(_Timeout);
 
+    _CheckNotValidated(response.statusCode);
+
     if (response.statusCode != 200) {
       return MsgMessagesResult(ok: false, statusCode: response.statusCode);
     }
@@ -371,7 +515,8 @@ Future<MsgMessagesResult> MsgGetMessages({
   }
 }
 
-// Sends a message. The server saves it and pushes it live to the receiver.
+// Sends a message. The server saves it with its first status (Sent,
+// Delivered or Read) and pushes it live to the receiver.
 Future<MsgSendResult> MsgSendMessage({
   required String jwt,
   required int receiverNumber,
@@ -390,6 +535,8 @@ Future<MsgSendResult> MsgSendMessage({
       }),
     )
         .timeout(_Timeout);
+
+    _CheckNotValidated(response.statusCode);
 
     if (response.statusCode == 200) {
       final dynamic json = jsonDecode(response.body);
@@ -422,7 +569,8 @@ Future<MsgSendResult> MsgSendMessage({
   }
 }
 
-// Marks everything from one person as read. Returns true on success.
+// Marks everything from one person as read (fallback when SignalR is not
+// connected; the hub's OpenChat normally does this). Returns true on success.
 Future<bool> MsgMarkRead({
   required String jwt,
   required int userNumber,
@@ -436,6 +584,8 @@ Future<bool> MsgMarkRead({
     )
         .timeout(_Timeout);
 
+    _CheckNotValidated(response.statusCode);
+
     return response.statusCode == 200;
   } catch (e) {
     // print('MsgMarkRead error: $e');
@@ -443,12 +593,15 @@ Future<bool> MsgMarkRead({
   }
 }
 
-// Total unread messages for me. Returns -1 when the request fails.
+// Total unread messages for me (Sent + Delivered, not yet Read).
+// Returns -1 when the request fails.
 Future<int> MsgGetUnreadTotal({required String jwt}) async {
   try {
     final response = await http
         .get(Uri.parse('${_Base}unread'), headers: _Headers(jwt))
         .timeout(_Timeout);
+
+    _CheckNotValidated(response.statusCode);
 
     if (response.statusCode != 200) return -1;
 

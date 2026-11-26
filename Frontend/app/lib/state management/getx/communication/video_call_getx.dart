@@ -7,30 +7,42 @@ import 'package:get/get.dart' hide navigator;
 import 'package:permission_handler/permission_handler.dart';
 
 // Adjust these paths to your project.
+import '../../../constant/variable.dart' show Toast;
+import '../../../web/common method/communicationcommonmethod.dart';
 import '../../../web/communi_services/services.dart';
 import '../../../web/communication/chat/chat_screen.dart';
+import '../../../web/communication/chat/video_call.dart';
+import 'chat_screen_getx.dart';
 
 const Color _kDanger = Color(0xFFEF4444);
 
 enum CallStage { idle, calling, incoming, connecting, connected }
 
 // =============================================================================
-// VIDEO CALL GETX (one per open chat)
+// VIDEO CALL GETX: ONE permanent service for the whole app.
 //
-// This is the call logic of the old MessageScreenGetx, moved into its own file
-// so the chat code and the call code can be debugged separately. It works the
-// same as before: it only reacts to call signals of THIS conversation.
+// It listens to the SignalR call signals for ANY caller, so an incoming call
+// rings on every screen, and a call keeps running when the user leaves the
+// chat. The call window is drawn in the app's Navigator overlay (see
+// VideoCallPage in video_call.dart), so no screen has to host it.
 //
-// NEXT STEP: this becomes one global service, so a call rings on every screen.
+//   VideoCallGetx.Ensure()            get (or create) the service
+//   startCall(otherNumber:, name:)    call someone
+//   acceptCall() / declineCall()      answer an incoming call
+//   endCall()                         hang up (also called on logout)
+//
+// One call at a time. A second incoming call is answered with "busy".
+// Needs GetMaterialApp (the app already uses Get.dialog / Get.back).
 // =============================================================================
 class VideoCallGetx extends GetxController {
-  VideoCallGetx({
-    required this.myNumber,
-    required this.otherNumber,
-  });
+  static VideoCallGetx Ensure() {
+    return Get.isRegistered<VideoCallGetx>()
+        ? Get.find<VideoCallGetx>()
+        : Get.put(VideoCallGetx(), permanent: true);
+  }
 
-  final int myNumber;
-  final int otherNumber;
+  // How long a call rings before it is given up (both sides).
+  static const int RingSeconds = 45;
 
   // ---------------- CALL STATE ----------------
   final Rx<CallStage> callStage = CallStage.idle.obs;
@@ -41,17 +53,34 @@ class VideoCallGetx extends GetxController {
   final RxString callError = ''.obs;
   final RxBool remoteVideoReady = false.obs;
 
+  // The other person of the current call.
+  final RxInt peerNumber = 0.obs;
+  final RxString peerName = ''.obs;
+  final RxString peerPhoto = ''.obs; // raw path
+
+  // True while a system dialog (permission) must be visible above the call UI.
+  final RxBool overlayHidden = false.obs;
+
   final RTCVideoRenderer localRenderer = RTCVideoRenderer();
   final RTCVideoRenderer remoteRenderer = RTCVideoRenderer();
   late final Future<void> _renderersReady = _initRenderers();
 
   SignalRService? _signal;
   StreamSubscription<Map<String, dynamic>>? _callSub;
+  final List<Worker> _workers = <Worker>[];
   MediaStream? _localStream;
   RTCPeerConnection? _pc;
   String? _callId;
   Map<String, dynamic>? _pendingOffer;
   Timer? _callTimer;
+  Timer? _ringTimer;
+  OverlayEntry? _entry;
+
+  // True from the tap on "call" until the call state has changed.
+  bool _busy = false;
+
+  // True while the "accept" tap is being handled (permission dialog open).
+  bool _accepting = false;
 
   // Remote ICE candidates that arrive before the remote description is set.
   final List<RTCIceCandidate> _pendingRemoteCandidates = [];
@@ -60,6 +89,8 @@ class VideoCallGetx extends GetxController {
   // Local ICE candidates that are gathered before the offer or answer is sent.
   final List<RTCIceCandidate> _pendingLocalCandidates = [];
   bool _canSendCandidates = false;
+
+  int get _peer => peerNumber.value;
 
   String get callDurationText {
     final int s = callSeconds.value;
@@ -87,14 +118,23 @@ class VideoCallGetx extends GetxController {
   void onInit() {
     super.onInit();
     _bindSignal();
+
+    // Shows the call window when a call starts / rings, removes it at the end.
+    _workers.add(ever(callStage, (_) => _syncOverlay()));
   }
 
   @override
   void onClose() {
     try {
       endCall();
+      _removeOverlay();
       _callSub?.cancel();
       _callTimer?.cancel();
+      _ringTimer?.cancel();
+      for (final Worker w in _workers) {
+        w.dispose();
+      }
+      _workers.clear();
       localRenderer.dispose();
       remoteRenderer.dispose();
     } catch (e) {
@@ -108,65 +148,136 @@ class VideoCallGetx extends GetxController {
     // debugPrint('[CALL] $msg');
   }
 
+  // Shows a short message to the user (toast) and keeps it in callError.
+  void _notify(String message) {
+    try {
+      callError.value = message;
+      Toast.Toastmsg(message);
+    } catch (e) {
+      _log('notify ERROR: $e');
+    }
+  }
+
   void _bindSignal() {
     try {
-      _signal = Get.isRegistered<SignalRService>()
+      final SignalRService s = Get.isRegistered<SignalRService>()
           ? Get.find<SignalRService>()
           : Get.put(SignalRService(), permanent: true);
+      _signal = s;
 
-      _callSub = _signal!.CallEvents.stream.listen(
+      _callSub = s.CallEvents.stream.listen(
             (event) => _onCallEvent(event),
         onError: (e) => _log('Call event stream error: $e'),
       );
+
+      // Connection lost while ringing: give up. (A running call keeps its
+      // media connection, which does not need SignalR.)
+      _workers.add(ever(s.IsConnectedRx, (bool connected) {
+        if (connected) return;
+
+        final CallStage stage = callStage.value;
+        if (stage == CallStage.calling || stage == CallStage.incoming) {
+          _fail('Connection lost.');
+        }
+      }));
     } catch (e) {
       // print('VideoCallGetx bind error: $e');
     }
   }
 
   // ===========================================================================
+  // CALL WINDOW (Navigator overlay: above every screen)
+  // ===========================================================================
+  void _syncOverlay() {
+    try {
+      if (callStage.value == CallStage.idle) {
+        _removeOverlay();
+      } else {
+        _insertOverlay();
+      }
+    } catch (e) {
+      _log('syncOverlay ERROR: $e');
+    }
+  }
+
+  void _insertOverlay() {
+    if (_entry != null) return;
+
+    final OverlayState? overlay = Get.key.currentState?.overlay;
+
+    if (overlay == null) {
+      // No place to draw the call window: give the call up.
+      Future.microtask(() => _fail('Could not show the call window.'));
+      return;
+    }
+
+    final OverlayEntry entry = OverlayEntry(
+      builder: (context) => const VideoCallPage(),
+    );
+    _entry = entry;
+    overlay.insert(entry);
+  }
+
+  void _removeOverlay() {
+    try {
+      _entry?.remove();
+    } catch (e) {
+      _log('removeOverlay ERROR: $e');
+    }
+    _entry = null;
+  }
+
+  // ===========================================================================
   // PERMISSIONS
   // Asks every time a call starts or is accepted, until both are granted.
+  // The call window is hidden while a permission dialog is shown, because the
+  // dialog would otherwise appear below it.
   // ===========================================================================
   Future<bool> _ensureCallPermissions() async {
     try {
       // On web the browser shows its own prompt inside getUserMedia.
       if (kIsWeb) return true;
 
-      while (true) {
-        final Map<Permission, PermissionStatus> s =
-        await [Permission.camera, Permission.microphone].request();
+      overlayHidden.value = true;
+      try {
+        while (true) {
+          final Map<Permission, PermissionStatus> s =
+          await [Permission.camera, Permission.microphone].request();
 
-        final PermissionStatus? cam = s[Permission.camera];
-        final PermissionStatus? mic = s[Permission.microphone];
-        _log('Permission camera=$cam microphone=$mic');
+          final PermissionStatus? cam = s[Permission.camera];
+          final PermissionStatus? mic = s[Permission.microphone];
+          _log('Permission camera=$cam microphone=$mic');
 
-        if (cam?.isGranted == true && mic?.isGranted == true) return true;
+          if (cam?.isGranted == true && mic?.isGranted == true) return true;
 
-        final bool blocked = cam?.isPermanentlyDenied == true ||
-            mic?.isPermanentlyDenied == true ||
-            cam?.isRestricted == true ||
-            mic?.isRestricted == true;
+          final bool blocked = cam?.isPermanentlyDenied == true ||
+              mic?.isPermanentlyDenied == true ||
+              cam?.isRestricted == true ||
+              mic?.isRestricted == true;
 
-        if (blocked) {
-          // The system will no longer show its prompt: send the user to
-          // settings instead.
-          final bool open = await confirmAction(
-            title: 'Allow camera and microphone',
-            message: 'Video calls need camera and microphone access. '
-                'Open settings and turn both on.',
-            confirmText: 'Open settings',
+          if (blocked) {
+            // The system will no longer show its prompt: send the user to
+            // settings instead.
+            final bool open = await confirmAction(
+              title: 'Allow camera and microphone',
+              message: 'Video calls need camera and microphone access. '
+                  'Open settings and turn both on.',
+              confirmText: 'Open settings',
+            );
+            if (open) await openAppSettings();
+            return false;
+          }
+
+          // Denied this time only: explain and ask again.
+          final bool retry = await confirmAction(
+            title: 'Permission needed',
+            message: 'Camera and microphone are required for video calls.',
+            confirmText: 'Allow',
           );
-          if (open) await openAppSettings();
-          return false;
+          if (!retry) return false;
         }
-
-        // Denied this time only: explain and ask again.
-        final bool retry = await confirmAction(
-          title: 'Permission needed',
-          message: 'Camera and microphone are required for video calls.',
-          confirmText: 'Allow',
-        );
-        if (!retry) return false;
+      } finally {
+        overlayHidden.value = false;
       }
     } catch (e) {
       _log('Permission flow ERROR: $e');
@@ -196,11 +307,13 @@ class VideoCallGetx extends GetxController {
     }
   }
 
-  // Permissions are already checked by _ensureCallPermissions().
-  Future<bool> _openLocalMedia() async {
+  // Tries to open the camera and microphone once.
+  // Returns null on success, or a readable reason on failure.
+  Future<String?> _tryOpenMedia() async {
     try {
-      _log('Calling getUserMedia (audio + video)...');
-      _localStream ??= await navigator.mediaDevices.getUserMedia({
+      await _renderersReady;
+
+      _localStream = await navigator.mediaDevices.getUserMedia({
         'audio': true,
         'video': {
           'facingMode': 'user',
@@ -209,15 +322,98 @@ class VideoCallGetx extends GetxController {
         },
       });
 
-      _log('getUserMedia OK: audioTracks=${_localStream!.getAudioTracks().length} '
-          'videoTracks=${_localStream!.getVideoTracks().length}');
-
       localRenderer.srcObject = _localStream;
       _applyTrackStates();
-      return true;
+      _log('getUserMedia OK');
+      return null;
     } catch (e) {
       _log('getUserMedia FAILED: $e');
+      _localStream = null;
+
+      final String t = '$e'.toLowerCase();
+
+      if (t.contains('notallowed') ||
+          t.contains('permission') ||
+          t.contains('denied') ||
+          t.contains('dismissed')) {
+        return kIsWeb
+            ? 'Camera and microphone access is blocked. In the browser address '
+            'bar, click the camera or lock icon, choose Allow for camera and '
+            'microphone, then press Try again.'
+            : 'Camera and microphone are required for video calls. '
+            'Allow both, then press Try again.';
+      }
+
+      if (t.contains('notfound') || t.contains('devicesnotfound')) {
+        return 'No camera or microphone was found on this device. '
+            'Connect one, then press Try again.';
+      }
+
+      if (t.contains('notreadable') ||
+          t.contains('trackstart') ||
+          t.contains('in use')) {
+        return 'The camera or microphone is being used by another app or tab. '
+            'Close it, then press Try again.';
+      }
+
+      return kIsWeb
+          ? 'Could not open the camera or microphone. Video calls need a '
+          'secure (https) connection. Press Try again.'
+          : 'Could not open the camera or microphone. Press Try again.';
+    }
+  }
+
+  // Opens the camera and microphone BEFORE the call state changes.
+  // If they are not allowed it asks again, every time, until the user allows
+  // or cancels. Returns true when the media is open (_localStream is set).
+  Future<bool> _acquireLocalMedia() async {
+    try {
+      if (_localStream != null) return true;
+
+      // Mobile apps: ask the system first (web uses the browser prompt below).
+      if (!kIsWeb) {
+        if (!await _ensureCallPermissions()) return false;
+      }
+
+      while (true) {
+        final String? problem = await _tryOpenMedia();
+        if (problem == null) return true;
+
+        // The call window (if any) is hidden so the dialog is not covered.
+        overlayHidden.value = true;
+        bool retry = false;
+        try {
+          retry = await confirmAction(
+            title: 'Camera and microphone needed',
+            message: problem,
+            confirmText: 'Try again',
+          );
+        } finally {
+          overlayHidden.value = false;
+        }
+
+        if (!retry) return false;
+      }
+    } catch (e) {
+      _log('acquireLocalMedia ERROR: $e');
       return false;
+    }
+  }
+
+  // Stops the camera and microphone (used when a call did not start).
+  void _releaseLocalMedia() {
+    try {
+      _localStream?.getTracks().forEach((t) => t.stop());
+      _localStream?.dispose();
+    } catch (e) {
+      _log('releaseLocalMedia ERROR: $e');
+    }
+    _localStream = null;
+
+    try {
+      localRenderer.srcObject = null;
+    } catch (e) {
+      _log('releaseLocalMedia renderer ERROR: $e');
     }
   }
 
@@ -306,7 +502,7 @@ class VideoCallGetx extends GetxController {
     }
 
     _signal?.SendIceCandidate(
-      ReceiverNumber: otherNumber,
+      ReceiverNumber: _peer,
       CallId: _callId!,
       Candidate: {
         'candidate': c.candidate,
@@ -338,40 +534,84 @@ class VideoCallGetx extends GetxController {
   }
 
   // ===========================================================================
+  // RING TIMER
+  // ===========================================================================
+  void _startRingTimer() {
+    _ringTimer?.cancel();
+    _ringTimer = Timer(const Duration(seconds: RingSeconds), _onRingTimeout);
+  }
+
+  void _onRingTimeout() {
+    try {
+      final CallStage stage = callStage.value;
+
+      if (stage == CallStage.calling) {
+        _fail('No answer.');
+      } else if (stage == CallStage.incoming) {
+        final String who = peerName.value;
+        _cleanup();
+        _notify('Missed video call from $who.');
+      }
+    } catch (e) {
+      _log('ring timeout ERROR: $e');
+    }
+  }
+
+  // ===========================================================================
   // CALL ACTIONS
   // ===========================================================================
 
-  // Caller: ask permission, open camera, create offer, send it.
-  Future<void> startCall() async {
+  // Caller: open camera + microphone (asking until allowed), then create the
+  // offer and send it.
+  Future<void> startCall({
+    required int otherNumber,
+    required String name,
+    String photo = '',
+  }) async {
     try {
-      if (callStage.value != CallStage.idle) return;
+      if (callStage.value != CallStage.idle || _busy) return;
+      if (otherNumber <= 0) return;
+
+      _busy = true;
+
+      final String shownName =
+      name.trim().isEmpty ? 'User $otherNumber' : name.trim();
 
       if (_signal == null || !_signal!.IsSignalRConnected) {
-        callError.value = 'You are offline. Check your connection.';
+        _notify('You are offline. Check your connection.');
         _log('startCall blocked: SignalR not connected');
+        return;
+      }
+
+      if (!_signal!.OnlineUserNumbers.contains(otherNumber)) {
+        _notify('$shownName is offline. Try again when they are online.');
+        _log('startCall blocked: user $otherNumber is offline');
         return;
       }
 
       callError.value = '';
 
-      // Asked every time until granted.
-      if (!await _ensureCallPermissions()) {
-        callError.value =
-        'Camera and microphone permission is required for video calls.';
+      // Camera and microphone first. If they are not allowed it asks again,
+      // every time, until the user allows or cancels. No call window yet.
+      if (!await _acquireLocalMedia()) {
+        _notify('Camera and microphone are required for video calls.');
         return;
       }
 
+      // Another call may have started while we were asking.
+      if (callStage.value != CallStage.idle) {
+        _releaseLocalMedia();
+        return;
+      }
+
+      peerNumber.value = otherNumber;
+      peerName.value = shownName;
+      peerPhoto.value = photo;
+
+      _callId = '${DateTime.now().millisecondsSinceEpoch}_${_myNumber()}';
       callStage.value = CallStage.calling;
-      _callId = '${DateTime.now().millisecondsSinceEpoch}_$myNumber';
+      _startRingTimer();
       _log('=== START CALL to user $otherNumber, callId=$_callId ===');
-
-      await _renderersReady;
-
-      final bool ok = await _openLocalMedia();
-      if (!ok) {
-        _fail('Could not open the camera or microphone.');
-        return;
-      }
 
       await _createPeer();
       final RTCSessionDescription offer = await _pc!.createOffer();
@@ -388,60 +628,90 @@ class VideoCallGetx extends GetxController {
       _flushLocalCandidates();
     } catch (e) {
       _log('startCall ERROR: $e');
-      _fail('Could not start the call.');
+      if (callStage.value != CallStage.idle) {
+        _fail('Could not start the call.');
+      } else {
+        _releaseLocalMedia();
+      }
+    } finally {
+      _busy = false;
     }
   }
 
-  // Callee: ask permission, open camera, apply offer, create answer, send it.
+
+  // My own user number (only used to build a unique call id).
+  int _myNumber() {
+    try {
+      if (Get.isRegistered<ChatScreenController>()) {
+        return Get.find<ChatScreenController>().MyNumber;
+      }
+    } catch (e) {
+      _log('myNumber ERROR: $e');
+    }
+    return 0;
+  }
+
+  // Callee: open camera + microphone (asking until allowed), then apply the
+  // offer, create the answer and send it. While permission is missing the
+  // incoming screen stays, so the user can try again or decline.
   Future<void> acceptCall() async {
     try {
       if (callStage.value != CallStage.incoming || _pendingOffer == null) {
         return;
       }
+      if (_accepting) return;
+      _accepting = true;
 
-      // Asked every time until granted. If refused, the incoming screen stays
-      // so the user can try again or decline.
-      if (!await _ensureCallPermissions()) {
-        callError.value =
-        'Camera and microphone permission is required to accept the call.';
-        return;
+      try {
+        // Asked every time until allowed. The call is NOT ended if refused.
+        if (!await _acquireLocalMedia()) {
+          _notify(
+            'Camera and microphone are required to accept the call. '
+                'Press Accept to try again, or Decline.',
+          );
+          return;
+        }
+
+        // The caller may have hung up while the dialog was open.
+        if (callStage.value != CallStage.incoming || _pendingOffer == null) {
+          _releaseLocalMedia();
+          return;
+        }
+
+        _log('=== ACCEPT CALL from user $_peer, callId=$_callId ===');
+        _ringTimer?.cancel();
+        callStage.value = CallStage.connecting;
+
+        await _createPeer();
+
+        await _pc!.setRemoteDescription(RTCSessionDescription(
+          _pendingOffer!['sdp'] as String?,
+          _pendingOffer!['type'] as String?,
+        ));
+        _remoteDescSet = true;
+        _log('Remote offer set');
+        await _flushRemoteCandidates();
+
+        final RTCSessionDescription answer = await _pc!.createAnswer();
+        await _pc!.setLocalDescription(answer);
+        _log('Answer created and set as local description');
+
+        await _signal!.SendCallAnswer(
+          ReceiverNumber: _peer,
+          CallId: _callId!,
+          Answer: {'sdp': answer.sdp, 'type': answer.type},
+        );
+        _log('Answer SENT to user $_peer');
+
+        _flushLocalCandidates();
+      } finally {
+        _accepting = false;
       }
-
-      _log('=== ACCEPT CALL from user $otherNumber, callId=$_callId ===');
-      callStage.value = CallStage.connecting;
-      await _renderersReady;
-
-      final bool ok = await _openLocalMedia();
-      if (!ok) {
-        _fail('Could not open the camera or microphone.');
-        return;
-      }
-
-      await _createPeer();
-
-      await _pc!.setRemoteDescription(RTCSessionDescription(
-        _pendingOffer!['sdp'] as String?,
-        _pendingOffer!['type'] as String?,
-      ));
-      _remoteDescSet = true;
-      _log('Remote offer set');
-      await _flushRemoteCandidates();
-
-      final RTCSessionDescription answer = await _pc!.createAnswer();
-      await _pc!.setLocalDescription(answer);
-      _log('Answer created and set as local description');
-
-      await _signal!.SendCallAnswer(
-        ReceiverNumber: otherNumber,
-        CallId: _callId!,
-        Answer: {'sdp': answer.sdp, 'type': answer.type},
-      );
-      _log('Answer SENT to user $otherNumber');
-
-      _flushLocalCandidates();
     } catch (e) {
       _log('acceptCall ERROR: $e');
-      _fail('Could not accept the call.');
+      if (callStage.value != CallStage.idle) {
+        _fail('Could not accept the call.');
+      }
     }
   }
 
@@ -450,7 +720,7 @@ class VideoCallGetx extends GetxController {
       if (callStage.value != CallStage.incoming) return;
       final String? id = _callId;
       if (id != null) {
-        _signal?.EndVideoCall(ReceiverNumber: otherNumber, CallId: id);
+        _signal?.EndVideoCall(ReceiverNumber: _peer, CallId: id);
       }
       _log('Call DECLINED');
       _cleanup();
@@ -464,7 +734,7 @@ class VideoCallGetx extends GetxController {
     try {
       final String? id = _callId;
       if (id != null && callStage.value != CallStage.idle) {
-        _signal?.EndVideoCall(ReceiverNumber: otherNumber, CallId: id);
+        _signal?.EndVideoCall(ReceiverNumber: _peer, CallId: id);
       }
       if (callStage.value != CallStage.idle) _log('Call ENDED by this user');
       _cleanup();
@@ -506,41 +776,124 @@ class VideoCallGetx extends GetxController {
   void _onCallEvent(Map<String, dynamic> e) {
     try {
       final int from = int.tryParse('${e['senderNumber']}') ?? 0;
-      if (from != otherNumber) return; // only this conversation
+      if (from <= 0) return;
 
       final String type = '${e['type']}';
       final String callId = '${e['callId']}';
-      _log('Signal received: $type (callId=$callId)');
+      _log('Signal received: $type from $from (callId=$callId)');
 
       if (type == 'IncomingCall') {
-        _onIncoming(e);
-      } else if (type == 'CallAnswer' && callId == _callId) {
+        _onIncoming(from, e);
+        return;
+      }
+
+      // Every other signal belongs to the call that is running right now.
+      if (callStage.value == CallStage.idle ||
+          callId != _callId ||
+          from != _peer) {
+        return;
+      }
+
+      if (type == 'CallAnswer') {
         _onAnswer(e);
-      } else if (type == 'IceCandidate' && callId == _callId) {
+      } else if (type == 'IceCandidate') {
         _onRemoteCandidate(e);
-      } else if (type == 'CallEnded' && callId == _callId) {
+      } else if (type == 'CallEnded') {
         _log('Remote user ended the call');
-        _cleanup();
+        _onRemoteEnded();
       }
     } catch (err) {
       _log('_onCallEvent ERROR: $err');
     }
   }
 
-  void _onIncoming(Map<String, dynamic> e) {
-    if (callStage.value != CallStage.idle) {
-      // Already in a call: tell the caller we are busy.
-      _signal?.EndVideoCall(
-        ReceiverNumber: otherNumber,
-        CallId: '${e['callId']}',
-      );
-      _log('Incoming call ignored: already in a call');
+  void _onIncoming(int from, Map<String, dynamic> e) {
+    final String callId = '${e['callId']}';
+    if (callId.isEmpty || callId == 'null') return;
+
+    // Already in a call (or starting one): tell the caller we are busy.
+    if (callStage.value != CallStage.idle || _busy) {
+      if (callId != _callId) {
+        _signal?.EndVideoCall(ReceiverNumber: from, CallId: callId);
+        _log('Incoming call from $from refused: busy');
+      }
       return;
     }
-    _callId = '${e['callId']}';
-    _pendingOffer = Map<String, dynamic>.from(e['offer'] as Map);
+
+    final dynamic offer = e['offer'];
+    if (offer is! Map) return;
+
+    callError.value = '';
+    _callId = callId;
+    _pendingOffer = Map<String, dynamic>.from(offer);
+
+    peerNumber.value = from;
+    peerName.value = 'User $from';
+    peerPhoto.value = '';
+
     callStage.value = CallStage.incoming;
-    _log('Incoming call from user $otherNumber, callId=$_callId');
+    _startRingTimer();
+    _log('Incoming call from user $from, callId=$_callId');
+
+    // Fills in the real name and photo (the call window already shows).
+    _resolvePeer(from);
+  }
+
+  // The other side hung up, declined, or is busy.
+  void _onRemoteEnded() {
+    final CallStage was = callStage.value;
+    final String who = peerName.value;
+
+    _cleanup();
+
+    if (was == CallStage.calling) {
+      _notify('$who is busy or declined the call.');
+    } else if (was == CallStage.incoming) {
+      _notify('Missed video call from $who.');
+    }
+  }
+
+  // Looks up the caller's name and photo: from my chats, or by user id.
+  Future<void> _resolvePeer(int number) async {
+    try {
+      String name = '';
+      String photo = '';
+
+      if (Get.isRegistered<ChatScreenController>()) {
+        final ChatScreenController chats = Get.find<ChatScreenController>();
+        final MsgConversation? c = chats.Find(number);
+
+        if (c != null) {
+          name = c.name;
+          photo = c.photo;
+        } else if (chats.Jwt.isNotEmpty) {
+          final MsgListResult r = await MsgSearchUsers(
+            jwt: chats.Jwt,
+            query: '$number',
+            page: 1,
+            pageSize: 10,
+          );
+
+          for (final MsgConversation u in r.items) {
+            if (u.userNumber == number) {
+              name = u.name;
+              photo = u.photo;
+              break;
+            }
+          }
+        }
+      }
+
+      // The call may have ended (or changed) while we looked.
+      if (peerNumber.value != number || callStage.value == CallStage.idle) {
+        return;
+      }
+
+      if (name.isNotEmpty) peerName.value = name;
+      peerPhoto.value = photo;
+    } catch (e) {
+      _log('resolvePeer ERROR: $e');
+    }
   }
 
   Future<void> _onAnswer(Map<String, dynamic> e) async {
@@ -556,6 +909,8 @@ class VideoCallGetx extends GetxController {
       _remoteDescSet = true;
       _log('Remote answer set');
       await _flushRemoteCandidates();
+
+      _ringTimer?.cancel();
       callStage.value = CallStage.connecting;
     } catch (err) {
       _log('_onAnswer ERROR: $err');
@@ -590,6 +945,8 @@ class VideoCallGetx extends GetxController {
   void _markConnected() {
     try {
       if (callStage.value == CallStage.connected) return;
+
+      _ringTimer?.cancel();
       callStage.value = CallStage.connected;
       callSeconds.value = 0;
       _callTimer?.cancel();
@@ -606,10 +963,11 @@ class VideoCallGetx extends GetxController {
   void _fail(String message) {
     try {
       _log('Call FAILED: $message');
-      callError.value = message;
+      _notify(message);
+
       final String? id = _callId;
-      if (id != null) {
-        _signal?.EndVideoCall(ReceiverNumber: otherNumber, CallId: id);
+      if (id != null && callStage.value != CallStage.idle) {
+        _signal?.EndVideoCall(ReceiverNumber: _peer, CallId: id);
       }
       _cleanup();
     } catch (e) {
@@ -621,6 +979,8 @@ class VideoCallGetx extends GetxController {
     try {
       _callTimer?.cancel();
       _callTimer = null;
+      _ringTimer?.cancel();
+      _ringTimer = null;
       callSeconds.value = 0;
 
       final RTCPeerConnection? pc = _pc;
@@ -653,8 +1013,15 @@ class VideoCallGetx extends GetxController {
       micOn.value = true;
       camOn.value = true;
       speakerOn.value = true;
+      overlayHidden.value = false;
 
+      // Last: this also removes the call window.
       callStage.value = CallStage.idle;
+
+      peerNumber.value = 0;
+      peerName.value = '';
+      peerPhoto.value = '';
+
       _log('Call resources released');
     } catch (e) {
       _log('_cleanup ERROR: $e');
@@ -711,85 +1078,87 @@ class MessageConfirmDialog extends StatelessWidget {
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 380),
-        child: Container(
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            color: ChatSurface,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: ChatBorder),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.35),
-                blurRadius: 30,
-                offset: const Offset(0, 14),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: accent.withOpacity(0.12),
-                  border: Border.all(color: accent.withOpacity(0.35)),
+        child: SingleChildScrollView(
+          child: Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: ChatSurface,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: ChatBorder),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.35),
+                  blurRadius: 30,
+                  offset: const Offset(0, 14),
                 ),
-                child: Icon(
-                  destructive
-                      ? Icons.warning_amber_rounded
-                      : Icons.help_outline_rounded,
-                  color: accent,
-                  size: 24,
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: accent.withOpacity(0.12),
+                    border: Border.all(color: accent.withOpacity(0.35)),
+                  ),
+                  child: Icon(
+                    destructive
+                        ? Icons.warning_amber_rounded
+                        : Icons.help_outline_rounded,
+                    color: accent,
+                    size: 24,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                title,
-                style: const TextStyle(
-                  color: ChatText,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+                const SizedBox(height: 16),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: ChatText,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                style: const TextStyle(
-                  color: ChatMuted,
-                  fontSize: 13.5,
-                  height: 1.5,
+                const SizedBox(height: 8),
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: ChatMuted,
+                    fontSize: 13.5,
+                    height: 1.5,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 22),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
+                const SizedBox(height: 22),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 10,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    OutlinedButton(
                       onPressed: () => Get.back(result: false),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: ChatText,
                         side: const BorderSide(color: ChatBorder),
-                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 22, vertical: 13),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(13),
                         ),
                       ),
                       child: const Text('Cancel'),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
+                    ElevatedButton(
                       onPressed: () => Get.back(result: true),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: accent,
                         foregroundColor:
                         destructive ? Colors.white : ChatBackground,
                         elevation: 0,
-                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 22, vertical: 13),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(13),
                         ),
@@ -799,10 +1168,10 @@ class MessageConfirmDialog extends StatelessWidget {
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

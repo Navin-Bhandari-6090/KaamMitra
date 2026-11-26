@@ -69,6 +69,22 @@
   },
   {
     "ContainingType": "application.Controllers.AdminController",
+    "Method": "AddResourcesNumber",
+    "RelativePath": "api/Admin/addresourcesnumber",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.ResourcesNumber",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
     "Method": "DeleteAdvancePaymentInfo",
     "RelativePath": "api/Admin/deleteadvancepaymentinfo",
     "HttpMethod": "DELETE",
@@ -133,6 +149,22 @@
   },
   {
     "ContainingType": "application.Controllers.AdminController",
+    "Method": "DeleteNotice",
+    "RelativePath": "api/Admin/deletenotice",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.DeleteNoticeIdDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
     "Method": "DeleteService",
     "RelativePath": "api/Admin/deleteproserviceares",
     "HttpMethod": "POST",
@@ -142,6 +174,22 @@
       {
         "Name": "obj",
         "Type": "application.Models.DTOModels.serv_res_id_DTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "DeleteResourcesNumber",
+    "RelativePath": "api/Admin/deleteresourcesnumber",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.DelNoOfResPerUserIDDTO",
         "IsRequired": true
       }
     ],
@@ -289,8 +337,28 @@
   },
   {
     "ContainingType": "application.Controllers.AdminController",
+    "Method": "GetAllResourcesNumber",
+    "RelativePath": "api/Admin/getallresourcesnumber",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
     "Method": "GetAllTaskCompletePayments",
     "RelativePath": "api/Admin/getalltaskcompletepayments",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.AdminController",
+    "Method": "GetNoticePro",
+    "RelativePath": "api/Admin/getnoticeadmin",
     "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
@@ -1046,50 +1114,12 @@
   },
   {
     "ContainingType": "application.Controllers.HomeController",
-    "Method": "AddChatMessage",
-    "RelativePath": "api/Home/addchatmessage",
-    "HttpMethod": "POST",
+    "Method": "GetAllAdvertisementInfos",
+    "RelativePath": "api/Home/getalladvertisementinfos",
+    "HttpMethod": "GET",
     "IsController": true,
     "Order": 0,
-    "Parameters": [
-      {
-        "Name": "model",
-        "Type": "application.Models.ChatInfoModel",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "application.Controllers.HomeController",
-    "Method": "AddChatStatus",
-    "RelativePath": "api/Home/addchatstatus",
-    "HttpMethod": "PUT",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "obj",
-        "Type": "application.Models.DTOModels.UpdMsgStatusDTOID",
-        "IsRequired": true
-      }
-    ],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "application.Controllers.HomeController",
-    "Method": "GetChatMessages",
-    "RelativePath": "api/Home/getchatmessage",
-    "HttpMethod": "POST",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "model",
-        "Type": "application.Models.DTOModels.UserNumberDTO",
-        "IsRequired": true
-      }
-    ],
+    "Parameters": [],
     "ReturnTypes": []
   },
   {
@@ -1100,32 +1130,6 @@
     "IsController": true,
     "Order": 0,
     "Parameters": [],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "application.Controllers.HomeController",
-    "Method": "GetNewMessageStatus",
-    "RelativePath": "api/Home/getnewmessagestatus",
-    "HttpMethod": "GET",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [],
-    "ReturnTypes": []
-  },
-  {
-    "ContainingType": "application.Controllers.HomeController",
-    "Method": "UpdateChatStatus",
-    "RelativePath": "api/Home/updatechatstatus",
-    "HttpMethod": "PUT",
-    "IsController": true,
-    "Order": 0,
-    "Parameters": [
-      {
-        "Name": "obj",
-        "Type": "application.Models.DTOModels.UpdMsgStatusDTOID",
-        "IsRequired": true
-      }
-    ],
     "ReturnTypes": []
   },
   {
@@ -1848,6 +1852,22 @@
   },
   {
     "ContainingType": "application.Controllers.ServiceController",
+    "Method": "AddNotice",
+    "RelativePath": "api/Service/addnotice",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.NoticeInfoDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ServiceController",
     "Method": "AddNotification",
     "RelativePath": "api/Service/addnotification",
     "HttpMethod": "POST",
@@ -1857,6 +1877,48 @@
       {
         "Name": "obj",
         "Type": "application.Models.DTOModels.NotificationInfoModelDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ServiceController",
+    "Method": "DeleteNotice",
+    "RelativePath": "api/Service/deletenotice",
+    "HttpMethod": "DELETE",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.DeleteNoticeIdDTO",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ServiceController",
+    "Method": "GetNoticePro",
+    "RelativePath": "api/Service/getnoticepro",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "application.Controllers.ServiceController",
+    "Method": "GetNoticeUser",
+    "RelativePath": "api/Service/getnoticeuser",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "obj",
+        "Type": "application.Models.DTOModels.GetNoticeUserDTO",
         "IsRequired": true
       }
     ],

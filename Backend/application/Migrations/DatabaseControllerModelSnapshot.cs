@@ -218,8 +218,8 @@ namespace application.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ChatId"));
 
-                    b.Property<bool>("IsRead")
-                        .HasColumnType("boolean");
+                    b.Property<DateTime?>("DeliveredAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Message")
                         .IsRequired()
@@ -234,10 +234,17 @@ namespace application.Migrations
                     b.Property<int>("SenderNumber")
                         .HasColumnType("integer");
 
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("StoreAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("ChatId");
+
+                    b.HasIndex("ReceiverNumber", "Status");
+
+                    b.HasIndex("SenderNumber", "ReceiverNumber", "StoreAt");
 
                     b.ToTable("ChatInfos");
                 });
@@ -272,25 +279,6 @@ namespace application.Migrations
                     b.ToTable("FooterInfos");
                 });
 
-            modelBuilder.Entity("application.Models.NewMessageInfosModel", b =>
-                {
-                    b.Property<int>("NewMsgId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("NewMsgId"));
-
-                    b.Property<int>("MessageReceiverNumber")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("Status")
-                        .HasColumnType("boolean");
-
-                    b.HasKey("NewMsgId");
-
-                    b.ToTable("NewMessageStatusInfos");
-                });
-
             modelBuilder.Entity("application.Models.NewNotificationInfoModel", b =>
                 {
                     b.Property<int>("NewNotId")
@@ -308,6 +296,32 @@ namespace application.Migrations
                     b.HasKey("NewNotId");
 
                     b.ToTable("NewNotificationInfos");
+                });
+
+            modelBuilder.Entity("application.Models.NoticeInfoModel", b =>
+                {
+                    b.Property<int>("NoticeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("NoticeId"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("ProviderNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ProviderServiceId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("NoticeId");
+
+                    b.ToTable("Notice");
                 });
 
             modelBuilder.Entity("application.Models.NotificationInfoModel", b =>
@@ -416,8 +430,7 @@ namespace application.Migrations
 
                     b.Property<string>("ServiceName")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("text");
 
                     b.Property<int>("UserNumber")
                         .HasColumnType("integer");
@@ -460,6 +473,29 @@ namespace application.Migrations
                     b.ToTable("RatingInfos");
                 });
 
+            modelBuilder.Entity("application.Models.ResourcesNumber", b =>
+                {
+                    b.Property<int>("ResourcesNumberId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ResourcesNumberId"));
+
+                    b.Property<int>("NoOfRes")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ServiceName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("UserNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("ResourcesNumberId");
+
+                    b.ToTable("ResourcesNoPerUser");
+                });
+
             modelBuilder.Entity("application.Models.ServiceInfoModel", b =>
                 {
                     b.Property<int>("ServiceId")
@@ -480,14 +516,16 @@ namespace application.Migrations
                     b.Property<double>("InternationalPriceDiscount")
                         .HasColumnType("double precision");
 
+                    b.Property<int>("NoOfRes")
+                        .HasColumnType("integer");
+
                     b.Property<string>("ServiceDescription")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("ServiceName")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                        .HasColumnType("text");
 
                     b.HasKey("ServiceId");
 

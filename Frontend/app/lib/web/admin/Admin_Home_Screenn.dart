@@ -23,6 +23,8 @@ import 'del_pro_reg_service_res.dart';
 import 'del_res.dart';
 import 'delete_user.dart';
 import 'manage_media.dart';
+import 'manage_no_of_res_per_user.dart';
+import 'manage_notice.dart';
 
 class _C {
   static const Color bg = Color(0xFF0F1F17);
@@ -292,6 +294,35 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             title: 'Footer details',
             subtitle: 'Update footer information',
             onTap: () => _go(() => AddFooterInfo(User_JwtToken: jwt)),
+          ),
+        ],
+      ),
+
+      _Section(
+        title: 'Notices',
+        icon: Icons.perm_media_rounded,
+        items: [
+
+          _Item(
+            icon: Icons.data_exploration_outlined,
+            title: 'Manage notices',
+            subtitle: "Review and delete notices",
+            onTap: () => _go(() => ManageNotice(Current_User_JwtToken: jwt)),
+          ),
+        ],
+      ),
+
+
+      _Section(
+        title: 'No of resources.',
+        icon: Icons.perm_media_rounded,
+        items: [
+
+          _Item(
+            icon: Icons.data_exploration_outlined,
+            title: 'Manage No of resources per user.',
+            subtitle: "Review and delete no of resources.",
+            onTap: () => _go(() => ManageNoOfResPerUser(User_JwtToken: jwt)),
           ),
         ],
       ),

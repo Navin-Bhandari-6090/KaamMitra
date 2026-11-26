@@ -3,11 +3,13 @@ import 'package:app/web/services/services_provider_service_select.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../constant/Server_Database.dart';
+import '../../models/NoticeUserModel.dart';
 import '../../models/ServiceScreenServiceModel.dart';
 import '../../models/ServiceScreenUserInfoModel.dart';
 import '../../state management/getx/services/select_service_provider_info_screen_getx.dart';
 import '../../constant/variable.dart';
 import '../common method/Commmon_Method.dart';
+import '../common method/date_time.dart';
 import '../common widget/design/bolbs_background.dart';
 
 /// ---------------------------------------------------------------------------
@@ -112,6 +114,15 @@ class _SelectServiceProviderInfoScreenState
       curve: const Interval(0.50, 1.0, curve: Curves.easeOutCubic),
     );
     _entranceController.forward();
+
+    // Load notices for this provider + provider service.
+    try {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _loadNotices();
+      });
+    } catch (e) {
+      // debugPrint("Schedule notices failed: $e");
+    }
   }
 
   @override
@@ -148,6 +159,20 @@ class _SelectServiceProviderInfoScreenState
 
     final path = photoPath.startsWith("/") ? photoPath : "/$photoPath";
     return "$baseUrl$path";
+  }
+
+  /// Loads notices for this provider and this provider service.
+  void _loadNotices() {
+    try {
+      providerCont.loadNotices(
+        context: context,
+        jwtToken: widget.Current_User_JwtToken,
+        providerNumber: widget.Providernumber,
+        providerServiceId: widget.ServiceId,
+      );
+    } catch (e) {
+      // debugPrint("Load notices failed: $e");
+    }
   }
 
   // ============================================================
@@ -344,6 +369,13 @@ class _SelectServiceProviderInfoScreenState
                                 _animatedSection(
                                   animation: _actionsAnim,
                                   child: _buildActions(isMobile, status),
+                                ),
+                                SizedBox(height: isMobile ? 18 : 24),
+
+                                // NEW: notices for this provider + service
+                                _animatedSection(
+                                  animation: _actionsAnim,
+                                  child: _buildNoticesCard(isMobile: isMobile),
                                 ),
                               ],
 
@@ -565,7 +597,6 @@ class _SelectServiceProviderInfoScreenState
     );
   }
 
-
   Widget _buildAvatar() {
     final provider = _provider;
     final photoUrl = GetPhotoUrl(provider?.photo ?? "");
@@ -590,7 +621,8 @@ class _SelectServiceProviderInfoScreenState
         padding: const EdgeInsets.all(2.5),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(39),
-          border: Border.all(color: _Theme.emerald.withOpacity(0.35), width: 1.5),
+          border:
+          Border.all(color: _Theme.emerald.withOpacity(0.35), width: 1.5),
           boxShadow: [
             BoxShadow(
               color: _Theme.emerald.withOpacity(0.12),
@@ -709,7 +741,8 @@ class _SelectServiceProviderInfoScreenState
             value: widget.Rating > 0
                 ? widget.Rating.toStringAsFixed(1)
                 : "No ratings yet",
-            trailing: widget.Rating > 0 ? _starRow(fullStars, hasHalfStar) : null,
+            trailing:
+            widget.Rating > 0 ? _starRow(fullStars, hasHalfStar) : null,
           ),
           _statCard(
             icon: Icons.design_services_rounded,
@@ -816,7 +849,8 @@ class _SelectServiceProviderInfoScreenState
                         color: missing ? _Theme.mutedText : _Theme.primaryText,
                         fontSize: missing ? 12.5 : 15,
                         fontWeight: FontWeight.w800,
-                        fontStyle: missing ? FontStyle.italic : FontStyle.normal,
+                        fontStyle:
+                        missing ? FontStyle.italic : FontStyle.normal,
                       ),
                     ),
                     if (trailing != null) trailing,
@@ -1063,12 +1097,14 @@ class _SelectServiceProviderInfoScreenState
             icon: Icons.info,
             keyboardType: TextInputType.multiline,
             obscure: false,
-            height: 100,
+            multiline: true,
+            height: 200, // chan
           ),
 
           const SizedBox(height: 24),
 
-          _stepHeader(number: "2", title: "Attach file or video", optional: true),
+          _stepHeader(
+              number: "2", title: "Attach file or video", optional: true),
           const SizedBox(height: 12),
 
           _noticeCard(
@@ -1110,7 +1146,9 @@ class _SelectServiceProviderInfoScreenState
                     change_video_cont_getx.videoBytes.value!.isNotEmpty,
                 selectedText: () {
                   final ext = change_video_cont_getx.videoExtension.value;
-                  return ext.isEmpty ? "Video selected" : "Video selected (.$ext)";
+                  return ext.isEmpty
+                      ? "Video selected"
+                      : "Video selected (.$ext)";
                 },
               );
 
@@ -1443,7 +1481,8 @@ class _SelectServiceProviderInfoScreenState
               color: _Theme.surfaceBar,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: selected ? _Theme.emerald.withOpacity(0.6) : _Theme.border,
+                color:
+                selected ? _Theme.emerald.withOpacity(0.6) : _Theme.border,
               ),
             ),
             child: Row(
@@ -1618,7 +1657,8 @@ class _SelectServiceProviderInfoScreenState
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 gradient: primary
-                    ? const LinearGradient(colors: [_Theme.emerald, _Theme.mint])
+                    ? const LinearGradient(
+                    colors: [_Theme.emerald, _Theme.mint])
                     : null,
                 color: primary ? null : _Theme.surface,
                 borderRadius: BorderRadius.circular(16),
@@ -1657,6 +1697,195 @@ class _SelectServiceProviderInfoScreenState
         ),
       );
     });
+  }
+
+  // ============================================================
+  // PROVIDER NOTICES (below Book now / Provider gallery)
+  // ============================================================
+
+  Widget _buildNoticesCard({required bool isMobile}) {
+    return _sectionCard(
+      isMobile: isMobile,
+      icon: Icons.campaign_rounded,
+      title: "Provider notices",
+      child: Obx(() {
+        try {
+          if (providerCont.isNoticeLoading.value) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 18),
+              child: Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    color: _Theme.emerald,
+                    strokeWidth: 2.2,
+                  ),
+                ),
+              ),
+            );
+          }
+
+          if (providerCont.noticeLoadFailed.value) {
+            return Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    "Couldn't load notices.",
+                    style: TextStyle(color: _Theme.mutedText, fontSize: 12.5),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: _loadNotices,
+                  icon: const Icon(Icons.refresh_rounded,
+                      color: _Theme.mint, size: 16),
+                  label: const Text(
+                    "Retry",
+                    style: TextStyle(color: _Theme.mint),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          final List<NoticeUserModel> list = providerCont.notices.toList();
+          if (list.isEmpty) {
+            return _emptyState("No notices from this provider yet.");
+          }
+
+          return Column(
+            children: [
+              for (int i = 0; i < list.length; i++) ...[
+                if (i != 0) const SizedBox(height: 12),
+                _noticeTile(list[i]),
+              ],
+            ],
+          );
+        } catch (e) {
+          // debugPrint("Notices card failed: $e");
+          return _emptyState(kDataNotAvailable);
+        }
+      }),
+    );
+  }
+
+  Widget _noticeTile(NoticeUserModel n) {
+    try {
+      final String name =
+      valueOrNA("${n.firstName ?? ""} ${n.lastName ?? ""}".trim());
+      final String message = valueOrNA(n.message);
+      final String service = valueOrNA(n.serviceName);
+
+      final String formattedDate = formatDateTime(n.createdAt ?? "");
+      final String date =
+      formattedDate.isEmpty ? kDataNotAvailable : formattedDate;
+
+      final String photoUrl = GetPhotoUrl(n.photo ?? "");
+
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: _Theme.surfaceBar,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: _Theme.border),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: _Theme.emerald.withOpacity(0.35)),
+              ),
+              child: ClipOval(
+                child: Container(
+                  color: _Theme.surface,
+                  child: photoUrl.isEmpty
+                      ? const Icon(Icons.person_rounded,
+                      color: _Theme.mint, size: 20)
+                      : Image.network(
+                    photoUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                    const Icon(Icons.person_rounded,
+                        color: _Theme.mint, size: 20),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: name == kDataNotAvailable
+                          ? _Theme.mutedText
+                          : _Theme.primaryText,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      fontStyle: name == kDataNotAvailable
+                          ? FontStyle.italic
+                          : FontStyle.normal,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _pill(
+                        icon: Icons.design_services_rounded,
+                        text: service,
+                        color: service == kDataNotAvailable
+                            ? _Theme.mutedText
+                            : _Theme.mint,
+                      ),
+                      _pill(
+                        icon: Icons.tag_rounded,
+                        text: "Provider #${n.providerNumber ?? ""}",
+                        color: _Theme.mutedTextAlt,
+                      ),
+                      _pill(
+                        icon: Icons.schedule_rounded,
+                        text: date,
+                        color: date == kDataNotAvailable
+                            ? _Theme.mutedText
+                            : _Theme.amber,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    message,
+                    style: TextStyle(
+                      color: message == kDataNotAvailable
+                          ? _Theme.mutedText
+                          : _Theme.primaryText.withOpacity(0.85),
+                      fontSize: 13,
+                      height: 1.55,
+                      fontStyle: message == kDataNotAvailable
+                          ? FontStyle.italic
+                          : FontStyle.normal,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      // debugPrint("Notice tile failed: $e");
+      return const SizedBox.shrink();
+    }
   }
 
   // ============================================================

@@ -20,6 +20,8 @@ class AddDelUpdServiceRegister extends GetxController
   final RxBool internationalDiscountFocused = false.obs;
   final RxBool serviceIdFocused = false.obs;
 
+  final RxBool newNoOFResourceFocused = false.obs;
+
   final RxBool isAddingService = false.obs;
   final RxBool isDeletingService = false.obs;
   final RxBool isUpdatingPrice = false.obs;

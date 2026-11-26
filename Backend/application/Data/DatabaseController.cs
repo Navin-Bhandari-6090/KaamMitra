@@ -21,6 +21,7 @@ namespace application.Data
 
         public DbSet<ServiceInfoModel> ServiceInfos { get; set; }
 
+        public DbSet<ResourcesNumber> ResourcesNoPerUser { get; set; }
         public DbSet<RatingInfoModel> RatingInfos { get; set; }
 
         public DbSet<BookinInfoModel> BookingInfos { get; set; }
@@ -41,7 +42,7 @@ namespace application.Data
 
         public DbSet<ChatInfoModel> ChatInfos { get; set; }
 
-        public DbSet<NewMessageInfosModel> NewMessageStatusInfos { get; set; }
+        public DbSet<NoticeInfoModel> Notice { get; set; }
 
         public DbSet<SharedMediaModel> SharedMediaInfos { get; set; }
 

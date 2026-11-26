@@ -5,9 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 // Adjust the relative import segment counts if your folder depth differs.
-import '../../../constant/variable.dart';
-import '../../../web/common method/Commmon_Method.dart' as common;
-
 import '../../../web/common method/communicationcommonmethod.dart';
 import '../../../web/communi_services/services.dart';
 import 'chat_screen_getx.dart';
@@ -27,7 +24,7 @@ class MsgItem {
     required this.text,
     required this.time,
     required this.senderNumber,
-    this.isRead = false,
+    this.status = MsgStatus.sent,
     this.state = MsgSendState.sent,
   });
 
@@ -36,10 +33,14 @@ class MsgItem {
   final String text;
   final DateTime time;
   final int senderNumber;
-  final bool isRead;
+
+  // 1 Sent (single tick), 2 Delivered (double tick), 3 Read (blue double tick).
+  final int status;
   final MsgSendState state;
 
   bool get isPending => chatId == 0;
+  bool get isRead => status >= MsgStatus.read;
+  bool get isDelivered => status == MsgStatus.delivered;
 
   factory MsgItem.fromServer(MsgMessage m) {
     return MsgItem(
@@ -48,21 +49,27 @@ class MsgItem {
       text: m.message,
       time: m.time ?? DateTime.now(),
       senderNumber: m.senderNumber,
-      isRead: m.isRead,
+      status: m.status,
       state: MsgSendState.sent,
     );
   }
 
-  MsgItem copyWith({bool? isRead, MsgSendState? state}) {
+  MsgItem copyWith({int? status, MsgSendState? state}) {
     return MsgItem(
       chatId: chatId,
       clientId: clientId,
       text: text,
       time: time,
       senderNumber: senderNumber,
-      isRead: isRead ?? this.isRead,
+      status: status ?? this.status,
       state: state ?? this.state,
     );
+  }
+
+  // Moves the status forward only (never Read -> Delivered).
+  MsgItem withStatusAtLeast(int newStatus) {
+    if (newStatus <= status) return this;
+    return copyWith(status: newStatus);
   }
 }
 
@@ -70,12 +77,17 @@ class MsgItem {
 // MESSAGE SCREEN GETX (one per open chat)
 //
 //  - newest 30 messages first, older ones load when you scroll up
-//  - messages arrive live over SignalR; the chat is marked read while open
-//  - a sent message shows at once (clock), then a tick, then a blue double
-//    tick when the other person has read it; a failed one can be retried
+//  - messages arrive live over SignalR
+//  - tells the server when this chat screen is open (OpenChat / CloseChat),
+//    and when the tab is hidden or visible again (Pause / Resume), so:
+//        screen open + visible  -> new messages are saved as READ (blue tick)
+//        other screen / hidden  -> only DELIVERED (grey double tick)
+//  - ticks of my messages: clock (sending), 1 grey tick (sent),
+//    2 grey ticks (delivered), 2 blue ticks (read). Status only moves forward.
+//  - a failed message can be retried
 //  - after a reconnect the newest page is fetched again, so nothing is missed
 //
-// Video calls are in VideoCallGetx (own file).
+// Video calls are in VideoCallGetx (global service, works on every screen).
 // =============================================================================
 class MessageScreenGetx extends GetxController {
   static const int PageSize = 30;
@@ -129,11 +141,17 @@ class MessageScreenGetx extends GetxController {
   bool _loadingInitial = false;
   bool _loadAgain = false;
 
+  // True while the app / browser tab is in front. A hidden tab must not turn
+  // messages blue.
+  bool _visible = true;
+
   // Messages waiting to be sent, one after the other (keeps the order).
   final List<String> _queue = <String>[];
   bool _sending = false;
   Timer? _noticeTimer;
   Timer? _markReadTimer;
+
+  bool get IsVisible => _visible;
 
   // ---------------------------------------------------------------------------
   // LIFECYCLE
@@ -156,6 +174,16 @@ class MessageScreenGetx extends GetxController {
     }
 
     _bindSignal();
+
+    // The server now knows I am on this chat's screen: earlier messages
+    // become Read and new ones arrive as Read. (If SignalR is not connected
+    // yet, the service sends it right after connecting.)
+    try {
+      _signal?.OpenChat(OtherNumber: otherNumber);
+    } catch (e) {
+      // print('MessageScreenGetx OpenChat error: $e');
+    }
+
     LoadInitial();
   }
 
@@ -171,6 +199,13 @@ class MessageScreenGetx extends GetxController {
       _markReadTimer?.cancel();
       textCont.dispose();
 
+      // Only close when this screen is still the open one (another chat may
+      // have opened already).
+      final SignalRService? s = _signal;
+      if (s != null && s.OpenChatUserNumber.value == otherNumber) {
+        s.CloseChat();
+      }
+
       if (Get.isRegistered<ChatScreenController>()) {
         Get.find<ChatScreenController>().ClearOpenChat(otherNumber);
       }
@@ -178,6 +213,27 @@ class MessageScreenGetx extends GetxController {
       // print('MessageScreenGetx onClose error: $e');
     }
     super.onClose();
+  }
+
+  // The screen reports when the app / tab is hidden or shown again.
+  void OnVisibilityChanged(bool visible) {
+    try {
+      if (_visible == visible) return;
+      _visible = visible;
+
+      final SignalRService? s = _signal;
+      if (s == null) return;
+
+      if (visible) {
+        // Back in front: everything that arrived meanwhile is read now.
+        s.ResumeOpenChat();
+        LoadInitial(silent: true);
+      } else {
+        s.PauseOpenChat();
+      }
+    } catch (e) {
+      // print('MessageScreenGetx visibility error: $e');
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -223,16 +279,34 @@ class MessageScreenGetx extends GetxController {
     return '${v ?? ''}'.toLowerCase() == 'true';
   }
 
+  // New servers send "status" (1, 2 or 3). Old pushes only have "isRead".
+  int _statusOf(Map<String, dynamic> e) {
+    final int s = _i(e['status']);
+    if (s >= MsgStatus.sent && s <= MsgStatus.read) return s;
+    return _b(e['isRead']) ? MsgStatus.read : MsgStatus.sent;
+  }
+
   void _onChatEvent(Map<String, dynamic> e) {
     try {
       final String type = '${e['type']}';
 
       if (type == 'ReceiveMessage') {
         _onReceive(e);
+      } else if (type == 'MessagesDelivered') {
+        // The other person came online: my Sent messages are Delivered.
+        if (_i(e['receiverNumber']) == otherNumber) {
+          _raiseMine(MsgStatus.delivered);
+        }
       } else if (type == 'MessagesRead') {
-        // The other person read my messages: every sent message gets the
-        // blue double tick.
-        if (_i(e['readerNumber']) == otherNumber) _markMineRead();
+        // Some of my messages were read (listed in chatIds).
+        if (_i(e['readerNumber']) == otherNumber) {
+          final dynamic raw = e['chatIds'];
+          final List<int> ids = raw is List ? raw.map(_i).toList() : <int>[];
+          if (ids.isNotEmpty) _raiseMine(MsgStatus.read, onlyChatIds: ids);
+        }
+      } else if (type == 'ConversationRead') {
+        // The other person opened this chat: everything I sent is Read.
+        if (_i(e['readerNumber']) == otherNumber) _raiseMine(MsgStatus.read);
       } else if (type == 'Reconnected') {
         // Catch up on anything missed while the connection was down.
         LoadInitial(silent: true);
@@ -246,6 +320,7 @@ class MessageScreenGetx extends GetxController {
     final int chatId = _i(e['chatId']);
     final int sender = _i(e['senderNumber']);
     final int receiver = _i(e['receiverNumber']);
+    final int status = _statusOf(e);
 
     final bool mine = sender == myNumber;
     final bool inThisChat = (mine && receiver == otherNumber) ||
@@ -265,40 +340,48 @@ class MessageScreenGetx extends GetxController {
           storeAt: '${e['storeAt'] ?? ''}',
           senderNumber: sender,
           receiverNumber: receiver,
-          isRead: _b(e['isRead']),
+          status: status,
+          deliveredAt: '${e['deliveredAt'] ?? ''}',
+          readAt: '${e['readAt'] ?? ''}',
           clientId: '${e['clientId'] ?? ''}',
         ),
       ],
     );
 
     if (!mine) {
-      // The chat is open: these messages are read right away.
-      _markReadSoon();
+      // The server saves it as Read when this screen is open and visible.
+      // If it did not (race, or hidden tab that came back), ask for it.
+      if (status < MsgStatus.read) _markIncomingReadSoon();
       if (!IsAtBottom.value) UnseenCount.value = UnseenCount.value + 1;
     }
   }
 
-  void _markMineRead() {
-    final List<MsgItem> next = Items
-        .map((i) => (i.senderNumber == myNumber && !i.isPending && !i.isRead)
-        ? i.copyWith(isRead: true)
-        : i)
-        .toList();
-    Items.assignAll(next);
+  // Raises the status of MY saved messages (forward only).
+  void _raiseMine(int newStatus, {List<int>? onlyChatIds}) {
+    bool changed = false;
+
+    final List<MsgItem> next = Items.map((i) {
+      if (i.senderNumber != myNumber || i.isPending) return i;
+      if (onlyChatIds != null && !onlyChatIds.contains(i.chatId)) return i;
+
+      final MsgItem updated = i.withStatusAtLeast(newStatus);
+      if (!identical(updated, i)) changed = true;
+      return updated;
+    }).toList();
+
+    if (changed) Items.assignAll(next);
   }
 
   // ---------------------------------------------------------------------------
   // LOADING
   // ---------------------------------------------------------------------------
-  void _handleSessionExpired() {
+  // 525 (user not valid) already started the logout inside the API call.
+  // 401 comes from the token check before the controller runs.
+  void _checkAuth(int statusCode) {
     try {
-      final ctx = Get.context;
-      if (ctx != null) {
-      Toast.Toastmsg("Your session has expired. Please login again.");
-        common.Logout(context: ctx);
-      }
+      if (statusCode == 401) MsgOnNotValidated?.call();
     } catch (e) {
-      // print('MessageScreenGetx session expired error: $e');
+      // print('MessageScreenGetx auth check error: $e');
     }
   }
 
@@ -323,11 +406,11 @@ class MessageScreenGetx extends GetxController {
       );
 
       if (!r.ok) {
-        if (r.statusCode == 401) {
-          _handleSessionExpired();
-        }
+        _checkAuth(r.statusCode);
         if (Items.isEmpty) {
-          LoadError.value = 'Could not load messages. Please try again.';
+          LoadError.value = r.notValidated
+              ? 'Your session has expired. Please login again.'
+              : 'Could not load messages. Please try again.';
         }
         return;
       }
@@ -342,7 +425,7 @@ class MessageScreenGetx extends GetxController {
       if (first) HasMoreOlder.value = r.hasMore;
       HasLoadedOnce.value = true;
 
-      _markReadSoon();
+      _markIncomingReadSoon();
     } catch (e) {
       // print('MessageScreenGetx LoadInitial error: $e');
       if (Items.isEmpty) {
@@ -381,7 +464,7 @@ class MessageScreenGetx extends GetxController {
       );
 
       if (!r.ok) {
-        if (r.statusCode == 401) _handleSessionExpired();
+        _checkAuth(r.statusCode);
         return;
       }
 
@@ -400,6 +483,7 @@ class MessageScreenGetx extends GetxController {
 
   // Puts server messages into the list: saved messages sorted by ChatId, then
   // the ones still being sent. Removes a "sending" copy once the server has it.
+  // A message already shown never loses a tick (forward-only status).
   void _mergeServer(List<MsgMessage> incoming) {
     final Map<int, MsgItem> byId = <int, MsgItem>{
       for (final MsgItem i in Items)
@@ -415,8 +499,15 @@ class MessageScreenGetx extends GetxController {
     final List<int> newer = <int>[];
     for (final MsgMessage m in incoming) {
       if (m.chatId <= 0) continue;
-      if (!byId.containsKey(m.chatId) && m.chatId > maxKnown) newer.add(m.chatId);
-      byId[m.chatId] = MsgItem.fromServer(m);
+
+      final MsgItem? existing = byId[m.chatId];
+      if (existing == null && m.chatId > maxKnown) newer.add(m.chatId);
+
+      MsgItem item = MsgItem.fromServer(m);
+      if (existing != null && existing.status > item.status) {
+        item = item.copyWith(status: existing.status);
+      }
+      byId[m.chatId] = item;
     }
 
     // A "sending" message the server already has (matched by ClientId, or by
@@ -442,58 +533,64 @@ class MessageScreenGetx extends GetxController {
   }
 
   // ---------------------------------------------------------------------------
-  // MARK READ (the chat is open, so what arrives is read)
+  // MARK READ (safety net: the server normally saves messages as Read by
+  // itself while this screen is open and visible)
   // ---------------------------------------------------------------------------
-  void _markReadSoon() {
+  void _markIncomingReadSoon() {
     try {
       _markReadTimer?.cancel();
       _markReadTimer = Timer(const Duration(milliseconds: 250), () {
-        _markRead();
+        _markIncomingRead();
       });
     } catch (e) {
-      // print('MessageScreenGetx markReadSoon error: $e');
+      // print('MessageScreenGetx markIncomingReadSoon error: $e');
     }
   }
 
-  Future<void> _markRead() async {
+  Future<void> _markIncomingRead() async {
     try {
-      // Only when there is something unread from the other person.
-      final bool anyUnread = Items.any(
-            (i) => i.senderNumber == otherNumber && !i.isPending && !i.isRead,
-      );
-      if (!anyUnread) return;
+      // A hidden tab must not mark anything as read.
+      if (!_visible) return;
 
-      // The server reply "ConversationRead" is not needed here: the other
-      // person's list gets "MessagesRead" and ours is cleared optimistically.
-      if (Get.isRegistered<ChatScreenController>()) {
-        final ChatScreenController chats = Get.find<ChatScreenController>();
-        if (chats.Jwt.isNotEmpty) {
-          await chats.MarkRead(otherNumber);
-          _setIncomingRead();
-          return;
+      final List<MsgItem> unread = Items
+          .where((i) => i.senderNumber == otherNumber && !i.isPending && !i.isRead)
+          .toList();
+      if (unread.isEmpty) return;
+
+      final SignalRService? s = _signal;
+
+      if (s != null && s.IsSignalRConnected) {
+        if (unread.length == 1) {
+          await s.MarkMessageRead(ChatId: unread.first.chatId);
+        } else {
+          // Several at once: open the chat again, the server marks them all.
+          await s.OpenChat(OtherNumber: otherNumber);
         }
+        _setIncomingRead();
+        return;
       }
 
-      await MsgMarkRead(jwt: jwtToken, userNumber: otherNumber);
-      _setIncomingRead();
+      // SignalR is down: use the REST call instead.
+      final bool ok = await MsgMarkRead(jwt: jwtToken, userNumber: otherNumber);
+      if (ok) _setIncomingRead();
     } catch (e) {
-      // print('MessageScreenGetx markRead error: $e');
+      // print('MessageScreenGetx markIncomingRead error: $e');
     }
   }
 
-  // Incoming messages are stored as read after the server accepted it, so the
-  // next check does not call the server again.
+  // Incoming messages are stored as read after the request, so the next check
+  // does not call the server again.
   void _setIncomingRead() {
     final List<MsgItem> next = Items
         .map((i) => (i.senderNumber == otherNumber && !i.isPending && !i.isRead)
-        ? i.copyWith(isRead: true)
+        ? i.withStatusAtLeast(MsgStatus.read)
         : i)
         .toList();
     Items.assignAll(next);
   }
 
   // ---------------------------------------------------------------------------
-  // SENDING (instant bubble, then sent / read ticks, retry when it fails)
+  // SENDING (instant bubble, then ticks, retry when it fails)
   // ---------------------------------------------------------------------------
   bool get HasText => Draft.value.trim().isNotEmpty;
 
@@ -558,12 +655,15 @@ class MessageScreenGetx extends GetxController {
         _queue.remove(id);
 
         if (r.ok && r.message != null) {
+          // The answer already has the first status (Sent, Delivered or Read).
           _mergeServer(<MsgMessage>[r.message!]);
         } else {
           _setState(id, MsgSendState.failed);
 
-          if (r.statusCode == 401) {
-            _handleSessionExpired();
+          _checkAuth(r.statusCode);
+
+          if (r.notValidated || r.statusCode == 401) {
+            // Logging out: no extra message needed.
           } else if (r.error.isNotEmpty) {
             _showNotice(r.error);
           } else {

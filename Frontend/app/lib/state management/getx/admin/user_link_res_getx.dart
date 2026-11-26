@@ -90,6 +90,7 @@ class UserLinkResGetx extends GetxController {
         body: jsonEncode({"UserNumber": UserNumber}),
       );
 
+      print(response.body);
       // Successful response.
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);

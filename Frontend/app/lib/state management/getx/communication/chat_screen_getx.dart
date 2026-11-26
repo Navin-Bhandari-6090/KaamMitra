@@ -23,6 +23,20 @@ import '../../../web/communi_services/services.dart';
 //   - search text typed        -> people matching username / user id (server)
 //   - no search, have chats    -> my conversations, newest first
 //   - no search, no chats      -> all people (server, paged)
+//
+// Message status (ticks): 1 Sent, 2 Delivered, 3 Read. It only moves forward.
+// The server decides the first status of a new message:
+//   receiver on that chat's message screen -> Read
+//   receiver connected, other screen       -> Delivered
+//   receiver offline                       -> Sent
+//
+// Server events handled here (payload keys are camelCase):
+//   ReceiveMessage     new message (has status)
+//   MessagesDelivered  receiver came online: my Sent messages are Delivered
+//   MessagesRead       some of my messages were read (chatIds)
+//   ConversationRead   the other person opened our chat: my messages are Read
+//   UnreadCleared      I read a chat in another tab/device: clear its badge
+//   Reconnected        connection is up again: refetch
 // =============================================================================
 class ChatScreenController extends GetxController {
   static const int PageSize = 30;
@@ -47,8 +61,7 @@ class ChatScreenController extends GetxController {
   // Total unread messages (home screen chat icon).
   final RxInt UnreadTotal = 0.obs;
 
-  // Person whose message screen is open right now (0 = none). Messages from
-  // this person are marked read straight away instead of counting as unread.
+  // Person whose message screen is open right now (0 = none).
   final RxInt OpenChatNumber = 0.obs;
 
   // ---- connection + presence (mirrors of SignalRService) ----
@@ -95,11 +108,20 @@ class ChatScreenController extends GetxController {
     try {
       if (JwtToken.trim().isEmpty || UserNumber <= 0) return;
 
+      // A new login (other token or other user): allow the "user not valid"
+      // logout to run again.
+      if (Jwt != JwtToken || MyNumber != UserNumber) {
+        MsgResetNotValidated();
+      }
+
       if (MyNumber != UserNumber) {
         _clearData();
         MyNumber = UserNumber;
       }
       Jwt = JwtToken;
+
+      // Every chat request that gets status 525 runs this (once).
+      MsgOnNotValidated = _logoutNotValidated;
 
       _bindSignal();
 
@@ -215,20 +237,49 @@ class ChatScreenController extends GetxController {
     return '${v ?? ''}'.toLowerCase() == 'true';
   }
 
+  // New servers send "status" (1, 2 or 3). Old pushes only have "isRead".
+  int _statusOf(Map<String, dynamic> e) {
+    final int s = _i(e['status']);
+    if (s >= MsgStatus.sent && s <= MsgStatus.read) return s;
+    return _b(e['isRead']) ? MsgStatus.read : MsgStatus.sent;
+  }
+
+  // ---------------------------------------------------------------------------
+  // USER NOT VALID (525) -> log out
+  // ---------------------------------------------------------------------------
+  void _logoutNotValidated() {
+    try {
+      final ctx = Get.context;
+      if (ctx == null) return;
+
+      Toast.Toastmsg("Your session has expired. Please login again.");
+
+      // Stop live updates for this user, then run the app's logout.
+      Stop();
+      common.Logout(context: ctx);
+    } catch (e) {
+      // print('ChatScreenController logout error: $e');
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // LOADING MY CONVERSATIONS
   // ---------------------------------------------------------------------------
   void _handleFailure(int code) {
     try {
-      if (code == 401) {
-        ErrorMessage.value = 'Your session has expired.';
-        final ctx = Get.context;
-        if (ctx != null) {
-          Toast.Toastmsg("Your session has expired. Please login again.");
-          common.Logout(context: ctx);
-        }
+      // 525 already started the logout inside the API call (once).
+      if (code == MsgNotValidatedCode) {
+        ErrorMessage.value = 'Your session has expired. Please login again.';
         return;
       }
+
+      // 401 comes from the token check before the controller runs.
+      if (code == 401) {
+        ErrorMessage.value = 'Your session has expired. Please login again.';
+        _logoutNotValidated();
+        return;
+      }
+
       ErrorMessage.value = 'Unable to load conversations. Please try again.';
     } catch (e) {
       // print('ChatScreenController failure handler error: $e');
@@ -408,9 +459,17 @@ class ChatScreenController extends GetxController {
     }
   }
 
+  // The message screen closed: clear what is left of the badge and catch up
+  // (ticks, last message) with the server.
   void ClearOpenChat(int userNumber) {
     try {
       if (OpenChatNumber.value == userNumber) OpenChatNumber.value = 0;
+
+      final MsgConversation? c = Find(userNumber);
+      if (c != null && c.unreadCount > 0) MarkRead(userNumber);
+
+      RefreshSoon();
+      RefreshUnreadSoon();
     } catch (e) {
       // print('ChatScreenController ClearOpenChat error: $e');
     }
@@ -456,10 +515,14 @@ class ChatScreenController extends GetxController {
 
       if (type == 'ReceiveMessage') {
         _onReceive(e);
+      } else if (type == 'MessagesDelivered') {
+        _onMessagesDelivered(e);
       } else if (type == 'MessagesRead') {
         _onMessagesRead(e);
       } else if (type == 'ConversationRead') {
         _onConversationRead(e);
+      } else if (type == 'UnreadCleared') {
+        _onUnreadCleared(e);
       } else if (type == 'Reconnected') {
         // Catch up on anything missed while the connection was down.
         RefreshSoon();
@@ -476,7 +539,7 @@ class ChatScreenController extends GetxController {
     final int receiver = _i(e['receiverNumber']);
     final String message = '${e['message'] ?? ''}';
     final String storeAt = '${e['storeAt'] ?? ''}';
-    final bool isRead = _b(e['isRead']);
+    final int status = _statusOf(e);
 
     if (MyNumber <= 0 || sender <= 0 || receiver <= 0) return;
 
@@ -484,8 +547,10 @@ class ChatScreenController extends GetxController {
     if (!mine && receiver != MyNumber) return;
 
     final int partner = mine ? receiver : sender;
-    final bool chatOpen = OpenChatNumber.value == partner;
-    final bool addUnread = !mine && !chatOpen;
+
+    // The server already saved the message as Read when I am on that chat's
+    // message screen (and the tab is visible). Only then it is not unread.
+    final bool addUnread = !mine && status < MsgStatus.read;
 
     final int idx = Conversations.indexWhere((c) => c.userNumber == partner);
 
@@ -507,7 +572,7 @@ class ChatScreenController extends GetxController {
       lastMessage: message,
       lastSenderNumber: sender,
       lastMessageAt: storeAt,
-      lastIsRead: mine ? false : isRead,
+      lastStatus: status,
       unreadCount: addUnread ? old.unreadCount + 1 : old.unreadCount,
     );
 
@@ -519,27 +584,57 @@ class ChatScreenController extends GetxController {
     Conversations.assignAll(next);
 
     if (addUnread) UnreadTotal.value = UnreadTotal.value + 1;
-    if (!mine && chatOpen) MarkRead(partner);
 
     RefreshUnreadSoon();
   }
 
-  // The other person read my messages: my last message gets the read tick.
+  // Applies "at least this status" to my last message with one person.
+  void _raiseMyLastStatus(int partner, int newStatus, {List<int>? onlyIfChatIds}) {
+    final int idx = Conversations.indexWhere((c) => c.userNumber == partner);
+    if (idx < 0) return;
+
+    final MsgConversation old = Conversations[idx];
+    if (old.lastSenderNumber != MyNumber) return;
+
+    if (onlyIfChatIds != null && !onlyIfChatIds.contains(old.lastChatId)) {
+      return;
+    }
+
+    final MsgConversation updated = old.withLastStatusAtLeast(newStatus);
+    if (!identical(updated, old)) Conversations[idx] = updated;
+  }
+
+  // The other person came online: my Sent messages to them are Delivered.
+  void _onMessagesDelivered(Map<String, dynamic> e) {
+    final int receiver = _i(e['receiverNumber']);
+    if (receiver <= 0) return;
+
+    _raiseMyLastStatus(receiver, MsgStatus.delivered);
+  }
+
+  // Some of my messages were read (chatIds): update the tick when my last
+  // message is one of them.
   void _onMessagesRead(Map<String, dynamic> e) {
     final int reader = _i(e['readerNumber']);
     if (reader <= 0) return;
 
-    final int idx = Conversations.indexWhere((c) => c.userNumber == reader);
-    if (idx < 0) return;
+    final dynamic raw = e['chatIds'];
+    final List<int> ids = raw is List ? raw.map(_i).toList() : <int>[];
+    if (ids.isEmpty) return;
 
-    final MsgConversation old = Conversations[idx];
-    if (old.lastSenderNumber == MyNumber && !old.lastIsRead) {
-      Conversations[idx] = old.copyWith(lastIsRead: true);
-    }
+    _raiseMyLastStatus(reader, MsgStatus.read, onlyIfChatIds: ids);
+  }
+
+  // The other person opened our chat: everything I sent them is Read.
+  void _onConversationRead(Map<String, dynamic> e) {
+    final int reader = _i(e['readerNumber']);
+    if (reader <= 0) return;
+
+    _raiseMyLastStatus(reader, MsgStatus.read);
   }
 
   // I read a chat somewhere else (another tab or device): clear the badge.
-  void _onConversationRead(Map<String, dynamic> e) {
+  void _onUnreadCleared(Map<String, dynamic> e) {
     final int other = _i(e['userNumber']);
     if (other <= 0) return;
 
@@ -686,7 +781,9 @@ class ChatScreenController extends GetxController {
       if (!r.ok) {
         SearchResults.clear();
         SearchHasMore.value = false;
-        SearchError.value = 'Could not load people. Please try again.';
+        SearchError.value = r.notValidated
+            ? 'Your session has expired. Please login again.'
+            : 'Could not load people. Please try again.';
         return;
       }
 

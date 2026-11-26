@@ -29,8 +29,5 @@ namespace application.Models
         [Required]
         public int UserNumber { get; set; }
 
-
-
-
     }
 }

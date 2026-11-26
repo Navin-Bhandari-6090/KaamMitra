@@ -340,9 +340,10 @@ class _InfoCard extends StatelessWidget {
     const List<List<Object>> items = [
       [Icons.person_rounded, 'User data'],
       [Icons.chat_bubble_rounded, 'Messages'],
-      [Icons.mark_chat_unread_rounded, 'New message status'],
+      [Icons.data_object, 'Notices'],
       [Icons.notifications_rounded, 'Notifications'],
       [Icons.notifications_active_rounded, 'New notification status'],
+      [Icons.numbers, 'Service resources limit no'],
     ];
 
     return _Glass(

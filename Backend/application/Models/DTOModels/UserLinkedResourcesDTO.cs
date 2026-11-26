@@ -1,10 +1,14 @@
-﻿namespace application.Models.DTOModels
+﻿using Microsoft.EntityFrameworkCore;
+
+namespace application.Models.DTOModels
 {
     public class UserLinkedResourcesDTO
     {
         public string ProviderServiceInfo { get; set; } = string.Empty;
 
         public string ProviderServiceResourcesInfo { get; set; } = string.Empty;
+
+        public string ResourcesNoPerUserInfo { get; set; }
 
         public string BookingInfos { get; set; } = string.Empty;
 
@@ -18,7 +22,7 @@
 
         public string ChatInfos { get; set; } = string.Empty;
 
-        public string NewMessageStatusInfos { get; set; } = string.Empty;
+        public string NoticeInfos { get; set; } = string.Empty;
 
         public string SharedMediaInfos { get; set; } = string.Empty;
         public string RatingInfos { get; set; } = string.Empty;

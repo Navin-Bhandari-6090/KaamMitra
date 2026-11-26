@@ -1,7 +1,5 @@
 import 'dart:convert';
 import 'dart:math';
-
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -49,6 +47,7 @@ class _AddDelServicesState extends State<AddDelServices>
   final DomesticPriceDiscountTextCont=TextEditingController();
   final InternationalPriceTextCont=TextEditingController();
   final InternationalPriceDiscountTextCont=TextEditingController();
+  final NoOfResourceTextCont=TextEditingController();
 
   // ---- UI-only additions below: GetX controller + entrance/bubble animation ----
   final ServiceCont = Get.put(AddDelUpdServiceRegister());
@@ -140,16 +139,19 @@ class _AddDelServicesState extends State<AddDelServices>
     required double DomesticPriceDiscount,
     required double InternationalPrice,
     required double InternationalPriceDiscount,
+    required int NoOfRes,
   }) async {
     try {
-      print("========== UPDATE SERVICE PRICE ==========");
 
-      final Map<String, dynamic> data = {
+
+      final Map<String, dynamic> data =
+      {
         "ServiceId": ServiceId,
         "DomesticPrice": DomesticPrice,
         "DomesticPriceDiscount": DomesticPriceDiscount,
         "InternationalPrice": InternationalPrice,
         "InternationalPriceDiscount": InternationalPriceDiscount,
+        "NoOfRes":NoOfRes
       };
 
 
@@ -247,8 +249,6 @@ class _AddDelServicesState extends State<AddDelServices>
       }
     }
     catch (obj) {
-      print("========== UPDATE SERVICE PRICE ERROR ==========");
-      print("Exception: ${obj.toString()}");
 
       Toast.Toastmsg(
         "Something went wrong.",
@@ -268,9 +268,10 @@ class _AddDelServicesState extends State<AddDelServices>
     required double DomesticPriceDiscount,
     required double InternationalPrice,
     required double InternationalPriceDiscount,
+    required int NoOfRes,
   }) async {
     try {
-      print("========== ADD SERVICE ==========");
+
 
       final Map<String, dynamic> data = {
         "ServiceName": ServiceName,
@@ -279,6 +280,8 @@ class _AddDelServicesState extends State<AddDelServices>
         "DomesticPriceDiscount": DomesticPriceDiscount,
         "InternationalPrice": InternationalPrice,
         "InternationalPriceDiscount": InternationalPriceDiscount,
+        "NoOfRes":NoOfRes
+
       };
 
 
@@ -297,7 +300,7 @@ class _AddDelServicesState extends State<AddDelServices>
 
 
       if (response.statusCode == 200) {
-        print("Service added successfully.");
+
 
         Toast.Toastmsg(
           "Service added successfully.",
@@ -307,8 +310,7 @@ class _AddDelServicesState extends State<AddDelServices>
       }
 
       else if (response.statusCode == 502) {
-        print("Service already registered.");
-        print("Server Message: ${response.body}");
+
 
         Toast.Toastmsg(
           "Service already registered in that name.",
@@ -318,8 +320,7 @@ class _AddDelServicesState extends State<AddDelServices>
       }
 
       else if (response.statusCode == 500) {
-        print("Invalid service data.");
-        print("Server Message: ${response.body}");
+
 
         Toast.Toastmsg(
           "Data are not in correct format.",
@@ -329,8 +330,6 @@ class _AddDelServicesState extends State<AddDelServices>
       }
 
       else if (response.statusCode == 501) {
-        print("Server exception.");
-        print("Server Message: ${response.body}");
 
         Toast.Toastmsg(
           "Something went wrong on server.",
@@ -340,8 +339,7 @@ class _AddDelServicesState extends State<AddDelServices>
       }
 
       else if (response.statusCode == 401) {
-        print("Unauthorized.");
-        print("Server Message: ${response.body}");
+
 
         Toast.Toastmsg(
           "Unauthorized.",
@@ -351,8 +349,7 @@ class _AddDelServicesState extends State<AddDelServices>
       }
 
       else if (response.statusCode == 403) {
-        print("Admin access required.");
-        print("Server Message: ${response.body}");
+
 
         Toast.Toastmsg(
           "Admin access required.",
@@ -362,13 +359,7 @@ class _AddDelServicesState extends State<AddDelServices>
       }
 
       else {
-        print(
-          "Unexpected Status Code: ${response.statusCode}",
-        );
 
-        print(
-          "Unexpected Response: ${response.body}",
-        );
 
         Toast.Toastmsg(
           "Failed to add service.",
@@ -378,8 +369,6 @@ class _AddDelServicesState extends State<AddDelServices>
       }
     }
     catch (obj) {
-      print("========== ADD SERVICE ERROR ==========");
-      print("Exception: ${obj.toString()}");
 
       Toast.Toastmsg(
         "Something went wrong.",
@@ -394,8 +383,6 @@ class _AddDelServicesState extends State<AddDelServices>
     required int ServiceId,
   }) async {
     try {
-      print("========== DELETE SERVICE ==========");
-
 
       final Map<String, dynamic> data = {
         "ServiceId": ServiceId,
@@ -417,7 +404,7 @@ class _AddDelServicesState extends State<AddDelServices>
 
 
       if (response.statusCode == 200) {
-        print("Service deleted successfully.");
+
 
         Toast.Toastmsg(
           "Service deleted successfully.",
@@ -427,8 +414,7 @@ class _AddDelServicesState extends State<AddDelServices>
       }
 
       else if (response.statusCode == 502) {
-        print("Service not present with that ID.");
-        print("Server Message: ${response.body}");
+
 
         Toast.Toastmsg(
           "Service not present with that ID.",
@@ -438,8 +424,7 @@ class _AddDelServicesState extends State<AddDelServices>
       }
 
       else if (response.statusCode == 500) {
-        print("Service data is not in correct format.");
-        print("Server Message: ${response.body}");
+
 
         Toast.Toastmsg(
           "Data are not in correct format.",
@@ -449,8 +434,7 @@ class _AddDelServicesState extends State<AddDelServices>
       }
 
       else if (response.statusCode == 501) {
-        print("Server exception.");
-        print("Server Message: ${response.body}");
+
 
         Toast.Toastmsg(
           "Something went wrong on server.",
@@ -460,8 +444,7 @@ class _AddDelServicesState extends State<AddDelServices>
       }
 
       else if (response.statusCode == 401) {
-        print("Unauthorized.");
-        print("Server Message: ${response.body}");
+
 
         Toast.Toastmsg(
           "Unauthorized.",
@@ -471,8 +454,7 @@ class _AddDelServicesState extends State<AddDelServices>
       }
 
       else if (response.statusCode == 403) {
-        print("Admin access required.");
-        print("Server Message: ${response.body}");
+
 
         Toast.Toastmsg(
           "Admin access required.",
@@ -482,13 +464,7 @@ class _AddDelServicesState extends State<AddDelServices>
       }
 
       else {
-        print(
-          "Unexpected Status Code: ${response.statusCode}",
-        );
 
-        print(
-          "Unexpected Response: ${response.body}",
-        );
 
         Toast.Toastmsg(
           "Failed to delete service.",
@@ -498,8 +474,6 @@ class _AddDelServicesState extends State<AddDelServices>
       }
     }
     catch (obj) {
-      print("========== DELETE SERVICE ERROR ==========");
-      print("Exception: ${obj.toString()}");
 
       Toast.Toastmsg(
         "Something went wrong.",
@@ -653,7 +627,7 @@ class _AddDelServicesState extends State<AddDelServices>
         ),
       ),
       bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
+        preferredSize:  Size.fromHeight(1),
         child: Container(height: 1, color: _Palette.borderColor),
       ),
     );
@@ -880,6 +854,7 @@ class _AddDelServicesState extends State<AddDelServices>
   }
 
   Widget _buildServiceCard(AdminRegSerInfoModel service) {
+
     final String serviceName =
     service.serviceName?.trim().isNotEmpty == true
         ? service.serviceName!.trim()
@@ -909,6 +884,11 @@ class _AddDelServicesState extends State<AddDelServices>
     service.internationalPriceDiscount != null
         ? service.internationalPriceDiscount.toString()
         : "Not available";
+
+    final String NoOfResource =
+    service.noOfRes.toString().trim().isNotEmptyAndNotNull == true
+        ? service.noOfRes!.toString().trim()
+        : "No of resources not available";
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -958,7 +938,9 @@ class _AddDelServicesState extends State<AddDelServices>
             style: const TextStyle(color: _Palette.mutedText, fontSize: 12.5, height: 1.4),
           ),
           const SizedBox(height: 14),
-          Row(
+
+          Row
+            (
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
@@ -978,6 +960,17 @@ class _AddDelServicesState extends State<AddDelServices>
               ),
             ],
           ),
+
+          const SizedBox(height: 6),
+          Text(
+            NoOfResource,
+            style: const TextStyle(color: _Palette.mutedText, fontSize: 12.5, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+
+
+
+
         ],
       ),
     );
@@ -1029,6 +1022,7 @@ class _AddDelServicesState extends State<AddDelServices>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+
         _buildTextInput(
           controller: NewServiceNameTextCont,
           label: "Enter the service name.",
@@ -1036,6 +1030,16 @@ class _AddDelServicesState extends State<AddDelServices>
           focusedRx: ServiceCont.newServiceNameFocused,
           onFocusChange: (v) => ServiceCont.newServiceNameFocused.value = v,
         ),
+
+        const SizedBox(height: 12),
+        _buildTextInput(
+          controller: NoOfResourceTextCont,
+          label: "Enter the no of resources per service.",
+          icon: Icons.numbers,
+          focusedRx: ServiceCont.newNoOFResourceFocused,
+          onFocusChange: (v) => ServiceCont.newNoOFResourceFocused.value = v,
+        ),
+
         const SizedBox(height: 12),
         _buildTextInput(
           controller: ServiceDescpTextCont,
@@ -1111,7 +1115,8 @@ class _AddDelServicesState extends State<AddDelServices>
                   DomesticPriceTextCont.text.trim().isEmptyOrNull ||
                   DomesticPriceDiscountTextCont.text.trim().isEmptyOrNull ||
                   InternationalPriceTextCont.text.trim().isEmptyOrNull ||
-                  InternationalPriceDiscountTextCont.text.trim().isEmptyOrNull
+                  InternationalPriceDiscountTextCont.text.trim().isEmptyOrNull ||
+                  NoOfResourceTextCont.text.trim().isEmptyOrNull
               )
               {
                 Toast.Toastmsg("All fields are required.");
@@ -1131,7 +1136,8 @@ class _AddDelServicesState extends State<AddDelServices>
                   DomesticPrice: DomesticPrice!,
                   DomesticPriceDiscount: DomesticPriceDiscount!,
                   InternationalPrice: InternationalPrice!,
-                  InternationalPriceDiscount: InternationalPriceDiscount!
+                  InternationalPriceDiscount: InternationalPriceDiscount!,
+                  NoOfRes: int.parse( NoOfResourceTextCont.text.trim())
               );
 
               // ---- New feature: refresh the service list on success ----
@@ -1224,10 +1230,11 @@ class _AddDelServicesState extends State<AddDelServices>
                   DomesticPriceTextCont.text.trim().isEmptyOrNull ||
                   DomesticPriceDiscountTextCont.text.trim().isEmptyOrNull ||
                   InternationalPriceTextCont.text.trim().isEmptyOrNull ||
-                  InternationalPriceDiscountTextCont.text.trim().isEmptyOrNull
+                  InternationalPriceDiscountTextCont.text.trim().isEmptyOrNull ||
+              NoOfResourceTextCont.text.trim().isEmptyOrNull
 
               ){
-                Toast.Toastmsg("Service id and all 4 price is required.");
+                Toast.Toastmsg("Service id , no of resources and all 4 price is required.");
                 return;
               }
 
@@ -1244,7 +1251,8 @@ class _AddDelServicesState extends State<AddDelServices>
                   DomesticPrice: DomesticPrice!,
                   DomesticPriceDiscount: DomesticPriceDiscount!,
                   InternationalPrice: InternationalPrice!,
-                  InternationalPriceDiscount: InternationalPriceDiscount!
+                  InternationalPriceDiscount: InternationalPriceDiscount!, 
+                  NoOfRes: int.parse(NoOfResourceTextCont.text.trim())
               );
 
               // ---- New feature: refresh the service list on success ----

@@ -992,13 +992,16 @@ class _ProviderbookinginfodetailsscreenState
       subtitle: "Describe the service you will provide.",
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+        children:
+        [
+
           _field(
             controller: ProviderDescriptionCont,
             label: "Enter your service description",
             icon: Icons.notes_rounded,
             maxLines: 4,
           ),
+
           const SizedBox(height: 16),
           Obx(
                 () => _GradientButton(

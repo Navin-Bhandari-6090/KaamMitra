@@ -22,6 +22,36 @@ const Color _Emerald = Color(0xFF22C55E);
 const Color _Warn = Color(0xFFFBBF24);
 const Color _ReadBlue = Color(0xFF38BDF8);
 
+// Layout numbers of the people grid.
+const double _MaxContentWidth = 1100;
+const double _MaxCardWidth = 440;
+const double _CardGap = 14;
+const double _MinScreenWidth = 200; // below this a small placeholder is shown
+
+// =============================================================================
+// MESSAGE TICK (public: the message screen uses it too)
+//   Sent      single grey tick
+//   Delivered double grey tick
+//   Read      double blue tick
+// =============================================================================
+class ChatStatusTick extends StatelessWidget {
+  final int status;
+  final double size;
+
+  const ChatStatusTick({super.key, required this.status, this.size = 15});
+
+  @override
+  Widget build(BuildContext context) {
+    if (status >= MsgStatus.read) {
+      return Icon(Icons.done_all_rounded, size: size, color: _ReadBlue);
+    }
+    if (status == MsgStatus.delivered) {
+      return Icon(Icons.done_all_rounded, size: size, color: ChatMuted);
+    }
+    return Icon(Icons.done_rounded, size: size, color: ChatMuted);
+  }
+}
+
 // =============================================================================
 // SCREEN (StatefulWidget only for controller lifecycle, zero setState)
 // =============================================================================
@@ -98,6 +128,13 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  // Same rule as SliverGridDelegateWithMaxCrossAxisExtent, so the number of
+  // columns grows with the width.
+  int _columnsFor(double width) {
+    if (width <= _MaxCardWidth) return 1;
+    return ((width + _CardGap) / (_MaxCardWidth + _CardGap)).ceil();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -112,19 +149,39 @@ class _ChatScreenState extends State<ChatScreen> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final double w = constraints.maxWidth;
+
+                // Absurdly narrow window: show a tiny placeholder instead of
+                // a layout that cannot fit.
+                if (w < _MinScreenWidth) return _buildTooNarrow();
+
                 final bool isWide = w >= 760;
-                final double hPad = isWide ? 28 : 14;
+                final double hPad = isWide ? 28 : (w < 300 ? 8 : 14);
+                final double contentW = math.min(w, _MaxContentWidth);
+                final double listW = math.max(contentW - (hPad * 2), 0);
 
                 return Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1100),
-                    child: Obx(() => _buildScrollBody(isWide, hPad)),
+                    constraints:
+                    const BoxConstraints(maxWidth: _MaxContentWidth),
+                    child: Obx(() => _buildScrollBody(isWide, hPad, listW)),
                   ),
                 );
               },
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTooNarrow() {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(8),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Icon(Icons.forum_rounded, color: ChatAccent, size: 32),
+        ),
       ),
     );
   }
@@ -171,6 +228,9 @@ class _ChatScreenState extends State<ChatScreen> {
   // APP BAR: bordered back arrow, title, live connection status
   // ---------------------------------------------------------------------------
   PreferredSizeWidget _buildAppBar(BuildContext context) {
+    final double screenW = MediaQuery.of(context).size.width;
+    final bool narrowBar = screenW < 330;
+
     return AppBar(
       backgroundColor: ChatHeader,
       elevation: 0,
@@ -178,7 +238,7 @@ class _ChatScreenState extends State<ChatScreen> {
       surfaceTintColor: Colors.transparent,
       automaticallyImplyLeading: false,
       centerTitle: false,
-      leadingWidth: 64,
+      leadingWidth: narrowBar ? 52 : 64,
       titleSpacing: 0,
       leading: Center(
         child: Tooltip(
@@ -205,58 +265,72 @@ class _ChatScreenState extends State<ChatScreen> {
           ),
         ),
       ),
-      title: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [_Emerald, ChatAccent]),
-              borderRadius: BorderRadius.circular(11),
-              boxShadow: [
-                BoxShadow(
-                  color: _Emerald.withOpacity(0.35),
-                  blurRadius: 14,
-                  offset: const Offset(0, 4),
+      // LayoutBuilder + FittedBox: the title scales down instead of
+      // overflowing on narrow widths or with a large text size.
+      title: LayoutBuilder(
+        builder: (context, box) {
+          final bool showIcon = box.maxWidth >= 120;
+
+          return Row(
+            children: [
+              if (showIcon) ...[
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    gradient:
+                    const LinearGradient(colors: [_Emerald, ChatAccent]),
+                    borderRadius: BorderRadius.circular(11),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _Emerald.withOpacity(0.35),
+                        blurRadius: 14,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.forum_rounded,
+                      color: ChatBackground, size: 19),
                 ),
+                const SizedBox(width: 10),
               ],
-            ),
-            child: const Icon(Icons.forum_rounded,
-                color: ChatBackground, size: 19),
-          ),
-          const SizedBox(width: 10),
-          const Flexible(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'KaamMitra Connect',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: ChatText,
-                    fontSize: 16.5,
-                    fontWeight: FontWeight.w800,
-                    height: 1.15,
+              const Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'KaamMitra Connect',
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: ChatText,
+                          fontSize: 16.5,
+                          fontWeight: FontWeight.w800,
+                          height: 1.15,
+                        ),
+                      ),
+                      Text(
+                        'Your conversations start here',
+                        maxLines: 1,
+                        style: TextStyle(color: ChatMuted, fontSize: 11.5),
+                      ),
+                    ],
                   ),
                 ),
-                Text(
-                  'Your conversations start here',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: ChatMuted, fontSize: 11.5),
-                ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
       actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 12),
-          child: Center(child: _buildConnectionPill(context)),
-        ),
+        if (screenW >= 240)
+          Padding(
+            padding: EdgeInsets.only(right: narrowBar ? 8 : 12),
+            child: Center(child: _buildConnectionPill(context)),
+          ),
       ],
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(1),
@@ -317,7 +391,7 @@ class _ChatScreenState extends State<ChatScreen> {
   // ---------------------------------------------------------------------------
   // BODY: one scroll view, works at any size
   // ---------------------------------------------------------------------------
-  Widget _buildScrollBody(bool isWide, double hPad) {
+  Widget _buildScrollBody(bool isWide, double hPad, double listW) {
     // Reading these registers the reactive dependencies.
     final bool loading = Controller.IsInitialLoading;
     final String error = Controller.ErrorText;
@@ -326,19 +400,23 @@ class _ChatScreenState extends State<ChatScreen> {
     final String sectionTitle = Controller.SectionTitle;
     final bool loadingMore = Controller.IsLoadingMoreItems;
 
+    final int cols = _columnsFor(listW);
+    final double cardW =
+    math.max((listW - (_CardGap * (cols - 1))) / cols, 0);
+
     Widget content;
 
     if (loading && items.isEmpty) {
       content = SliverToBoxAdapter(
         child: Wrap(
-          spacing: 14,
-          runSpacing: 14,
+          spacing: _CardGap,
+          runSpacing: _CardGap,
           children: [
             for (int i = 0; i < (isWide ? 6 : 4); i++)
-              const SizedBox(
-                width: 340,
-                height: 116,
-                child: _SkeletonBox(),
+              SizedBox(
+                width: cardW,
+                height: 108,
+                child: const _SkeletonBox(),
               ),
           ],
         ),
@@ -368,33 +446,58 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       );
     } else {
-      content = SliverGrid(
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 440,
-          mainAxisExtent: 116,
-          crossAxisSpacing: 14,
-          mainAxisSpacing: 14,
-        ),
-        delegate: SliverChildBuilderDelegate(
-              (context, index) {
-            final MsgConversation c = items[index];
+      // Rows of cards. A card is as tall as its content (no fixed height), and
+      // the cards of one row share the height of the tallest one.
+      final int rowCount = (items.length / cols).ceil();
 
-            return _Entrance(
-              key: ValueKey<String>('c_${c.userNumber}'),
-              index: math.min(index, 8),
-              child: _buildUserCard(c),
+      content = SliverList(
+        delegate: SliverChildBuilderDelegate(
+              (context, rowIndex) {
+            final int start = rowIndex * cols;
+
+            Widget row;
+
+            if (cols == 1) {
+              row = _buildUserCard(
+                items[start],
+                cardW,
+                key: ValueKey<String>('c_${items[start].userNumber}'),
+              );
+            } else {
+              final List<Widget> cells = <Widget>[];
+
+              for (int k = 0; k < cols; k++) {
+                final int i = start + k;
+
+                if (k > 0) cells.add(const SizedBox(width: _CardGap));
+
+                cells.add(
+                  Expanded(
+                    child: i < items.length
+                        ? _buildUserCard(
+                      items[i],
+                      cardW,
+                      key: ValueKey<String>('c_${items[i].userNumber}'),
+                    )
+                        : const SizedBox.shrink(),
+                  ),
+                );
+              }
+
+              row = IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: cells,
+                ),
+              );
+            }
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: _CardGap),
+              child: row,
             );
           },
-          childCount: items.length,
-          // Keeps each card's state when the order changes (live reorder).
-          findChildIndexCallback: (Key key) {
-            if (key is ValueKey<String>) {
-              final int i =
-              items.indexWhere((u) => 'c_${u.userNumber}' == key.value);
-              return i < 0 ? null : i;
-            }
-            return null;
-          },
+          childCount: rowCount,
         ),
       );
     }
@@ -412,7 +515,7 @@ class _ChatScreenState extends State<ChatScreen> {
           SliverPadding(
             padding: EdgeInsets.fromLTRB(hPad, 20, hPad, 0),
             sliver: SliverToBoxAdapter(
-              child: _Entrance(index: 0, child: _buildWelcome(isWide)),
+              child: _Entrance(index: 0, child: _buildWelcome(isWide, listW)),
             ),
           ),
           SliverPadding(
@@ -455,10 +558,12 @@ class _ChatScreenState extends State<ChatScreen> {
   // ---------------------------------------------------------------------------
   // WELCOME CARD
   // ---------------------------------------------------------------------------
-  Widget _buildWelcome(bool isWide) {
+  Widget _buildWelcome(bool isWide, double listW) {
+    final bool small = listW < 300;
+
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(isWide ? 26 : 18),
+      padding: EdgeInsets.all(isWide ? 26 : (small ? 14 : 18)),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: ChatBorder),
@@ -489,7 +594,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   'Good connections.\nBetter opportunities.',
                   style: TextStyle(
                     color: ChatText,
-                    fontSize: isWide ? 26 : 21,
+                    fontSize: isWide ? 26 : (small ? 17 : 21),
                     height: 1.2,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.4,
@@ -501,7 +606,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   style: TextStyle(
                     color: ChatText.withOpacity(0.72),
                     height: 1.5,
-                    fontSize: 13,
+                    fontSize: small ? 12 : 13,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -610,57 +715,92 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // SECTION HEADER
+  // SECTION HEADER (the Refresh button turns into an icon on narrow widths)
   // ---------------------------------------------------------------------------
   Widget _buildSectionHeader(String title) {
-    return Row(
-      children: [
-        const Icon(Icons.groups_rounded, color: ChatAccent, size: 20),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: ChatText,
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
+    return LayoutBuilder(
+      builder: (context, box) {
+        final bool showLabel = box.maxWidth >= 300;
+        final bool showIcon = box.maxWidth >= 150;
+
+        return Row(
+          children: [
+            if (showIcon) ...[
+              const Icon(Icons.groups_rounded, color: ChatAccent, size: 20),
+              const SizedBox(width: 8),
+            ],
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: ChatText,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
-          ),
-        ),
-        Obx(() {
-          final bool refreshing = Controller.IsRefreshing;
-          return TextButton.icon(
-            onPressed: refreshing ? null : Controller.RefreshAll,
-            icon: refreshing
-                ? const SizedBox(
-              width: 15,
-              height: 15,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2, color: ChatAccent),
-            )
-                : const Icon(Icons.refresh_rounded, size: 17),
-            label: const Text('Refresh'),
-            style: TextButton.styleFrom(
-              foregroundColor: ChatAccent,
-              disabledForegroundColor: ChatMuted,
-            ),
-          );
-        }),
-      ],
+            Obx(() {
+              final bool refreshing = Controller.IsRefreshing;
+
+              final Widget spinner = const SizedBox(
+                width: 15,
+                height: 15,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: ChatAccent),
+              );
+
+              if (!showLabel) {
+                return IconButton(
+                  tooltip: 'Refresh',
+                  onPressed: refreshing ? null : Controller.RefreshAll,
+                  icon: refreshing
+                      ? spinner
+                      : const Icon(Icons.refresh_rounded, size: 20),
+                  color: ChatAccent,
+                  disabledColor: ChatMuted,
+                  visualDensity: VisualDensity.compact,
+                );
+              }
+
+              return TextButton.icon(
+                onPressed: refreshing ? null : Controller.RefreshAll,
+                icon: refreshing
+                    ? spinner
+                    : const Icon(Icons.refresh_rounded, size: 17),
+                label: const Text('Refresh'),
+                style: TextButton.styleFrom(
+                  foregroundColor: ChatAccent,
+                  disabledForegroundColor: ChatMuted,
+                ),
+              );
+            }),
+          ],
+        );
+      },
     );
   }
 
   // ---------------------------------------------------------------------------
   // USER CARD: photo, name, last date, last message (+ticks), unread badge,
-  // user id, online / offline
+  // user id, online / offline.
+  // The card has NO fixed height. It gets smaller on narrow widths (cardW is
+  // measured by the caller, so no LayoutBuilder is needed inside the card).
   // ---------------------------------------------------------------------------
-  Widget _buildUserCard(MsgConversation c) {
+  Widget _buildUserCard(MsgConversation c, double cardW, {Key? key}) {
+    final bool compact = cardW < 300;
+    final bool tiny = cardW < 230;
+
+    final double avatarSize = tiny ? 38 : (compact ? 46 : 54);
+    final double pad = tiny ? 10 : (compact ? 12 : 14);
+    final double nameSize = tiny ? 14 : 15.5;
+
     final bool unread = c.unreadCount > 0;
     final bool mine = c.lastSenderNumber == widget.CurrentUserNumber;
     final String lastText = Controller.LastMessageText(c);
     final String dateText = Controller.DateText(c);
+    final bool showDate = !tiny && dateText.isNotEmpty;
 
     return Obx(() {
       final bool online = Controller.IsUserOnline(c.userNumber);
@@ -668,6 +808,7 @@ class _ChatScreenState extends State<ChatScreen> {
       final Color tone = online ? ChatAccent : ChatMuted;
 
       return MouseRegion(
+        key: key,
         cursor: SystemMouseCursors.click,
         onEnter: (_) => Controller.HoveredUser.value = c.userNumber,
         onExit: (_) {
@@ -685,7 +826,8 @@ class _ChatScreenState extends State<ChatScreen> {
               onTap: () => _openChat(c),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.all(14),
+                constraints: const BoxConstraints(minHeight: 92),
+                padding: EdgeInsets.all(pad),
                 decoration: BoxDecoration(
                   color: ChatSurface.withOpacity(hovered ? 1 : 0.95),
                   borderRadius: BorderRadius.circular(20),
@@ -712,12 +854,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     _UserAvatar(
                       photoUrl: c.photoUrl,
                       online: online,
-                      size: 54,
+                      size: avatarSize,
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: tiny ? 10 : 12),
                     Expanded(
                       child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
@@ -727,17 +869,18 @@ class _ChatScreenState extends State<ChatScreen> {
                                   c.name,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: ChatText,
                                     fontWeight: FontWeight.w800,
-                                    fontSize: 15.5,
+                                    fontSize: nameSize,
                                   ),
                                 ),
                               ),
-                              if (dateText.isNotEmpty) ...[
+                              if (showDate) ...[
                                 const SizedBox(width: 8),
                                 Text(
                                   dateText,
+                                  maxLines: 1,
                                   style: TextStyle(
                                     color: unread ? ChatAccent : ChatMuted,
                                     fontSize: 10.5,
@@ -750,13 +893,11 @@ class _ChatScreenState extends State<ChatScreen> {
                           const SizedBox(height: 5),
                           Row(
                             children: [
-                              // Read tick for my own last message.
+                              // Tick for my own last message:
+                              // grey = sent, double grey = delivered,
+                              // blue = read.
                               if (mine && c.hasMessage) ...[
-                                Icon(
-                                  Icons.done_all_rounded,
-                                  size: 15,
-                                  color: c.lastIsRead ? _ReadBlue : ChatMuted,
-                                ),
+                                ChatStatusTick(status: c.lastStatus),
                                 const SizedBox(width: 4),
                               ],
                               Expanded(
@@ -804,16 +945,18 @@ class _ChatScreenState extends State<ChatScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    AnimatedSlide(
-                      duration: const Duration(milliseconds: 180),
-                      offset: Offset(hovered ? 0.2 : 0, 0),
-                      child: Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        color: hovered ? ChatAccent : ChatMuted,
-                        size: 14,
+                    if (!compact) ...[
+                      const SizedBox(width: 8),
+                      AnimatedSlide(
+                        duration: const Duration(milliseconds: 180),
+                        offset: Offset(hovered ? 0.2 : 0, 0),
+                        child: Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          color: hovered ? ChatAccent : ChatMuted,
+                          size: 14,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -836,7 +979,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: ChatSurface.withOpacity(0.88),
         borderRadius: BorderRadius.circular(24),
@@ -926,6 +1069,8 @@ class _UserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double dot = size < 44 ? 11 : 14;
+
     return SizedBox(
       width: size,
       height: size,
@@ -961,8 +1106,8 @@ class _UserAvatar extends StatelessWidget {
             right: -1,
             bottom: -1,
             child: Container(
-              width: 14,
-              height: 14,
+              width: dot,
+              height: dot,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: online ? ChatAccent : ChatMuted,

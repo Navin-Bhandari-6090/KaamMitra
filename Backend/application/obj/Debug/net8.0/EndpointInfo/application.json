@@ -712,6 +712,123 @@
         }
       }
     },
+    "/api/Admin/deletenotice": {
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteNoticeIdDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteNoticeIdDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteNoticeIdDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/getnoticeadmin": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/addresourcesnumber": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourcesNumber"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourcesNumber"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourcesNumber"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/getallresourcesnumber": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Admin/deleteresourcesnumber": {
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DelNoOfResPerUserIDDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DelNoOfResPerUserIDDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DelNoOfResPerUserIDDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/Authentication/signin": {
       "post": {
         "tags": [
@@ -1847,131 +1964,7 @@
         }
       }
     },
-    "/api/Home/addchatmessage": {
-      "post": {
-        "tags": [
-          "Home"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChatInfoModel"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChatInfoModel"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/ChatInfoModel"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/Home/getchatmessage": {
-      "post": {
-        "tags": [
-          "Home"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserNumberDTO"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserNumberDTO"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserNumberDTO"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/Home/addchatstatus": {
-      "put": {
-        "tags": [
-          "Home"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdMsgStatusDTOID"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdMsgStatusDTOID"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdMsgStatusDTOID"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/Home/updatechatstatus": {
-      "put": {
-        "tags": [
-          "Home"
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdMsgStatusDTOID"
-              }
-            },
-            "text/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdMsgStatusDTOID"
-              }
-            },
-            "application/*+json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdMsgStatusDTOID"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "OK"
-          }
-        }
-      }
-    },
-    "/api/Home/getnewmessagestatus": {
+    "/api/Home/getalladvertisementinfos": {
       "get": {
         "tags": [
           "Home"
@@ -3411,6 +3404,111 @@
           }
         }
       }
+    },
+    "/api/Service/addnotice": {
+      "post": {
+        "tags": [
+          "Service"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoticeInfoDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoticeInfoDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoticeInfoDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Service/deletenotice": {
+      "delete": {
+        "tags": [
+          "Service"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteNoticeIdDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteNoticeIdDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteNoticeIdDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Service/getnoticeuser": {
+      "post": {
+        "tags": [
+          "Service"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetNoticeUserDTO"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetNoticeUserDTO"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetNoticeUserDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Service/getnoticepro": {
+      "get": {
+        "tags": [
+          "Service"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3474,45 +3572,6 @@
         },
         "additionalProperties": false
       },
-      "ChatInfoModel": {
-        "required": [
-          "message",
-          "receiverNumber",
-          "senderNumber"
-        ],
-        "type": "object",
-        "properties": {
-          "chatId": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "message": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "storeAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "senderNumber": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "receiverNumber": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "isRead": {
-            "type": "boolean"
-          },
-          "readAt": {
-            "type": "string",
-            "format": "date-time",
-            "nullable": true
-          }
-        },
-        "additionalProperties": false
-      },
       "ChatMessagesPageDTO": {
         "type": "object",
         "properties": {
@@ -3546,6 +3605,29 @@
           "clientId": {
             "type": "string",
             "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DelNoOfResPerUserIDDTO": {
+        "required": [
+          "resourcesNumberId"
+        ],
+        "type": "object",
+        "properties": {
+          "resourcesNumberId": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DeleteNoticeIdDTO": {
+        "type": "object",
+        "properties": {
+          "noticeId": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -3605,6 +3687,20 @@
           "socialMediaInfo": {
             "minLength": 1,
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetNoticeUserDTO": {
+        "type": "object",
+        "properties": {
+          "providerNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "providerServiceId": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -3694,6 +3790,23 @@
           },
           "status": {
             "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NoticeInfoDTO": {
+        "required": [
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "providerServiceId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "minLength": 1,
+            "type": "string"
           }
         },
         "additionalProperties": false
@@ -3868,6 +3981,7 @@
           "domesticPriceDiscount",
           "internationalPrice",
           "internationalPriceDiscount",
+          "noOfRes",
           "serviceId"
         ],
         "type": "object",
@@ -3891,6 +4005,10 @@
           "internationalPriceDiscount": {
             "type": "number",
             "format": "double"
+          },
+          "noOfRes": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -3909,6 +4027,33 @@
           "serviceTitle": {
             "minLength": 1,
             "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResourcesNumber": {
+        "required": [
+          "noOfRes",
+          "serviceName",
+          "userNumber"
+        ],
+        "type": "object",
+        "properties": {
+          "resourcesNumberId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "noOfRes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "serviceName": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "userNumber": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -3932,6 +4077,7 @@
           "domesticPriceDiscount",
           "internationalPrice",
           "internationalPriceDiscount",
+          "noOfRes",
           "serviceDescription",
           "serviceName"
         ],
@@ -3942,8 +4088,7 @@
             "format": "int32"
           },
           "serviceName": {
-            "maxLength": 50,
-            "minLength": 0,
+            "minLength": 1,
             "type": "string"
           },
           "serviceDescription": {
@@ -3965,6 +4110,10 @@
           "internationalPriceDiscount": {
             "type": "number",
             "format": "double"
+          },
+          "noOfRes": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false
@@ -3976,19 +4125,6 @@
         "type": "object",
         "properties": {
           "sharedMediaId": {
-            "type": "integer",
-            "format": "int32"
-          }
-        },
-        "additionalProperties": false
-      },
-      "UpdMsgStatusDTOID": {
-        "required": [
-          "messageReceiverNumber"
-        ],
-        "type": "object",
-        "properties": {
-          "messageReceiverNumber": {
             "type": "integer",
             "format": "int32"
           }

@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:app/web/communication/chat/video_call.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -10,13 +9,18 @@ import '../../../state management/getx/communication/message_screen_getx.dart';
 import '../../../state management/getx/communication/video_call_getx.dart';
 
 import '../../common method/communicationcommonmethod.dart';
+import '../../profile/provider_user/select_shared_media.dart';
 import 'chat_screen.dart';
-
 
 const Color _Emerald = Color(0xFF22C55E);
 const Color _Warn = Color(0xFFFBBF24);
 const Color _Danger = Color(0xFFEF4444);
 const Color _ReadTick = Color(0xFF0C4A6E); // deep blue, readable on green
+
+// Below this size the screen shows a small placeholder instead of a layout
+// that cannot fit.
+const double _MinWidth = 200;
+const double _MinHeight = 90;
 
 // =============================================================================
 // SCREEN (StatefulWidget only for controller lifecycle, zero setState)
@@ -46,8 +50,45 @@ class ChatMessageScreen extends StatefulWidget {
   State<ChatMessageScreen> createState() => _ChatMessageScreenState();
 }
 
-class _ChatMessageScreenState extends State<ChatMessageScreen> {
+class _AttachButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _AttachButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Shared media',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: ChatAccent.withOpacity(0.12),
+              border: Border.all(color: ChatAccent.withOpacity(0.45)),
+            ),
+            child: const Icon(
+              Icons.add_rounded,
+              color: ChatAccent,
+              size: 24,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatMessageScreenState extends State<ChatMessageScreen>
+    with WidgetsBindingObserver {
   MessageScreenGetx? Controller;
+
+  // One global call service for the whole app (works on every screen).
   VideoCallGetx? Call;
   String? _tag;
 
@@ -78,16 +119,14 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
         tag: _tag,
       );
 
-      Call = Get.put(
-        VideoCallGetx(
-          myNumber: widget.CurrentUserNumber,
-          otherNumber: widget.ReceiverNumber,
-        ),
-        tag: _tag,
-      );
+      Call = VideoCallGetx.Ensure();
 
       Controller!.ScrollToLatest = _scrollToLatest;
       _scroll.addListener(_onScroll);
+
+      // Tells the controller when the app / browser tab is hidden or shown, so
+      // a hidden tab never turns messages blue.
+      WidgetsBinding.instance.addObserver(this);
     } catch (e) {
       // print('ChatMessageScreen initState error: $e');
     }
@@ -96,18 +135,32 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
   @override
   void dispose() {
     try {
+      WidgetsBinding.instance.removeObserver(this);
       Controller?.ScrollToLatest = null;
       _scroll.removeListener(_onScroll);
       _scroll.dispose();
 
+      // The video call service is global: it is NOT deleted here, so a call
+      // keeps running when the user leaves this chat.
       if (_tag != null) {
-        Get.delete<VideoCallGetx>(tag: _tag);
         Get.delete<MessageScreenGetx>(tag: _tag);
       }
     } catch (e) {
       // print('ChatMessageScreen dispose error: $e');
     }
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    try {
+      // "paused" / "hidden" / "detached" = not visible. "resumed" = in front.
+      final String n = state.name;
+      final bool hidden = n == 'paused' || n == 'hidden' || n == 'detached';
+      Controller?.OnVisibilityChanged(!hidden);
+    } catch (e) {
+      // print('ChatMessageScreen lifecycle error: $e');
+    }
   }
 
   void _onScroll() {
@@ -163,17 +216,30 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
           SafeArea(
             child: LayoutBuilder(
               builder: (context, box) {
+                if (box.maxWidth < _MinWidth || box.maxHeight < _MinHeight) {
+                  return _buildTooSmall();
+                }
+
                 final bool isWide = box.maxWidth >= 760;
-                final double hPad = isWide ? 24 : 12;
-                final double maxBubble =
-                (box.maxWidth * 0.74).clamp(220.0, 520.0).toDouble();
+                final double hPad = isWide ? 24 : (box.maxWidth < 300 ? 8 : 12);
+
+                // Never wider than the list itself.
+                final double avail = math.max(box.maxWidth - (hPad * 2), 0);
+                final double maxBubble = math.min(
+                  avail,
+                  (box.maxWidth * 0.74).clamp(160.0, 520.0).toDouble(),
+                );
+
+                // Banners need room: hide them on very short windows (for
+                // example when the keyboard is open on a small screen).
+                final bool roomForBanners = box.maxHeight >= 260;
 
                 return Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 900),
                     child: Column(
                       children: [
-                        _buildConnectionBanner(c, hPad),
+                        if (roomForBanners) _buildConnectionBanner(c, hPad),
                         Expanded(
                           child: Stack(
                             children: [
@@ -186,7 +252,7 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
                             ],
                           ),
                         ),
-                        _buildNotice(c, hPad),
+                        if (roomForBanners) _buildNotice(c, hPad),
                         _buildComposer(c, hPad),
                       ],
                     ),
@@ -195,29 +261,26 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
               },
             ),
           ),
-          // Call error banner (shown when the call is idle again).
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: CallErrorBanner(controller: call),
-          ),
-          // Call window: draws nothing while idle, never blocks taps.
-          Positioned.fill(
-            child: Obx(() => VideoCallOverlay(
-              controller: call,
-              name: _name,
-              photoUrl: MsgPhotoUrl(c.OtherPhoto.value),
-            )),
-          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTooSmall() {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(8),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Icon(Icons.chat_bubble_rounded, color: ChatAccent, size: 30),
+        ),
       ),
     );
   }
 
   Widget _buildFallback() {
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: _StateCard(
           icon: Icons.cloud_off_rounded,
@@ -237,16 +300,22 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // APP BAR: back arrow, photo, full name, ID, live online/offline, video call
+  // APP BAR: back arrow, photo, full name, ID, live online/offline, video call.
+  // The title scales down instead of overflowing on narrow widths or with a
+  // large text size.
   // ---------------------------------------------------------------------------
   PreferredSizeWidget _buildAppBar(MessageScreenGetx c, VideoCallGetx call) {
+    final double screenW = MediaQuery.of(context).size.width;
+    final bool narrowBar = screenW < 330;
+    final bool noName = _name == 'No data available';
+
     return AppBar(
       backgroundColor: ChatHeader,
       elevation: 0,
       scrolledUnderElevation: 0,
       surfaceTintColor: Colors.transparent,
       automaticallyImplyLeading: false,
-      leadingWidth: 64,
+      leadingWidth: narrowBar ? 52 : 64,
       titleSpacing: 0,
       toolbarHeight: 64,
       leading: Center(
@@ -274,105 +343,138 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
           ),
         ),
       ),
-      title: Row(
-        children: [
-          Obx(() => _PhotoAvatar(
-            photoUrl: MsgPhotoUrl(c.OtherPhoto.value),
-            online: c.IsOnline.value,
-            size: 42,
-          )),
-          const SizedBox(width: 10),
-          Flexible(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: _name == 'No data available' ? ChatMuted : ChatText,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    height: 1.15,
-                    fontStyle: _name == 'No data available'
-                        ? FontStyle.italic
-                        : FontStyle.normal,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        'ID: ${widget.ReceiverNumber}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: ChatMuted,
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Obx(() => _PresenceLabel(online: c.IsOnline.value)),
-                  ],
-                ),
+      title: LayoutBuilder(
+        builder: (context, box) {
+          final bool showAvatar = box.maxWidth >= 120;
+          final double textMax =
+          math.max(box.maxWidth - (showAvatar ? 52 : 0), 0);
+
+          return Row(
+            children: [
+              if (showAvatar) ...[
+                Obx(() => _PhotoAvatar(
+                  photoUrl: MsgPhotoUrl(c.OtherPhoto.value),
+                  online: c.IsOnline.value,
+                  size: 42,
+                )),
+                const SizedBox(width: 10),
               ],
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        Padding(
-          padding: const EdgeInsets.only(right: 12),
-          child: Center(
-            child: Tooltip(
-              message: 'Video call',
-              child: InkWell(
-                borderRadius: BorderRadius.circular(12),
-                onTap: () {
-                  try {
-                    call.startCall();
-                  } catch (e) {
-                    // print('Start call tap error: $e');
-                  }
-                },
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [_Emerald, ChatAccent],
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: textMax),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: noName ? ChatMuted : ChatText,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            height: 1.15,
+                            fontStyle:
+                            noName ? FontStyle.italic : FontStyle.normal,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 2,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              'ID: ${widget.ReceiverNumber}',
+                              maxLines: 1,
+                              style: const TextStyle(
+                                color: ChatMuted,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Obx(() => _PresenceLabel(online: c.IsOnline.value)),
+                          ],
+                        ),
+                      ],
                     ),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: _Emerald.withOpacity(0.35),
-                        blurRadius: 14,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.videocam_rounded,
-                    color: ChatBackground,
-                    size: 21,
                   ),
                 ),
               ),
-            ),
+            ],
+          );
+        },
+      ),
+      actions: [
+        if (screenW >= 240)
+          Padding(
+            padding: EdgeInsets.only(right: narrowBar ? 8 : 12),
+            child: Center(child: _buildCallButton(call)),
           ),
-        ),
       ],
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(1),
         child: Container(height: 1, color: ChatBorder),
       ),
     );
+  }
+
+  // Video call button. It is dimmed while a call is already running (the
+  // global call service handles one call at a time).
+  Widget _buildCallButton(VideoCallGetx call) {
+    return Obx(() {
+      final bool busy = call.callStage.value != CallStage.idle;
+
+      return Opacity(
+        opacity: busy ? 0.4 : 1,
+        child: Tooltip(
+          message: busy ? 'A call is in progress' : 'Video call',
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: busy
+                ? null
+                : () {
+              try {
+                call.startCall(
+                  otherNumber: widget.ReceiverNumber,
+                  name: _name == 'No data available' ? '' : _name,
+                  photo: Controller?.OtherPhoto.value ??
+                      widget.ReceiverPhotoPath,
+                );
+              } catch (e) {
+                // print('Start call tap error: $e');
+              }
+            },
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [_Emerald, ChatAccent],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: _Emerald.withOpacity(0.35),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.videocam_rounded,
+                color: ChatBackground,
+                size: 21,
+              ),
+            ),
+          ),
+        ),
+      );
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -657,7 +759,7 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
     return Padding(
       padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 12),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(16, 4, 6, 4),
+        padding: const EdgeInsets.fromLTRB(6, 4, 6, 4),
         decoration: BoxDecoration(
           color: ChatSurface,
           borderRadius: BorderRadius.circular(26),
@@ -673,39 +775,62 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Expanded(
-              child: CallbackShortcuts(
-                bindings: <ShortcutActivator, VoidCallback>{
-                  const SingleActivator(LogicalKeyboardKey.enter): () {
-                    try {
-                      c.SendMessage();
-                    } catch (e) {
-                      // print('Enter send error: $e');
-                    }
-                  },
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: _AttachButton(
+                onTap: () {
+                  try {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SelectSharedMedia(
+                          Current_User_Jwt_Token: widget.User_JwtToken,
+                        ),
+                      ),
+                    );
+                  } catch (e) {
+                    // print('Open shared media error: $e');
+                  }
                 },
-                child: TextField(
-                  controller: c.textCont,
-                  onChanged: (value) => c.Draft.value = value,
-                  minLines: 1,
-                  maxLines: 5,
-                  maxLength: 4000,
-                  buildCounter: (context,
-                      {required currentLength,
-                        required isFocused,
-                        maxLength}) =>
-                  null,
-                  keyboardType: TextInputType.multiline,
-                  textInputAction: TextInputAction.newline,
-                  textCapitalization: TextCapitalization.sentences,
-                  cursorColor: ChatAccent,
-                  style: const TextStyle(color: ChatText, fontSize: 14.5),
-                  decoration: const InputDecoration(
-                    border: InputBorder.none,
-                    isDense: true,
-                    hintText: 'Type a message...',
-                    hintStyle: TextStyle(color: ChatMuted, fontSize: 14),
-                    contentPadding: EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 6),
+                child: CallbackShortcuts(
+                  bindings: <ShortcutActivator, VoidCallback>{
+                    const SingleActivator(LogicalKeyboardKey.enter): () {
+                      try {
+                        c.SendMessage();
+                      } catch (e) {
+                        // print('Enter send error: $e');
+                      }
+                    },
+                  },
+                  child: TextField(
+                    controller: c.textCont,
+                    onChanged: (value) => c.Draft.value = value,
+                    minLines: 1,
+                    maxLines: 5,
+                    maxLength: 4000,
+                    buildCounter: (context,
+                        {required currentLength,
+                          required isFocused,
+                          maxLength}) =>
+                    null,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
+                    textCapitalization: TextCapitalization.sentences,
+                    cursorColor: ChatAccent,
+                    style: const TextStyle(color: ChatText, fontSize: 14.5),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      isDense: true,
+                      hintText: 'Type a message...',
+                      hintStyle: TextStyle(color: ChatMuted, fontSize: 14),
+                      contentPadding: EdgeInsets.symmetric(vertical: 12),
+                    ),
                   ),
                 ),
               ),
@@ -729,6 +854,7 @@ class _ChatMessageScreenState extends State<ChatMessageScreen> {
       ),
     );
   }
+
 }
 
 // =============================================================================
@@ -947,6 +1073,11 @@ class _MessageBubble extends StatelessWidget {
     required this.onDelete,
   });
 
+  // The tick of my own message (dark colors, readable on the green bubble):
+  //   clock         still sending
+  //   1 tick        sent (saved on the server, other person offline)
+  //   2 ticks       delivered (other person online, not on this chat)
+  //   2 blue ticks  read (other person has this chat open)
   Widget _statusIcon() {
     switch (item.state) {
       case MsgSendState.sending:
@@ -956,9 +1087,15 @@ class _MessageBubble extends StatelessWidget {
         return const Icon(Icons.error_outline_rounded,
             size: 13, color: _Danger);
       case MsgSendState.sent:
-        return item.isRead
-            ? const Icon(Icons.done_all_rounded, size: 14, color: _ReadTick)
-            : Icon(Icons.done_rounded,
+        if (item.isRead) {
+          return const Icon(Icons.done_all_rounded,
+              size: 14, color: _ReadTick);
+        }
+        if (item.isDelivered) {
+          return Icon(Icons.done_all_rounded,
+              size: 14, color: ChatBackground.withOpacity(0.7));
+        }
+        return Icon(Icons.done_rounded,
             size: 14, color: ChatBackground.withOpacity(0.7));
     }
   }
@@ -1054,13 +1191,18 @@ class _MessageBubble extends StatelessWidget {
                 ],
               ),
             ),
+            // Wrap, not Row: the buttons move to a second line on narrow widths.
             if (failed)
-              Row(
-                mainAxisSize: MainAxisSize.min,
+              Wrap(
+                alignment: mine ? WrapAlignment.end : WrapAlignment.start,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  const Text(
-                    'Not sent',
-                    style: TextStyle(color: _Danger, fontSize: 11.5),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4),
+                    child: Text(
+                      'Not sent',
+                      style: TextStyle(color: _Danger, fontSize: 11.5),
+                    ),
                   ),
                   TextButton(
                     onPressed: onRetry,
@@ -1161,7 +1303,7 @@ class _StateCard extends StatelessWidget {
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 420),
       child: Container(
-        padding: const EdgeInsets.all(26),
+        padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
           color: ChatSurface.withOpacity(0.9),
           borderRadius: BorderRadius.circular(24),

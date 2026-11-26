@@ -34,7 +34,8 @@ class _Cat {
   const _Cat(this.key, this.title, this.icon, this.pick);
 }
 
-final List<_Cat> _cats = [
+final List<_Cat> _cats =
+[
   _Cat("service", "Provider services", Icons.home_repair_service_rounded,
           (m) => m.providerServiceInfo),
   _Cat("resources", "Service resources", Icons.perm_media_rounded,
@@ -49,11 +50,14 @@ final List<_Cat> _cats = [
   _Cat("qr", "Payment QR codes", Icons.qr_code_2_rounded,
           (m) => m.advancePaymentQrInfos),
   _Cat("chat", "Chats", Icons.forum_rounded, (m) => m.chatInfos),
-  _Cat("newmsg", "New message status", Icons.mark_chat_unread_rounded,
-          (m) => m.newMessageStatusInfos),
+  _Cat("notices", "Notices", Icons.mark_chat_unread_rounded,
+          (m) => m.noticeInfos),
+  _Cat("notices", "Notices", Icons.mark_chat_unread_rounded,
+          (m) => m.noticeInfos),
   _Cat("media", "Shared media", Icons.photo_library_rounded,
           (m) => m.sharedMediaInfos),
   _Cat("rating", "Ratings", Icons.star_rounded, (m) => m.ratingInfos),
+  _Cat("Limit resource no per user", "Limit resource no per user", Icons.star_rounded, (m) => m.resourcesNoPerUserInfo),
 ];
 
 // "1&2&3" -> ["1","2","3"]; null / empty -> [] (UI shows "No data available").

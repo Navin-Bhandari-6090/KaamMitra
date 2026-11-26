@@ -21,5 +21,9 @@ namespace application.Models.DTOModels
         [Required]
         public double InternationalPriceDiscount { get; set; }
 
+
+        [Required]
+        public int NoOfRes { get; set; }
+
     }
 }

@@ -12,7 +12,6 @@ namespace application.Models
         public int ProviderServiceId { get; set; }
 
         [Required]
-        [StringLength(50)]
         public string ServiceName { get; set; } = string.Empty;
 
         [Required]
@@ -24,10 +23,6 @@ namespace application.Models
 
         [Required]
         public int UserNumber { get; set; }
-
-
-   
-
 
     }
 }

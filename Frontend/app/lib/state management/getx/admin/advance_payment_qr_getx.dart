@@ -186,9 +186,7 @@ class AdvancePaymentQrGetx extends GetxController {
       const String url =
           Backend_Server_Url + "api/Admin/getalladvancepaymentinfos";
 
-      print("========== GET ALL ADVANCE PAYMENT INFOS ==========");
-      print("URL: $url");
-      print("JWT Length: ${_jwtToken.length}");
+
 
       final response = await http.get(
         Uri.parse(url),
@@ -206,8 +204,6 @@ class AdvancePaymentQrGetx extends GetxController {
         AdvancePaymentInfoList.assignAll(responseData
             .map((json) => AdvancePaymentPhotoModel.fromJson(json))
             .toList());
-
-        print("Advance Payment Info Count: ${AdvancePaymentInfoList.length}");
       } else if (response.statusCode == 400) {
         AdvancePaymentInfoList.clear();
         Toast.Toastmsg("Data are not in correct format.");
@@ -233,9 +229,7 @@ class AdvancePaymentQrGetx extends GetxController {
         Toast.Toastmsg("Something went wrong.");
       }
     } catch (e, stackTrace) {
-      print("========== GET ALL ADVANCE PAYMENT INFOS ERROR ==========");
-      print("Error: $e");
-      print("StackTrace: $stackTrace");
+
 
       AdvancePaymentInfoList.clear();
 
@@ -251,10 +245,6 @@ class AdvancePaymentQrGetx extends GetxController {
       const String url =
           Backend_Server_Url + "api/Admin/getalladvancepaymentqrinfos";
 
-      print("========== GET ALL ADVANCE PAYMENT QR INFOS ==========");
-      print("URL: $url");
-      print("JWT Length: ${_jwtToken.length}");
-
       final response = await http.get(
         Uri.parse(url),
         headers: {
@@ -263,8 +253,6 @@ class AdvancePaymentQrGetx extends GetxController {
         },
       );
 
-
-
       if (response.statusCode == 200) {
         final List<dynamic> responseData = jsonDecode(response.body);
 
@@ -272,8 +260,7 @@ class AdvancePaymentQrGetx extends GetxController {
             .map((json) => AdvancePaymentQrPhoto.fromJson(json))
             .toList());
 
-        print(
-            "Advance Payment QR Info Count: ${AdvancePaymentQrInfoList.length}");
+
       } else if (response.statusCode == 400) {
         AdvancePaymentQrInfoList.clear();
         Toast.Toastmsg("Data are not in correct format.");
@@ -299,9 +286,7 @@ class AdvancePaymentQrGetx extends GetxController {
         Toast.Toastmsg("Something went wrong.");
       }
     } catch (e, stackTrace) {
-      print("========== GET ALL ADVANCE PAYMENT QR INFOS ERROR ==========");
-      print("Error: $e");
-      print("StackTrace: $stackTrace");
+
 
       AdvancePaymentQrInfoList.clear();
 
@@ -315,10 +300,7 @@ class AdvancePaymentQrGetx extends GetxController {
       const String url =
           Backend_Server_Url + "api/Admin/deleteadvancepaymentinfo";
 
-      print("========== DELETE ADVANCE PAYMENT INFO ==========");
-      print("URL: $url");
-      print("PaymentId: $PaymentId");
-      print("JWT Length: ${_jwtToken.length}");
+
 
       final response = await http.delete(
         Uri.parse(url),
@@ -356,9 +338,7 @@ class AdvancePaymentQrGetx extends GetxController {
       }
       return response.statusCode;
     } catch (e, stackTrace) {
-      print("========== DELETE ADVANCE PAYMENT INFO ERROR ==========");
-      print("Error: $e");
-      print("StackTrace: $stackTrace");
+
 
       Toast.Toastmsg("Something went wrong.");
       return 500;
@@ -371,10 +351,6 @@ class AdvancePaymentQrGetx extends GetxController {
       const String url =
           Backend_Server_Url + "api/Admin/deleteadvancepaymentqrinfo";
 
-      print("========== DELETE ADVANCE PAYMENT QR INFO ==========");
-      print("URL: $url");
-      print("QRId: $QRId");
-      print("JWT Length: ${_jwtToken.length}");
 
       final response = await http.delete(
         Uri.parse(url),
@@ -412,9 +388,6 @@ class AdvancePaymentQrGetx extends GetxController {
       }
       return response.statusCode;
     } catch (e, stackTrace) {
-      print("========== DELETE ADVANCE PAYMENT QR INFO ERROR ==========");
-      print("Error: $e");
-      print("StackTrace: $stackTrace");
 
       Toast.Toastmsg("Something went wrong.");
       return 500;

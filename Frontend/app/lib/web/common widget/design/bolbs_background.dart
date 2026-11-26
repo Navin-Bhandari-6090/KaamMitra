@@ -56,6 +56,22 @@ class _AmbientPainter extends CustomPainter {
     final double avg = (size.width + size.height) / 2;
     final double shortest = math.min(size.width, size.height);
 
+    // for (final _Blob b in _blobs)
+    // {
+    //   final Offset center =
+    //   Offset(b.center.dx * size.width, b.center.dy * size.height);
+    //   final double radius = b.radius * avg;
+    //   final Paint paint = Paint()
+    //     ..shader = RadialGradient(
+    //       colors: [
+    //         b.color.withOpacity(b.opacity),
+    //         b.color.withOpacity(0),
+    //       ],
+    //     ).createShader(Rect.fromCircle(center: center, radius: radius))
+    //     ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 40);
+    //   canvas.drawCircle(center, radius, paint);
+    // }
+
     for (final _Blob b in _blobs) {
       final Offset center =
       Offset(b.center.dx * size.width, b.center.dy * size.height);
@@ -66,10 +82,10 @@ class _AmbientPainter extends CustomPainter {
             b.color.withOpacity(b.opacity),
             b.color.withOpacity(0),
           ],
-        ).createShader(Rect.fromCircle(center: center, radius: radius))
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 40);
+        ).createShader(Rect.fromCircle(center: center, radius: radius));
       canvas.drawCircle(center, radius, paint);
     }
+
 
     for (final _Bubble b in _bubbles) {
       final Offset center =

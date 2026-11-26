@@ -4,6 +4,7 @@ using application.Models.DTOModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Net.WebSockets;
 using System.Security.Claims;
 
 namespace application.Controllers
@@ -169,6 +170,7 @@ namespace application.Controllers
                         Service_Data.DomesticPriceDiscount = obj.DomesticPriceDiscount;
                         Service_Data.InternationalPrice = obj.InternationalPrice;
                         Service_Data.InternationalPriceDiscount = obj.InternationalPriceDiscount;
+                        Service_Data.NoOfRes = obj.NoOfRes;
                         await Database.SaveChangesAsync();
                         return Ok();
                     }
@@ -187,6 +189,8 @@ namespace application.Controllers
                 return StatusCode(501, ex.Message);
             }
         }
+
+
 
 
 
@@ -1991,7 +1995,7 @@ public async Task<IActionResult> DeleteAdvancePaymentInfo(
             }
         }
 
-        [Authorize(Policy = "RequireforAllRole")]
+        [Authorize(Policy = "RequireAdminRole")]
         [HttpGet]
         [Route("getalladvertisementinfos")]
         public async Task<IActionResult> GetAllAdvertisementInfos()
@@ -4031,10 +4035,6 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                     .Where(x => x.SenderNumber == obj.UserNumber)
                     .ToListAsync();
 
-                var New_Msg_Status_data = await Database.NewMessageStatusInfos
-                    .Where(x => x.MessageReceiverNumber == obj.UserNumber)
-                    .ToListAsync();
-
                 var Not_Data = await Database.NotificationInfos
                     .Where(x => x.ReceiverNumber == obj.UserNumber)
                     .ToListAsync();
@@ -4043,26 +4043,38 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                     .Where(x => x.ReceiverNumber == obj.UserNumber)
                     .ToListAsync();
 
+                var Notice_Data=await Database.Notice.Where(x => x.ProviderNumber == obj.UserNumber)
+                    .ToListAsync();
+
+                var NoOfServiceResourcesLimit = await Database.ResourcesNoPerUser.Where(x => x.UserNumber == obj.UserNumber)
+                   .ToListAsync();
+
                 // Delete available related records
-                if (Msg_Data.Count > 0)
+                if (Msg_Data.Count >= 0)
                 {
                     Database.ChatInfos.RemoveRange(Msg_Data);
                 }
 
-                if (New_Msg_Status_data.Count > 0)
-                {
-                    Database.NewMessageStatusInfos.RemoveRange(New_Msg_Status_data);
-                }
-
-                if (Not_Data.Count > 0)
+                if (Not_Data.Count >= 0)
                 {
                     Database.NotificationInfos.RemoveRange(Not_Data);
                 }
 
-                if (New_Not_Status_Data.Count > 0)
+                if (New_Not_Status_Data.Count >= 0)
                 {
                     Database.NewNotificationInfos.RemoveRange(New_Not_Status_Data);
                 }
+
+                if (Notice_Data.Count >= 0)
+                {
+                    Database.Notice.RemoveRange(Notice_Data);
+                }
+
+                if (NoOfServiceResourcesLimit.Count >= 0)
+                {
+                    Database.Notice.RemoveRange(Notice_Data);
+                }
+
 
                 // Delete user
                 Database.UserInfos.Remove(user);
@@ -4587,17 +4599,27 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                     .Select(x => x.ChatId)
                     .ToListAsync();
 
-                // Retrieve new message status IDs.
-                var newMessageStatusIds = await Database.NewMessageStatusInfos
-                    .Where(x => x.MessageReceiverNumber == obj.UserNumber)
-                    .Select(x => x.NewMsgId)
-                    .ToListAsync();
+            
 
                 // Retrieve shared media IDs.
                 var sharedMediaIds = await Database.SharedMediaInfos
                     .Where(x => x.SenderNumber == obj.UserNumber)
                     .Select(x => x.SharedMediaId)
                     .ToListAsync();
+
+                // Retrieve notice IDs.
+                var NoticeIDS = await Database.Notice
+                    .Where(x => x.ProviderNumber == obj.UserNumber)
+                    .Select(x => x.NoticeId)
+                    .ToListAsync();
+
+
+                // Retrieve LimitServiceResources IDs.
+                var LimitServResId = await Database.ResourcesNoPerUser
+                    .Where(x => x.UserNumber == obj.UserNumber)
+                    .Select(x => x.ResourcesNumberId)
+                    .ToListAsync();
+
 
                 // Prepare linked resource response.
                 var result = new UserLinkedResourcesDTO
@@ -4611,8 +4633,9 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                     NewNotificationInfos = string.Join("&", newNotificationIds),
                     AdvancePaymentQrInfos = string.Join("&", advancePaymentQrIds),
                     ChatInfos = string.Join("&", chatIds),
-                    NewMessageStatusInfos = string.Join("&", newMessageStatusIds),
-                    SharedMediaInfos = string.Join("&", sharedMediaIds)
+                    NoticeInfos= string.Join("&", NoticeIDS),
+                    SharedMediaInfos = string.Join("&", sharedMediaIds),
+                    ResourcesNoPerUserInfo = string.Join("&", LimitServResId)
                 };
 
                 return Ok(result);
@@ -4625,29 +4648,347 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             }
         }
 
-       
+
+        [Authorize(Policy = "RequireAdminRole")]
+        [Route("deletenotice")]
+        [HttpDelete]
+        public async Task<IActionResult> DeleteNotice([FromBody] DeleteNoticeIdDTO obj)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return StatusCode(400, ModelState);
+                }
+
+                // Get admin number from JWT
+                var AdminNumberClaim = User.FindFirst(
+                    System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                if (string.IsNullOrWhiteSpace(AdminNumberClaim) ||
+                    !int.TryParse(AdminNumberClaim, out int AdminNumber))
+                {
+                    return StatusCode(506);
+                }
+
+                // Validate notice ID
+                if (obj.NoticeId <= 0)
+                {
+                    return StatusCode(507, "Invalid notice ID.");
+                }
+
+                // Verify admin account
+                var AdminData = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == AdminNumber);
+
+                if (AdminData == null)
+                {
+                    return StatusCode(510, "Admin not found.");
+                }
+
+                if (AdminData.LoginAccess == false)
+                {
+                    return StatusCode(511, "Your admin account has been blocked.");
+                }
+
+                // Find notice
+                var NoticeData = await Database.Notice
+                    .FirstOrDefaultAsync(x => x.NoticeId == obj.NoticeId);
+
+                if (NoticeData == null)
+                {
+                    return StatusCode(512, "Notice not found.");
+                }
+
+                // Delete notice
+                Database.Notice.Remove(NoticeData);
+                await Database.SaveChangesAsync();
+
+                return StatusCode(200, "Notice deleted successfully.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
+
+        [Authorize(Policy = "RequireAdminRole")]
+        [Route("getnoticeadmin")]
+        [HttpGet]
+        public async Task<IActionResult> GetNoticePro()
+        {
+            try
+            {
+                // Get admin number from JWT
+                var AdminNumberClaim = User.FindFirst(
+                    System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                if (string.IsNullOrWhiteSpace(AdminNumberClaim) ||
+                    !int.TryParse(AdminNumberClaim, out int AdminNumber))
+                {
+                    return StatusCode(506);
+                }
+
+                // Validate admin
+                var AdminData = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == AdminNumber);
+
+                if (AdminData == null)
+                {
+                    return StatusCode(510, "Admin not found.");
+                }
+
+                if (AdminData.LoginAccess == false)
+                {
+                    return StatusCode(511, "Your admin account has been blocked.");
+                }
+
+                // Retrieve all notices with provider and service information
+                var NoticeData = await (
+                    from notice in Database.Notice
+                    join provider in Database.UserInfos
+                        on notice.ProviderNumber equals provider.UserNumber
+                    join service in Database.ProviderServiceInfo
+                        on notice.ProviderServiceId equals service.ProviderServiceId
+                    select new NoticeResponseDTO
+                    {
+                        NoticeId = notice.NoticeId,
+                        ProviderNumber = notice.ProviderNumber,
+                        CreatedAt = notice.CreatedAt,
+                        Message = notice.Message,
+                        FirstName = provider.FirstName,
+                        LastName = provider.LastName,
+                        Photo = provider.Photo,
+                        ServiceName = service.ServiceName
+                    }
+                )
+                .OrderByDescending(x => x.CreatedAt)
+                .ThenByDescending(x => x.NoticeId)
+                .ToListAsync();
+
+                return StatusCode(200, NoticeData);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
 
 
+        [Authorize(Policy = "RequireAdminRole")]
+        [Route("addresourcesnumber")]
+        [HttpPost]
+        public async Task<IActionResult> AddResourcesNumber([FromBody] ResourcesNumber obj)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return StatusCode(400, ModelState);
+                }
+
+                // Get admin number from JWT
+                var AdminNumberClaim = User.FindFirst(
+                    System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+                if (string.IsNullOrWhiteSpace(AdminNumberClaim) ||
+                    !int.TryParse(AdminNumberClaim, out int AdminNumber))
+                {
+                    return StatusCode(506);
+                }
+
+                // Validate resource number
+                if (obj.NoOfRes <= 0)
+                {
+                    return StatusCode(507, "Resource number must be greater than zero.");
+                }
+
+                // Validate service name
+                if (string.IsNullOrWhiteSpace(obj.ServiceName))
+                {
+                    return StatusCode(508, "Service name is required.");
+                }
+
+                // Validate target user number
+                if (obj.UserNumber <= 0)
+                {
+                    return StatusCode(509, "Invalid user number.");
+                }
+
+                // Verify admin account
+                var AdminData = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == AdminNumber);
+
+                if (AdminData == null)
+                {
+                    return StatusCode(510, "Admin not found.");
+                }
+
+                if (AdminData.LoginAccess == false)
+                {
+                    return StatusCode(511, "Your admin account has been blocked.");
+                }
+
+                // Verify target user
+                var UserData = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == obj.UserNumber);
+
+                if (UserData == null)
+                {
+                    return StatusCode(512, "User not found.");
+                }
+
+                if (UserData.LoginAccess == false)
+                {
+                    return StatusCode(513, "This user account has been blocked.");
+                }
+
+                // Check whether resource limit already exists for this user and service
+                var ExistingResource = await Database.ResourcesNoPerUser
+                    .FirstOrDefaultAsync(x =>
+                        x.UserNumber == obj.UserNumber &&
+                        x.ServiceName.ToLower() == obj.ServiceName.Trim().ToLower()
+                        );
+
+                if (ExistingResource != null)
+                {
+                    return StatusCode(514, "Resource limit already exists for this user and service.");
+                }
+
+                // Create resource limit
+                var ResourceData = new ResourcesNumber
+                {
+                    NoOfRes = obj.NoOfRes,
+                    ServiceName = obj.ServiceName.Trim().ToLower(),
+                    UserNumber = obj.UserNumber
+                };
+
+                await Database.ResourcesNoPerUser.AddAsync(ResourceData);
+                await Database.SaveChangesAsync();
+
+                return StatusCode(200, "Resource limit added successfully.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
 
 
+        [Authorize(Policy = "RequireAdminRole")]
+        [Route("getallresourcesnumber")]
+        [HttpGet]
+        public async Task<IActionResult> GetAllResourcesNumber()
+        {
+            try
+            {
+                // Get admin number from JWT
+                var AdminNumberClaim = User.FindFirst(
+                    System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
+                if (string.IsNullOrWhiteSpace(AdminNumberClaim) ||
+                    !int.TryParse(AdminNumberClaim, out int AdminNumber))
+                {
+                    return StatusCode(506);
+                }
 
+                // Validate admin account
+                var AdminData = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == AdminNumber);
 
+                if (AdminData == null)
+                {
+                    return StatusCode(510, "Admin not found.");
+                }
 
+                if (AdminData.LoginAccess == false)
+                {
+                    return StatusCode(511, "Your admin account has been blocked.");
+                }
 
+                // Retrieve all resource-limit records
+                var ResourceData = await Database.ResourcesNoPerUser
+                    .OrderBy(x => x.UserNumber)
+                    .ThenBy(x => x.ServiceName)
+                    .Select(x => new
+                    {
+                        x.ResourcesNumberId,
+                        x.NoOfRes,
+                        x.ServiceName,
+                        x.UserNumber
+                    })
+                    .ToListAsync();
 
+                return StatusCode(200, ResourceData);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
 
+        [Authorize(Policy = "RequireAdminRole")]
+        [Route("deleteresourcesnumber")]
+        [HttpDelete]
+        public async Task<IActionResult> DeleteResourcesNumber([FromBody] DelNoOfResPerUserIDDTO obj)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return StatusCode(400, ModelState);
+                }
 
+                // Get admin number from JWT
+                var AdminNumberClaim = User.FindFirst(
+                    System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
+                if (string.IsNullOrWhiteSpace(AdminNumberClaim) ||
+                    !int.TryParse(AdminNumberClaim, out int AdminNumber))
+                {
+                    return StatusCode(506);
+                }
 
+                // Validate resource ID
+                if (obj.ResourcesNumberId <= 0)
+                {
+                    return StatusCode(507, "Invalid resource number ID.");
+                }
 
+                // Verify admin account
+                var AdminData = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == AdminNumber);
 
+                if (AdminData == null)
+                {
+                    return StatusCode(510, "Admin not found.");
+                }
 
+                if (AdminData.LoginAccess == false)
+                {
+                    return StatusCode(511, "Your admin account has been blocked.");
+                }
 
+                // Find resource record
+                var ResourceData = await Database.ResourcesNoPerUser
+                    .FirstOrDefaultAsync(x => x.ResourcesNumberId == obj.ResourcesNumberId);
 
+                if (ResourceData == null)
+                {
+                    return StatusCode(512, "Resource record not found.");
+                }
 
+                // Delete resource record
+                Database.ResourcesNoPerUser.Remove(ResourceData);
+                await Database.SaveChangesAsync();
 
-
+                return StatusCode(200, "Resource record deleted successfully.");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
+        }
 
 
 

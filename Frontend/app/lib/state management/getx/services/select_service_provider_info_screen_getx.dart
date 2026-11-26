@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:app/web/authentication/Error_page.dart';
 import 'package:app/web/common%20method/Commmon_Method.dart';
 import 'package:app/web/common%20widget/toast.dart';
@@ -7,6 +9,7 @@ import 'package:http/http.dart' as http;
 
 import '../../../constant/Server_Database.dart';
 import '../../../constant/variable.dart';
+import '../../../models/NoticeUserModel.dart';
 
 /// Shown whenever a database value is null, empty, or whitespace only.
 const String kDataNotAvailable = "No data available";
@@ -32,6 +35,136 @@ class SelectServiceProviderInfoScreenGetx extends GetxController {
 
   void setGalleryPressed(bool value) => isGalleryPressed.value = value;
   void setBookPressed(bool value) => isBookPressed.value = value;
+
+  // ============================================================
+  // NOTICES (for this provider + provider service)
+  // The API call and the list both live here, in this controller.
+  // ============================================================
+
+  /// Notices of the current provider + provider service (newest first).
+  final RxList<NoticeUserModel> notices = <NoticeUserModel>[].obs;
+  final RxBool isNoticeLoading = false.obs;
+  final RxBool noticeLoadFailed = false.obs;
+
+  Future<void> loadNotices({
+    required BuildContext context,
+    required String jwtToken,
+    required num providerNumber,
+    required num providerServiceId,
+  }) async {
+    if (isNoticeLoading.value) return;
+    isNoticeLoading.value = true;
+    noticeLoadFailed.value = false;
+
+    try {
+      notices.clear(); // never show another provider's notices
+
+      final List<NoticeUserModel>? list = await _fetchNotices(
+        context: context,
+        jwtToken: jwtToken,
+        providerNumber: providerNumber.toInt(),
+        providerServiceId: providerServiceId.toInt(),
+      );
+
+      if (list == null) {
+        noticeLoadFailed.value = true;
+      } else {
+        // Newest first (keeps server order if a date can't be parsed).
+        try {
+          list.sort((a, b) {
+            final DateTime? da = DateTime.tryParse(a.createdAt ?? "");
+            final DateTime? db = DateTime.tryParse(b.createdAt ?? "");
+            if (da == null || db == null) return 0;
+            return db.compareTo(da);
+          });
+        } catch (_) {}
+
+        notices.assignAll(list);
+      }
+    } catch (e) {
+      // debugPrint("loadNotices failed: $e");
+      noticeLoadFailed.value = true;
+    } finally {
+      isNoticeLoading.value = false;
+    }
+  }
+
+  /// Calls api/Service/getnoticeuser.
+  /// Returns the notice list on success (can be empty), or null on any failure.
+  Future<List<NoticeUserModel>?> _fetchNotices({
+    required BuildContext context,
+    required String jwtToken,
+    required int providerNumber,
+    required int providerServiceId,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${Backend_Server_Url}api/Service/getnoticeuser'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $jwtToken',
+        },
+        body: jsonEncode({
+          'ProviderNumber': providerNumber,
+          'ProviderServiceId': providerServiceId,
+        }),
+      );
+
+      final int code = response.statusCode;
+
+      if (code == 200) {
+        final dynamic data = jsonDecode(response.body);
+        if (data is! List) return <NoticeUserModel>[];
+
+        final List<NoticeUserModel> result = [];
+        for (final item in data) {
+          try {
+            result.add(NoticeUserModel.fromJson(item));
+          } catch (_) {
+            // skip one bad item, keep the rest
+          }
+        }
+        return result;
+      } else if (code == 400) {
+        Toast.Toastmsg('Invalid notice request.');
+      } else if (code == 401 || code == 403 || code == 506) {
+        Toast.Toastmsg("Unauthorized. Please log in again.");
+        await _safeLogout(context);
+      } else if (code == 507) {
+        Toast.Toastmsg('Invalid provider or service information.');
+      } else if (code == 510) {
+        Toast.Toastmsg('Your account could not be found.');
+      } else if (code == 511) {
+        Toast.Toastmsg('Your account has been blocked.');
+        await _safeLogout(context);
+      } else if (code == 512) {
+        Toast.Toastmsg('Provider account not found.');
+      } else if (code == 513) {
+        Toast.Toastmsg('This provider account has been blocked.');
+      } else if (code == 514) {
+        Toast.Toastmsg('Provider service not found.');
+      } else if (code == 500) {
+        Toast.Toastmsg('Server error. Please try again later.');
+      } else {
+        Toast.Toastmsg('Something went wrong. Please try again.');
+      }
+      return null;
+    } catch (e) {
+      // debugPrint("_fetchNotices failed: $e");
+      try {
+        Toast.Toastmsg('Unable to connect to the server.');
+      } catch (_) {}
+      return null;
+    }
+  }
+
+  Future<void> _safeLogout(BuildContext context) async {
+    try {
+      if (context.mounted) await Logout(context: context);
+    } catch (e) {
+      // debugPrint("_safeLogout failed: $e");
+    }
+  }
 
   // ============================================================
   // SESSION

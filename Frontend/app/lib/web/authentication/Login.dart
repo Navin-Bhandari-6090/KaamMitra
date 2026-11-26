@@ -351,13 +351,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      onPressed: () {
+                      onPressed: ()
+                      {
+
+
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (context) {
                             return LogForPswd(User_JwtToken: widget.User_JwtToken);
                           }),
                         );
+
+
                       },
                       child: const Text(
                         'Forgot password?',

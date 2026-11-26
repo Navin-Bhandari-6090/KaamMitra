@@ -757,16 +757,13 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         }
 
 
-
-
-
-        [Authorize(Policy = "")]
+        [Authorize(Policy = "RequireProviderRole")]
         [HttpPost]
-        [RequestSizeLimit(2_147_483_648)]
-        [RequestFormLimits(MultipartBodyLengthLimit = 2_147_483_648)]
+        [RequestSizeLimit(629_145_600)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 629_145_600)]
         [Route("addserviceresources")]
         public async Task<IActionResult> AddServiceResources(
-            [FromForm] ProviderServiceResourcesDTO obj)
+        [FromForm] ProviderServiceResourcesDTO obj)
         {
             string? physicalPhotoPath = null;
             string? physicalVideoPath = null;
@@ -774,113 +771,144 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             try
             {
-                // Validate required fields.
+                // Validate request object
                 if (obj == null)
                 {
-                    return StatusCode(400, "Service resource information is required.");
+                    return StatusCode(400, "Invalid request.");
                 }
 
+                // Validate service title
                 if (string.IsNullOrWhiteSpace(obj.ServiceTitle))
                 {
                     return StatusCode(400, "Service title is required.");
                 }
 
+                // Validate mandatory service file
                 if (obj.ServiceFile == null || obj.ServiceFile.Length == 0)
                 {
                     return StatusCode(400, "Service file is required.");
                 }
 
+                // Validate provider service ID
                 if (obj.ProviderServiceId <= 0)
                 {
-                    return StatusCode(400, "ProviderServiceId is required.");
+                    return StatusCode(400, "Invalid provider service ID.");
                 }
 
+                // Validate model state
                 if (!ModelState.IsValid)
                 {
-                    return StatusCode(400, "The provided data is not in the correct format.");
+                    return StatusCode(400, "Invalid model data.");
                 }
 
-                // Get the authenticated provider number.
-                var userNumberClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                // Get current provider number from JWT
+                var currentUserNumber = User.FindFirst(
+                    System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
-                if (!int.TryParse(userNumberClaim, out int currentUserNumber))
+                if (!int.TryParse(currentUserNumber, out int userNumber))
                 {
-                    return StatusCode(401, "Invalid provider authentication.");
+                    return StatusCode(401, "Invalid user token.");
                 }
 
-                // Check provider account.
-                var user = await Database.UserInfos
-                    .FirstOrDefaultAsync(x => x.UserNumber == currentUserNumber);
+                currentUserNumber = userNumber.ToString();
 
-                if (user == null)
+                // Validate provider account
+                var userData = await Database.UserInfos
+                    .FirstOrDefaultAsync(x => x.UserNumber == userNumber);
+
+                if (userData == null)
                 {
                     return StatusCode(502, "Provider account not found.");
                 }
 
-                if (user.LoginAccess == false)
+                if (userData.LoginAccess == false)
                 {
-                    return StatusCode(
-                        506,
-                        "You have been blocked by System. Contact the KaamMitra community."
-                    );
+                    return StatusCode(506, "Your account has been blocked.");
                 }
 
-                // Check that the service belongs to the authenticated provider.
+                // Validate provider service ownership
                 var serviceData = await Database.ProviderServiceInfo
                     .FirstOrDefaultAsync(x =>
                         x.ProviderServiceId == obj.ProviderServiceId &&
-                        x.UserNumber == currentUserNumber);
+                        x.UserNumber == userNumber);
 
                 if (serviceData == null)
                 {
-                    return StatusCode(
-                        404,
-                        "Service not found or does not belong to the current provider."
-                    );
+                    return StatusCode(404, "Provider service not found.");
                 }
 
-                // Enforce the existing maximum of three resources per service.
-                var serviceResources = await Database.ProviderServiceResourcesInfo
-                    .Where(x =>
-                        x.ProviderServiceId == obj.ProviderServiceId &&
-                        x.UserNumber == currentUserNumber)
-                    .ToListAsync();
+                // -------------------------------------------------
+                // RESOURCE LIMIT CALCULATION
+                // -------------------------------------------------
 
-                if (serviceResources.Count >= 3)
+                // Get default resource limit for this service
+                var DefaultServiceData = await Database.ServiceInfos
+                    .FirstOrDefaultAsync(x =>
+                        x.ServiceName.ToLower() ==
+                        serviceData.ServiceName.ToLower());
+
+                if (DefaultServiceData == null)
+                {
+                    return StatusCode(404, "Service configuration not found.");
+                }
+
+                // Get custom resource limit assigned by admin
+                var UserResourceData = await Database.ResourcesNoPerUser
+                    .FirstOrDefaultAsync(x =>
+                        x.UserNumber == userNumber &&
+                        x.ServiceName.ToLower() ==
+                        serviceData.ServiceName.ToLower());
+
+                // Get both resource limits
+                int DefaultResourceLimit = DefaultServiceData.NoOfRes;
+                int UserResourceLimit = UserResourceData?.NoOfRes ?? 0;
+
+                // Allow the higher resource limit
+                int EffectiveResourceLimit = Math.Max(
+                    DefaultResourceLimit,
+                    UserResourceLimit
+                );
+
+                // Count existing resources for this provider service
+                int ExistingResourceCount =
+                    await Database.ProviderServiceResourcesInfo
+                        .CountAsync(x =>
+                            x.ProviderServiceId == obj.ProviderServiceId &&
+                            x.UserNumber == userNumber);
+
+                // Check resource limit
+                if (ExistingResourceCount >= EffectiveResourceLimit)
                 {
                     return StatusCode(
                         508,
-                        "You can only add a maximum of 3 resources for this service."
+                        $"You have reached the maximum resource limit of {EffectiveResourceLimit} for this service."
                     );
                 }
 
-                // Resolve the wwwroot directory.
-                var webRootPath = _environment.WebRootPath;
+                // -------------------------------------------------
+                // CREATE UPLOAD DIRECTORIES
+                // -------------------------------------------------
 
-                if (string.IsNullOrWhiteSpace(webRootPath))
-                {
-                    webRootPath = Path.Combine(
-                        Directory.GetCurrentDirectory(),
-                        "wwwroot"
-                    );
-                }
+                string webRootPath = Path.Combine(
+                    Directory.GetCurrentDirectory(),
+                    "wwwroot"
+                );
 
-                // Create the upload folders.
-                var photoFolder = Path.Combine(
+                string photoFolder = Path.Combine(
                     webRootPath,
                     "uploads",
                     "service-resources",
                     "photos"
                 );
 
-                var videoFolder = Path.Combine(
+                string videoFolder = Path.Combine(
                     webRootPath,
                     "uploads",
                     "service-resources",
                     "videos"
                 );
 
-                var fileFolder = Path.Combine(
+                string fileFolder = Path.Combine(
                     webRootPath,
                     "uploads",
                     "service-resources",
@@ -891,114 +919,142 @@ User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 Directory.CreateDirectory(videoFolder);
                 Directory.CreateDirectory(fileFolder);
 
-                string? relativePhotoPath = null;
-                string? relativeVideoPath = null;
-                string? relativeFilePath = null;
+                // -------------------------------------------------
+                // SAVE OPTIONAL PHOTO
+                // -------------------------------------------------
 
-                // Save the optional photo when provided.
+                string relativePhotoPath = string.Empty;
+
                 if (obj.ServicePhoto != null && obj.ServicePhoto.Length > 0)
                 {
-                    var photoExtension = Path.GetExtension(obj.ServicePhoto.FileName);
-                    var photoFileName = $"{Guid.NewGuid():N}{photoExtension}";
+                    string photoExtension = Path.GetExtension(
+                        Path.GetFileName(obj.ServicePhoto.FileName)
+                    );
 
-                    physicalPhotoPath = Path.Combine(photoFolder, photoFileName);
+                    string photoFileName =
+                        $"{Guid.NewGuid()}{photoExtension}";
 
-                    await using (var photoStream = new FileStream(
+                    physicalPhotoPath = Path.Combine(
+                        photoFolder,
+                        photoFileName
+                    );
+
+                    using (var stream = new FileStream(
                         physicalPhotoPath,
-                        FileMode.CreateNew,
-                        FileAccess.Write,
-                        FileShare.None))
+                        FileMode.Create))
                     {
-                        await obj.ServicePhoto.CopyToAsync(photoStream);
+                        await obj.ServicePhoto.CopyToAsync(stream);
                     }
 
                     relativePhotoPath =
-                        $"/uploads/service-resources/photos/{photoFileName}";
+                        $"uploads/service-resources/photos/{photoFileName}";
                 }
 
-                // Save the optional video when provided.
+                // -------------------------------------------------
+                // SAVE OPTIONAL VIDEO
+                // -------------------------------------------------
+
+                string relativeVideoPath = string.Empty;
+
                 if (obj.ServiceVideo != null && obj.ServiceVideo.Length > 0)
                 {
-                    var videoExtension = Path.GetExtension(obj.ServiceVideo.FileName);
-                    var videoFileName = $"{Guid.NewGuid():N}{videoExtension}";
+                    string videoExtension = Path.GetExtension(
+                        Path.GetFileName(obj.ServiceVideo.FileName)
+                    );
 
-                    physicalVideoPath = Path.Combine(videoFolder, videoFileName);
+                    string videoFileName =
+                        $"{Guid.NewGuid()}{videoExtension}";
 
-                    await using (var videoStream = new FileStream(
+                    physicalVideoPath = Path.Combine(
+                        videoFolder,
+                        videoFileName
+                    );
+
+                    using (var stream = new FileStream(
                         physicalVideoPath,
-                        FileMode.CreateNew,
-                        FileAccess.Write,
-                        FileShare.None))
+                        FileMode.Create))
                     {
-                        await obj.ServiceVideo.CopyToAsync(videoStream);
+                        await obj.ServiceVideo.CopyToAsync(stream);
                     }
 
                     relativeVideoPath =
-                        $"/uploads/service-resources/videos/{videoFileName}";
+                        $"uploads/service-resources/videos/{videoFileName}";
                 }
 
-                // Save the mandatory service file.
-                var fileExtension = Path.GetExtension(obj.ServiceFile.FileName);
-                var serviceFileName = $"{Guid.NewGuid():N}{fileExtension}";
+                // -------------------------------------------------
+                // SAVE MANDATORY SERVICE FILE
+                // -------------------------------------------------
 
-                physicalFilePath = Path.Combine(fileFolder, serviceFileName);
+                string fileExtension = Path.GetExtension(
+                    Path.GetFileName(obj.ServiceFile.FileName)
+                );
 
-                await using (var serviceFileStream = new FileStream(
+                string serviceFileName =
+                    $"{Guid.NewGuid()}{fileExtension}";
+
+                physicalFilePath = Path.Combine(
+                    fileFolder,
+                    serviceFileName
+                );
+
+                using (var stream = new FileStream(
                     physicalFilePath,
-                    FileMode.CreateNew,
-                    FileAccess.Write,
-                    FileShare.None))
+                    FileMode.Create))
                 {
-                    await obj.ServiceFile.CopyToAsync(serviceFileStream);
+                    await obj.ServiceFile.CopyToAsync(stream);
                 }
 
-                relativeFilePath =
-                    $"/uploads/service-resources/files/{serviceFileName}";
+                string relativeFilePath =
+                    $"uploads/service-resources/files/{serviceFileName}";
 
-                // Create the database entity.
-                var serviceResource = new ProviderRegisterServiceResources
+                // -------------------------------------------------
+                // SAVE RESOURCE INFORMATION TO DATABASE
+                // -------------------------------------------------
+
+                var resourceData = new ProviderRegisterServiceResources
                 {
                     ServiceTitle = obj.ServiceTitle.Trim(),
+
                     ServiceFile = relativeFilePath,
-                    ServicePhoto = relativePhotoPath ?? string.Empty,
-                    ServiceVideo = relativeVideoPath ?? string.Empty,
+
+                    ServicePhoto = relativePhotoPath,
+
+                    ServiceVideo = relativeVideoPath,
+
                     ProviderServiceId = obj.ProviderServiceId,
-                    UserNumber = currentUserNumber
+
+                    UserNumber = userNumber
                 };
 
-                await Database.ProviderServiceResourcesInfo.AddAsync(serviceResource);
+                await Database.ProviderServiceResourcesInfo.AddAsync(
+                    resourceData
+                );
 
-                // Save the resource record.
                 await Database.SaveChangesAsync();
 
-                return Ok();
+                return StatusCode(200, "Service resources added successfully.");
             }
             catch (Exception)
             {
-                // Remove uploaded files if the operation fails.
-                try
+                // Remove uploaded photo if an error occurs
+                if (physicalPhotoPath != null &&
+                    System.IO.File.Exists(physicalPhotoPath))
                 {
-                    if (!string.IsNullOrWhiteSpace(physicalPhotoPath) &&
-                        System.IO.File.Exists(physicalPhotoPath))
-                    {
-                        System.IO.File.Delete(physicalPhotoPath);
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(physicalVideoPath) &&
-                        System.IO.File.Exists(physicalVideoPath))
-                    {
-                        System.IO.File.Delete(physicalVideoPath);
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(physicalFilePath) &&
-                        System.IO.File.Exists(physicalFilePath))
-                    {
-                        System.IO.File.Delete(physicalFilePath);
-                    }
+                    System.IO.File.Delete(physicalPhotoPath);
                 }
-                catch
+
+                // Remove uploaded video if an error occurs
+                if (physicalVideoPath != null &&
+                    System.IO.File.Exists(physicalVideoPath))
                 {
-                    // Preserve the original operation failure.
+                    System.IO.File.Delete(physicalVideoPath);
+                }
+
+                // Remove uploaded file if an error occurs
+                if (physicalFilePath != null &&
+                    System.IO.File.Exists(physicalFilePath))
+                {
+                    System.IO.File.Delete(physicalFilePath);
                 }
 
                 return StatusCode(

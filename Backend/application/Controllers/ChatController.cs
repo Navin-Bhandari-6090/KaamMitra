@@ -13,7 +13,7 @@ namespace application.Controllers
 {
     // Route: api/Chat
     //
-    //  OLD (kept, unchanged, do not use in new code):
+    //  OLD (kept, do not use in new code):
     //    POST getmychatmessage   loads EVERY message of the user (does not scale)
     //    POST getchatmessage     loads the whole history of one chat
     //
@@ -21,9 +21,13 @@ namespace application.Controllers
     //    GET  conversations      my chats, newest first, paged
     //    GET  searchusers        people by name / id, paged
     //    POST messages           messages of one chat, paged (scroll up for more)
-    //    POST send               save a message + push it live
+    //    POST send               save a message (Sent / Delivered / Read) + push it live
     //    POST markread           mark a chat as read + push read ticks
     //    GET  unread             total unread (home screen icon)
+    //
+    //  Status codes used by every method:
+    //    525  current user is not valid (bad JWT, user not found, or blocked
+    //         by KaamMitra): the frontend must log the user out.
     [Route("api/[controller]")]
     [ApiController]
     public class ChatController : ControllerBase
@@ -51,10 +55,54 @@ namespace application.Controllers
                 User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out me);
         }
 
+        // Current user from the JWT, only when the user exists and is not
+        // blocked. Returns null otherwise (the caller returns 525).
+        private async Task<int?> GetValidMeAsync()
+        {
+            if (!TryGetMe(out int me) || me <= 0)
+            {
+                return null;
+            }
+
+            bool valid = await Database.UserInfos.AsNoTracking()
+                .AnyAsync(u => u.UserNumber == me && u.LoginAccess != false);
+
+            return valid ? me : (int?)null;
+        }
+
+        private IActionResult NotValidated()
+        {
+            return StatusCode(525, "User is not validated.");
+        }
+
         // Server time is UTC. "o" format ends with Z so every client reads it right.
         private static string Iso(DateTime d)
         {
             return DateTime.SpecifyKind(d, DateTimeKind.Utc).ToString("o");
+        }
+
+        private static string? IsoOrNull(DateTime? d)
+        {
+            return d.HasValue ? Iso(d.Value) : null;
+        }
+
+        // Status a new message gets right now:
+        //   receiver is on this chat's message screen -> Read
+        //   receiver is connected (any other screen)  -> Delivered
+        //   receiver is offline                       -> Sent
+        private static int StatusFor(int receiverNumber, int senderNumber)
+        {
+            if (ChatHub.IsChatOpen(receiverNumber, senderNumber))
+            {
+                return ChatMessageStatus.Read;
+            }
+
+            if (ChatHub.IsUserOnline(receiverNumber))
+            {
+                return ChatMessageStatus.Delivered;
+            }
+
+            return ChatMessageStatus.Sent;
         }
 
         private static object MessagePayload(ChatInfoModel m, string clientId)
@@ -66,7 +114,10 @@ namespace application.Controllers
                 ReceiverNumber = m.ReceiverNumber,
                 Message = m.Message,
                 StoreAt = Iso(m.StoreAt),
-                IsRead = m.IsRead,
+                Status = m.Status,
+                DeliveredAt = IsoOrNull(m.DeliveredAt),
+                ReadAt = IsoOrNull(m.ReadAt),
+                IsRead = m.Status == ChatMessageStatus.Read,
                 ClientId = clientId
             };
         }
@@ -82,7 +133,9 @@ namespace application.Controllers
         {
             try
             {
-                if (!TryGetMe(out int me)) return StatusCode(401);
+                int? meValue = await GetValidMeAsync();
+                if (!meValue.HasValue) return NotValidated();
+                int me = meValue.Value;
 
                 page = Math.Max(page, 1);
                 pageSize = Math.Clamp(pageSize, 1, 50);
@@ -94,7 +147,8 @@ namespace application.Controllers
                     {
                         Partner = g.Key,
                         LastChatId = g.Max(x => x.ChatId),
-                        Unread = g.Count(x => x.ReceiverNumber == me && !x.IsRead)
+                        Unread = g.Count(x => x.ReceiverNumber == me &&
+                                              x.Status < ChatMessageStatus.Read)
                     })
                     .OrderByDescending(g => g.LastChatId);
 
@@ -123,6 +177,8 @@ namespace application.Controllers
                     lastMsgs.TryGetValue(r.LastChatId, out var m);
                     users.TryGetValue(r.Partner, out var u);
 
+                    int lastStatus = m?.Status ?? ChatMessageStatus.Read;
+
                     return new
                     {
                         UserNumber = r.Partner,
@@ -135,7 +191,8 @@ namespace application.Controllers
                         LastMessage = m?.Message ?? "",
                         LastSenderNumber = m?.SenderNumber ?? 0,
                         LastMessageAt = m == null ? "" : Iso(m.StoreAt),
-                        LastIsRead = m?.IsRead ?? true,
+                        LastStatus = lastStatus,
+                        LastIsRead = lastStatus == ChatMessageStatus.Read,
                         UnreadCount = r.Unread
                     };
                 }).ToList();
@@ -179,7 +236,9 @@ namespace application.Controllers
         {
             try
             {
-                if (!TryGetMe(out int me)) return StatusCode(401);
+                int? meValue = await GetValidMeAsync();
+                if (!meValue.HasValue) return NotValidated();
+                int me = meValue.Value;
 
                 page = Math.Max(page, 1);
                 pageSize = Math.Clamp(pageSize, 1, 50);
@@ -234,7 +293,9 @@ namespace application.Controllers
         {
             try
             {
-                if (!TryGetMe(out int me)) return StatusCode(401);
+                int? meValue = await GetValidMeAsync();
+                if (!meValue.HasValue) return NotValidated();
+                int me = meValue.Value;
 
                 if (model == null || model.UserNumber <= 0 || model.UserNumber == me)
                     return StatusCode(400, "Invalid user.");
@@ -289,9 +350,11 @@ namespace application.Controllers
         }
 
         // =====================================================================
-        // NEW: send a message. Saves it, then pushes it live to the receiver
-        // and to the sender's other tabs. Returns the saved message.
-        //   400 invalid  403 blocked  404 receiver not found
+        // NEW: send a message. Saves it with its first status, then pushes it
+        // live to the receiver and to the sender's other tabs. Returns the
+        // saved message (with Status) so the sender shows the right tick.
+        //   400 invalid  403 receiver blocked  404 receiver not found
+        //   525 sender not valid
         // =====================================================================
         [Authorize(Policy = "RequireforAllRole")]
         [HttpPost]
@@ -300,7 +363,9 @@ namespace application.Controllers
         {
             try
             {
-                if (!TryGetMe(out int me)) return StatusCode(401);
+                int? meValue = await GetValidMeAsync();
+                if (!meValue.HasValue) return NotValidated();
+                int me = meValue.Value;
 
                 if (model == null || model.ReceiverNumber <= 0 || model.ReceiverNumber == me)
                     return StatusCode(400, "Invalid receiver.");
@@ -314,16 +379,10 @@ namespace application.Controllers
 
                 int receiverNumber = model.ReceiverNumber;
 
-                var users = await Database.UserInfos.AsNoTracking()
-                    .Where(u => u.UserNumber == me || u.UserNumber == receiverNumber)
+                var receiver = await Database.UserInfos.AsNoTracking()
+                    .Where(u => u.UserNumber == receiverNumber)
                     .Select(u => new { u.UserNumber, u.LoginAccess })
-                    .ToListAsync();
-
-                var sender = users.FirstOrDefault(u => u.UserNumber == me);
-                var receiver = users.FirstOrDefault(u => u.UserNumber == receiverNumber);
-
-                if (sender == null || sender.LoginAccess == false)
-                    return StatusCode(403, "Your account cannot send messages.");
+                    .FirstOrDefaultAsync();
 
                 if (receiver == null)
                     return StatusCode(404, "The receiver was not found.");
@@ -331,17 +390,51 @@ namespace application.Controllers
                 if (receiver.LoginAccess == false)
                     return StatusCode(403, "The receiver's account is blocked.");
 
+                DateTime now = DateTime.UtcNow;
+                int firstStatus = StatusFor(receiverNumber, me);
+
                 var chat = new ChatInfoModel
                 {
                     Message = text,
                     SenderNumber = me,
                     ReceiverNumber = receiverNumber,
-                    StoreAt = DateTime.UtcNow,
-                    IsRead = false
+                    StoreAt = now,
+                    Status = firstStatus,
+                    DeliveredAt = firstStatus >= ChatMessageStatus.Delivered ? now : (DateTime?)null,
+                    ReadAt = firstStatus >= ChatMessageStatus.Read ? now : (DateTime?)null
                 };
 
                 Database.ChatInfos.Add(chat);
                 await Database.SaveChangesAsync();
+
+                // The receiver may have connected or opened this chat while the
+                // message was being saved. Check once more and only move the
+                // status forward, never backward.
+                int finalStatus = StatusFor(receiverNumber, me);
+
+
+                if (finalStatus > chat.Status)
+                {
+                    DateTime later = DateTime.UtcNow;
+                    DateTime? laterValue = later;
+                    DateTime? readAt = finalStatus >= ChatMessageStatus.Read ? later : (DateTime?)null;
+
+                    int changed = await Database.ChatInfos
+                        .Where(x => x.ChatId == chat.ChatId && x.Status < finalStatus)
+                        .ExecuteUpdateAsync(s => s
+                            .SetProperty(x => x.Status, finalStatus)
+                            .SetProperty(x => x.DeliveredAt, x => x.DeliveredAt ?? laterValue)
+                            .SetProperty(x => x.ReadAt, x => x.ReadAt ?? readAt));
+
+                    if (changed > 0)
+                    {
+                        chat.Status = finalStatus;
+                        chat.DeliveredAt ??= later;
+                        chat.ReadAt ??= readAt;
+                    }
+                }
+
+
 
                 var payload = MessagePayload(chat, clientId);
 
@@ -368,7 +461,9 @@ namespace application.Controllers
         }
 
         // =====================================================================
-        // NEW: mark everything from one person as read + tell both sides
+        // NEW: mark everything from one person as read + tell both sides.
+        // The hub's OpenChat does the same over SignalR; this REST call is the
+        // fallback when SignalR is not connected.
         // =====================================================================
         [Authorize(Policy = "RequireforAllRole")]
         [HttpPost]
@@ -377,31 +472,46 @@ namespace application.Controllers
         {
             try
             {
-                if (!TryGetMe(out int me)) return StatusCode(401);
+                int? meValue = await GetValidMeAsync();
+                if (!meValue.HasValue) return NotValidated();
+                int me = meValue.Value;
 
                 if (model == null || model.UserNumber <= 0 || model.UserNumber == me)
                     return StatusCode(400, "Invalid user.");
 
                 int other = model.UserNumber;
 
+                DateTime now = DateTime.UtcNow;
+                DateTime? nowValue = now;
+
                 // Needs EF Core 7 or newer.
                 int updated = await Database.ChatInfos
-                    .Where(x => x.SenderNumber == other && x.ReceiverNumber == me && !x.IsRead)
+                    .Where(x => x.SenderNumber == other &&
+                                x.ReceiverNumber == me &&
+                                x.Status < ChatMessageStatus.Read)
                     .ExecuteUpdateAsync(s => s
-                        .SetProperty(x => x.IsRead, true)
-                        .SetProperty(x => x.ReadAt, DateTime.UtcNow));
+                        .SetProperty(x => x.Status, ChatMessageStatus.Read)
+                        .SetProperty(x => x.DeliveredAt, x => x.DeliveredAt ?? nowValue)
+                        .SetProperty(x => x.ReadAt, nowValue));
+
+
+
 
                 if (updated > 0)
                 {
                     try
                     {
-                        // Read ticks for the sender.
+                        // Blue ticks for the sender (same event as the hub's OpenChat).
                         await _hub.Clients.Group(ChatHub.UserGroup(other))
-                            .SendAsync("MessagesRead", new { ReaderNumber = me, Count = updated });
+                            .SendAsync("ConversationRead", new
+                            {
+                                ReaderNumber = me,
+                                ReadAt = now
+                            });
 
                         // Clears the unread badge in my other tabs / devices.
                         await _hub.Clients.Group(ChatHub.UserGroup(me))
-                            .SendAsync("ConversationRead", new { UserNumber = other });
+                            .SendAsync("UnreadCleared", new { UserNumber = other });
                     }
                     catch (Exception)
                     {
@@ -417,7 +527,8 @@ namespace application.Controllers
         }
 
         // =====================================================================
-        // NEW: total unread for me (home screen chat icon)
+        // NEW: total unread for me (home screen chat icon).
+        // Unread = not Read yet (Sent or Delivered).
         // =====================================================================
         [Authorize(Policy = "RequireforAllRole")]
         [HttpGet]
@@ -426,10 +537,13 @@ namespace application.Controllers
         {
             try
             {
-                if (!TryGetMe(out int me)) return StatusCode(401);
+                int? meValue = await GetValidMeAsync();
+                if (!meValue.HasValue) return NotValidated();
+                int me = meValue.Value;
 
                 var unread = Database.ChatInfos.AsNoTracking()
-                    .Where(x => x.ReceiverNumber == me && !x.IsRead);
+                    .Where(x => x.ReceiverNumber == me &&
+                                x.Status < ChatMessageStatus.Read);
 
                 int total = await unread.CountAsync();
                 int people = await unread.Select(x => x.SenderNumber).Distinct().CountAsync();
@@ -443,7 +557,7 @@ namespace application.Controllers
         }
 
         // =====================================================================
-        // OLD (unchanged)
+        // OLD (same behavior, only the user check now returns 525)
         // =====================================================================
         [HttpPost]
         [Authorize(Policy = "RequireforAllRole")]
@@ -452,28 +566,9 @@ namespace application.Controllers
         {
             try
             {
-                // Get current user's number from JWT
-                var CurrentUserNumberClaim = User.FindFirst(
-                    System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-
-                if (string.IsNullOrWhiteSpace(CurrentUserNumberClaim) ||
-                    !int.TryParse(CurrentUserNumberClaim, out int CurrentUserNumber))
-                {
-                    return StatusCode(506);
-                }
-
-                var CurrentUserNumberData = await Database.UserInfos
-                .FirstOrDefaultAsync(x => x.UserNumber == CurrentUserNumber);
-
-                if (CurrentUserNumberData == null)
-                {
-                    return StatusCode(510, "Current user  not found");
-                }
-
-                if (CurrentUserNumberData.LoginAccess == false)
-                {
-                    return StatusCode(511, "Current user have been blocked by System.Contact to KaamMitra community.");
-                }
+                int? meValue = await GetValidMeAsync();
+                if (!meValue.HasValue) return NotValidated();
+                int CurrentUserNumber = meValue.Value;
 
                 var ChatMessages = await Database.ChatInfos
                    .Where(x =>
@@ -497,34 +592,16 @@ namespace application.Controllers
         {
             try
             {
-                // Get current user's number from JWT
-                var CurrentUserNumberClaim = User.FindFirst(
-                    System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-
-                if (string.IsNullOrWhiteSpace(CurrentUserNumberClaim) ||
-                    !int.TryParse(CurrentUserNumberClaim, out int CurrentUserNumber))
-                {
-                    return StatusCode(506);
-                }
+                int? meValue = await GetValidMeAsync();
+                if (!meValue.HasValue) return NotValidated();
+                int CurrentUserNumber = meValue.Value;
 
                 // Validate other user number
-                if (model.UserNumber <= 0 ||
+                if (model == null ||
+                    model.UserNumber <= 0 ||
                     model.UserNumber == CurrentUserNumber)
                 {
                     return StatusCode(507);
-                }
-
-                var CurrentUserNumberData = await Database.UserInfos
-                .FirstOrDefaultAsync(x => x.UserNumber == CurrentUserNumber);
-
-                if (CurrentUserNumberData == null)
-                {
-                    return StatusCode(510, "Current user  not found");
-                }
-
-                if (CurrentUserNumberData.LoginAccess == false)
-                {
-                    return StatusCode(511, "Current user have been blocked by System.Contact to KaamMitra community.");
                 }
 
                 var OtherUserNumber = model.UserNumber;

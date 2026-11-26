@@ -10,6 +10,7 @@ import 'package:velocity_x/velocity_x.dart';
 import '../../constant/Server_Database.dart';
 import '../../constant/variable.dart';
 import '../../models/AdvertisementInfoModel.dart';
+import '../../models/NoticeUserModel.dart';
 import '../authentication/Login.dart';
 import '../common method/Commmon_Method.dart';
 import '../communi_services/services.dart';
@@ -175,6 +176,83 @@ class _HomeScreenUiState extends State<HomeScreenUi>
 
 
 
+  List<NoticeUserModel> ServiceNoticeInfoList=[];
+
+  Future<int> GetServiceNotice({
+    required String jwtToken,
+    required BuildContext context,
+    required int ProviderNumber,
+    required int ProviderServiceId,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${Backend_Server_Url}api/Service/getnoticeuser'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $jwtToken',
+        },
+        body: jsonEncode({
+          'ProviderNumber': ProviderNumber,
+          'ProviderServiceId': ProviderServiceId,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> Data = jsonDecode(response.body);
+
+        ServiceNoticeInfoList = Data
+            .map((item) => NoticeUserModel.fromJson(item))
+            .toList();
+
+        Toast.Toastmsg('Notice info get success.');
+
+        return 1;
+      } else if (response.statusCode == 400) {
+        Toast.Toastmsg('Invalid notice request.');
+        return 2;
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
+        Toast.Toastmsg("Unauthorized. Please log in again.");
+        await Logout(context: context);
+        return 3;
+      } else if (response.statusCode == 506) {
+        Toast.Toastmsg("Unauthorized. Please log in again.");
+        await Logout(context: context);
+        return 3;
+      } else if (response.statusCode == 507) {
+        Toast.Toastmsg('Invalid provider or service information.');
+        return 4;
+      } else if (response.statusCode == 510) {
+        Toast.Toastmsg('Your account could not be found.');
+        return 5;
+      } else if (response.statusCode == 511) {
+        Toast.Toastmsg('Your account has been blocked.');
+        await Logout(context: context);
+        return 3;
+      } else if (response.statusCode == 512) {
+        Toast.Toastmsg('Provider account not found.');
+        return 6;
+      } else if (response.statusCode == 513) {
+        Toast.Toastmsg('This provider account has been blocked.');
+        return 7;
+      } else if (response.statusCode == 514) {
+        Toast.Toastmsg('Provider service not found.');
+        return 8;
+      } else if (response.statusCode == 500) {
+        Toast.Toastmsg('Server error. Please try again later.');
+        return 9;
+      } else {
+        Toast.Toastmsg('Something went wrong. Please try again.');
+        return 0;
+      }
+    } catch (e) {
+      Toast.Toastmsg('Unable to connect to the server.');
+      return 0;
+    }
+  }
+
+
+
+
 
   // ------------------------------------------------------------
   // COLORS
@@ -230,7 +308,25 @@ class _HomeScreenUiState extends State<HomeScreenUi>
                               print(e.toString());
                             }
                           },
-                          child: const Text("Test Get Footer & Advertisement"),
+                          child: const Text("Test Advertisement"),
+                        ),
+
+                        SizedBox(height: 10,),
+                        SizedBox(height: 10,),
+
+                        ElevatedButton(
+                          onPressed: () async {
+                            try {
+
+                              int result=await GetServiceNotice(jwtToken: widget.User_JwtToken, context: context, ProviderNumber: 2, ProviderServiceId:1);
+
+
+
+                            } catch (e) {
+                              print(e.toString());
+                            }
+                          },
+                          child: const Text("Test service notice"),
                         ),
 
                         SizedBox(height: 10,),
@@ -300,43 +396,6 @@ class _HomeScreenUiState extends State<HomeScreenUi>
                   if (!widget.UserLogin) _buildLoginNotice(),
 
                   if (!widget.UserLogin) const SizedBox(height: 24),
-
-                  ElevatedButton(onPressed: ()async{
-                    try{
-
-                      int Result=await AddChatStatus(JwtToken: widget.User_JwtToken, MessageReceiverNumber: 5, context: context);
-
-                    }catch(obj){
-                      print(obj.toString());
-                      return;
-                    }
-
-                  }, child: Text("Add new msg status.")),
-
-                  ElevatedButton(onPressed: ()async{
-                    try{
-
-                      int Result=await UpdateChatStatus(JwtToken: widget.User_JwtToken, MessageReceiverNumber: 5, context: context);
-
-                    }catch(obj){
-                      print(obj.toString());
-                      return;
-                    }
-
-                  }, child: Text("Update msg status.")),
-
-                  ElevatedButton(onPressed: ()async{
-                    try{
-
-                      int Result=await GetNewMsgStatus(JwtToken: widget.User_JwtToken, context: context);
-
-                    }catch(obj){
-                      print(obj.toString());
-                      return;
-                    }
-
-                  }, child: Text("Get msg status.")),
-
 
                   // WELCOME / HERO
 

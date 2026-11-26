@@ -27,3 +27,6 @@ wwwroot\uploads\booking\video\d16ecb9ef27748d1b56552ddc8158ac8.mp4
 wwwroot\uploads\booking\file\88b12d22b6ec4464b88f238208425faf.pdf
 wwwroot\uploads\booking\video\56dd2d1c9a3f4053a3873f54aceb2a29.mp4
 wwwroot\uploads\media\photos\93f53ec511e64788a09c93ba743379c3.png
+wwwroot\uploads\profile\79417f04f6e74abba2c6274cde6d9d4b.png
+wwwroot\uploads\profile\2c52a20f6ed3467fbb6fdf1132bbd509.jpg
+wwwroot\uploads\service-documents\fa66163f2d0f4b4fbb07b3d182ad1a44.pdf
